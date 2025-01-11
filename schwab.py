@@ -158,9 +158,9 @@ class ReportGenerator:
 
     @staticmethod
     def _format_record(record: DividendRecord) -> Dict:
-        gross_usd = round(record.gross_amount, 3)
-        tax_usd = round(record.tax, 3)
-        net_usd = round(gross_usd - tax_usd, 3)
+        gross_usd = round(record.gross_amount, 2)
+        tax_usd = round(record.tax, 2)
+        net_usd = round(gross_usd - tax_usd, 2)
         
         gross_jpy = round(record.gross_amount * record.exchange_rate)
         tax_jpy = round(record.tax * record.exchange_rate)
@@ -215,9 +215,9 @@ class ReportGenerator:
         print("\n=== アカウント別集計 ===")
         for account, summary in account_summary.items():
             print(f"\nアカウント: {account}")
-            print(f"配当金合計: ${summary['dividend_usd']:,.3f} (¥{int(summary['dividend_jpy']):,})")
-            print(f"利子合計: ${summary['interest_usd']:,.3f} (¥{int(summary['interest_jpy']):,})")
-            print(f"源泉徴収合計: ${summary['tax_usd']:,.3f} (¥{int(summary['tax_jpy']):,})")
+            print(f"配当金合計: ${summary['dividend_usd']:,.2f} (¥{int(summary['dividend_jpy']):,})")
+            print(f"利子合計: ${summary['interest_usd']:,.2f} (¥{int(summary['interest_jpy']):,})")
+            print(f"源泉徴収合計: ${summary['tax_usd']:,.2f} (¥{int(summary['tax_jpy']):,})")
             net_usd = summary['dividend_usd'] + summary['interest_usd'] - summary['tax_usd']
             net_jpy = summary['dividend_jpy'] + summary['interest_jpy'] - summary['tax_jpy']
             print(f"手取り合計: ${net_usd:,.3f} (¥{int(net_jpy):,})")
@@ -234,12 +234,12 @@ class ReportGenerator:
         }
         
         print("\n=== 総合計 ===")
-        print(f"配当金合計: ${totals['dividend_usd']:,.3f} (¥{int(totals['dividend_jpy']):,})")
-        print(f"利子合計: ${totals['interest_usd']:,.3f} (¥{int(totals['interest_jpy']):,})")
-        print(f"源泉徴収合計: ${totals['tax_usd']:,.3f} (¥{int(totals['tax_jpy']):,})")
+        print(f"配当金合計: ${totals['dividend_usd']:,.2f} (¥{int(totals['dividend_jpy']):,})")
+        print(f"利子合計: ${totals['interest_usd']:,.2f} (¥{int(totals['interest_jpy']):,})")
+        print(f"源泉徴収合計: ${totals['tax_usd']:,.2f} (¥{int(totals['tax_jpy']):,})")
         net_usd = totals['dividend_usd'] + totals['interest_usd'] - totals['tax_usd']
         net_jpy = totals['dividend_jpy'] + totals['interest_jpy'] - totals['tax_jpy']
-        print(f"手取り合計: ${net_usd:,.3f} (¥{int(net_jpy):,})")
+        print(f"手取り合計: ${net_usd:,.2f} (¥{int(net_jpy):,})")
 
 def main():
     try:
