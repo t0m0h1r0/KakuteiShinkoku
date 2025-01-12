@@ -1,17 +1,20 @@
-# src/processors/exchange_rate.py
+from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
 import csv
 import logging
-from pathlib import Path
-from datetime import datetime
-from ..utils.constants import DEFAULT_EXCHANGE_RATE, DATE_FORMAT, CSV_ENCODING
+
+from ..constants import DEFAULT_EXCHANGE_RATE, DATE_FORMAT, CSV_ENCODING
 
 class ExchangeRateManager:
+    """為替レートの管理を行うクラス"""
+    
     def __init__(self, filename: str = 'HistoricalPrices.csv'):
         self.rates: Dict[str, Decimal] = {}
         self._load_rates(filename)
 
     def _load_rates(self, filename: str) -> None:
+        """為替レートファイルを読み込む"""
         try:
             with Path(filename).open('r', encoding=CSV_ENCODING) as f:
                 reader = csv.DictReader(f)
@@ -26,10 +29,12 @@ class ExchangeRateManager:
 
     @staticmethod
     def _normalize_date(date_str: str) -> str:
+        """日付文字列を標準形式に変換"""
         month, day, year = date_str.split('/')
         return f"{month}/{day}/{'20' + year if len(year) == 2 else year}"
 
     def get_rate(self, date: str) -> Decimal:
+        """指定日付の為替レートを取得"""
         if not self.rates:
             return DEFAULT_EXCHANGE_RATE
 
@@ -44,4 +49,3 @@ class ExchangeRateManager:
 
         previous_dates = [d for d in dated_rates.keys() if d <= target_date]
         return dated_rates[max(previous_dates)] if previous_dates else list(self.rates.values())[0]
-

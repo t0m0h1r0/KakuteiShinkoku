@@ -1,17 +1,20 @@
-# src/writers/csv_detail.py
+from typing import List, Dict
 from pathlib import Path
 import csv
-from typing import Dict, List
 from decimal import Decimal
+
+from ..constants import CSV_ENCODING
+from ..models.dividend import DividendRecord
 from .base import ReportWriter
-from ..models.data_models import DividendRecord
-from ..utils.constants import CSV_ENCODING
 
 class CSVReportWriter(ReportWriter):
+    """CSV形式でレポートを出力するクラス"""
+
     def __init__(self, filename: str):
         self.filename = filename
 
     def write(self, records: List[DividendRecord]) -> None:
+        """CSVファイルにレポートを出力"""
         fieldnames = [
             'date', 'account', 'symbol', 'description', 'type',
             'gross_amount_usd', 'tax_usd', 'net_amount_usd',
@@ -27,6 +30,7 @@ class CSVReportWriter(ReportWriter):
 
     @staticmethod
     def _format_record(record: DividendRecord) -> Dict:
+        """配当記録をCSV出力用に整形"""
         return {
             'date': record.date,
             'account': record.account,
@@ -42,4 +46,3 @@ class CSVReportWriter(ReportWriter):
             'net_amount_jpy': record.net_amount_jpy,
             'reinvested': 'Yes' if record.reinvested else 'No'
         }
-
