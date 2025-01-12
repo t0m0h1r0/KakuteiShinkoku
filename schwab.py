@@ -92,8 +92,6 @@ class ExchangeRateManager:
         previous_dates = [d for d in dated_rates.keys() if d <= target_date]
         return dated_rates[max(previous_dates)] if previous_dates else list(self.rates.values())[0]
 
-# ... 前半部分は同じ ...
-
 class TransactionProcessor:
     """取引データの処理を行うクラス"""
 
@@ -306,8 +304,6 @@ class ConsoleReportWriter(ReportWriter):
         net_usd = summary['dividend_usd'] + summary['interest_usd'] - summary['tax_usd']
         net_jpy = summary['dividend_jpy'] + summary['interest_jpy'] - summary['tax_jpy']
         print(f"手取り合計: ${net_usd:,.2f} (¥{int(net_jpy):,})")
-
-# ... 前半部分は同じ ...
 
 class SymbolSummaryWriter(ReportWriter):
     """シンボル別サマリーをCSV形式で出力するクラス"""
