@@ -48,6 +48,8 @@ class DividendRecord:
 
 class ExchangeRateManager:
     """為替レートの管理を行うクラス"""
+    """WSJのデータを使用"""
+    """https://www.wsj.com/market-data/quotes/fx/USDJPY/historical-prices"""
     
     def __init__(self, filename: str = 'HistoricalPrices.csv'):
         self.rates: Dict[str, Decimal] = {}
