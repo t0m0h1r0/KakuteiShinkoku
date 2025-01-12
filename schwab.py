@@ -2,22 +2,30 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Iterator
 import csv
 import json
 import logging
+from abc import ABC, abstractmethod
 
-@dataclass
+# Constants
+DEFAULT_EXCHANGE_RATE = Decimal('150.0')
+DATE_FORMAT = '%m/%d/%Y'
+CSV_ENCODING = 'utf-8'
+
+@dataclass(frozen=True)
 class Transaction:
+    """取引情報を表すイミュータブルなデータクラス"""
     date: str
     account: str
     symbol: str
     description: str
     amount: Decimal
     action: str
-    
-@dataclass
+
+@dataclass(frozen=True)
 class DividendRecord:
+    """配当に関する記録を表すイミュータブルなデータクラス"""
     date: str
     account: str
     symbol: str
@@ -28,80 +36,112 @@ class DividendRecord:
     exchange_rate: Decimal
     reinvested: bool
 
+    @property
+    def net_amount_usd(self) -> Decimal:
+        """米ドルでの手取り額を計算"""
+        return round(self.gross_amount - self.tax, 2)
+
+    @property
+    def net_amount_jpy(self) -> Decimal:
+        """日本円での手取り額を計算"""
+        return round((self.gross_amount - self.tax) * self.exchange_rate)
+
 class ExchangeRateManager:
+    """為替レートの管理を行うクラス"""
+    
     def __init__(self, filename: str = 'HistoricalPrices.csv'):
         self.rates: Dict[str, Decimal] = {}
         self._load_rates(filename)
 
     def _load_rates(self, filename: str) -> None:
+        """為替レートファイルを読み込む"""
         try:
-            with open(filename, 'r', encoding='utf-8') as f:
+            with Path(filename).open('r', encoding=CSV_ENCODING) as f:
                 reader = csv.DictReader(f)
-                for row in reader:
-                    date_str = self._normalize_date(row['Date'].strip())
-                    self.rates[date_str] = Decimal(row[' Close'])
+                self.rates = {
+                    self._normalize_date(row['Date'].strip()): Decimal(row[' Close'])
+                    for row in reader
+                }
         except FileNotFoundError:
             logging.warning(f"為替レートファイル {filename} が見つかりません")
         except Exception as e:
             logging.error(f"為替レートファイルの読み込み中にエラー: {e}")
 
-    def _normalize_date(self, date_str: str) -> str:
-        parts = date_str.split('/')
-        if len(parts[2]) == 2:
-            parts[2] = f"20{parts[2]}"
-        return '/'.join(parts)
+    @staticmethod
+    def _normalize_date(date_str: str) -> str:
+        """日付文字列を標準形式に変換"""
+        month, day, year = date_str.split('/')
+        return f"{month}/{day}/{'20' + year if len(year) == 2 else year}"
 
     def get_rate(self, date: str) -> Decimal:
+        """指定日付の為替レートを取得"""
         if not self.rates:
-            return Decimal('150.0')
-            
+            return DEFAULT_EXCHANGE_RATE
+
         if date in self.rates:
             return self.rates[date]
-            
-        target_date = datetime.strptime(date, '%m/%d/%Y')
+
+        target_date = datetime.strptime(date, DATE_FORMAT)
         dated_rates = {
-            datetime.strptime(d, '%m/%d/%Y'): r 
+            datetime.strptime(d, DATE_FORMAT): r 
             for d, r in self.rates.items()
         }
-        
+
         previous_dates = [d for d in dated_rates.keys() if d <= target_date]
-        if not previous_dates:
-            return Decimal(str(list(self.rates.values())[0]))
-            
-        return dated_rates[max(previous_dates)]
+        return dated_rates[max(previous_dates)] if previous_dates else list(self.rates.values())[0]
 
 class TransactionProcessor:
+    """取引データの処理を行うクラス"""
+
+    DIVIDEND_ACTIONS = {
+        'Qualified Dividend', 'Cash Dividend', 'Reinvest Dividend',
+        'Credit Interest', 'Bond Interest', 'Pr Yr Cash Div', 'Bank Interest'
+    }
+    TAX_ACTIONS = {'NRA Tax Adj', 'Pr Yr NRA Tax'}
+
     def __init__(self, exchange_rate_manager: ExchangeRateManager):
         self.exchange_rate_manager = exchange_rate_manager
 
     def load_transactions(self, filename: Path) -> List[Transaction]:
+        """JSONファイルから取引データを読み込む"""
         try:
-            with open(filename, 'r', encoding='utf-8') as f:
+            with filename.open('r', encoding=CSV_ENCODING) as f:
                 data = json.load(f)
-                account = filename.stem
                 return [
-                    Transaction(
-                        date=trans['Date'].split(' as of ')[0],
-                        account=account,
-                        symbol=trans['Symbol'],
-                        description=trans['Description'],
-                        amount=Decimal(trans['Amount'].replace('$', '').replace(',', '')) if trans['Amount'] else Decimal('0'),
-                        action=trans['Action']
-                    )
+                    self._create_transaction(trans, filename.stem)
                     for trans in data['BrokerageTransactions']
                 ]
         except Exception as e:
             logging.error(f"ファイル {filename} の読み込み中にエラー: {e}")
             return []
 
+    def _create_transaction(self, trans_data: Dict, account: str) -> Transaction:
+        """取引データからTransactionオブジェクトを作成"""
+        return Transaction(
+            date=trans_data['Date'].split(' as of ')[0],
+            account=account,
+            symbol=trans_data['Symbol'],
+            description=trans_data['Description'],
+            amount=self._parse_amount(trans_data['Amount']),
+            action=trans_data['Action']
+        )
+
+    @staticmethod
+    def _parse_amount(amount_str: Optional[str]) -> Decimal:
+        """金額文字列をDecimal型に変換"""
+        if not amount_str:
+            return Decimal('0')
+        return Decimal(amount_str.replace('$', '').replace(',', ''))
+
     def process_transactions(self, transactions: List[Transaction]) -> List[DividendRecord]:
+        """取引データを処理し配当記録を生成"""
         temp_records: Dict[Tuple[str, str, str], DividendRecord] = {}
         
         for trans in transactions:
             if not self._is_relevant_transaction(trans):
                 continue
-                
-            key = (trans.date, trans.symbol if trans.symbol else trans.description, trans.account)
+
+            key = (trans.date, trans.symbol or trans.description, trans.account)
             
             if key not in temp_records:
                 temp_records[key] = self._create_dividend_record(trans)
@@ -110,16 +150,16 @@ class TransactionProcessor:
         
         return sorted(
             [r for r in temp_records.values() if r.gross_amount > 0 or r.tax > 0],
-            key=lambda x: datetime.strptime(x.date, '%m/%d/%Y')
+            key=lambda x: datetime.strptime(x.date, DATE_FORMAT)
         )
 
     def _is_relevant_transaction(self, trans: Transaction) -> bool:
-        return trans.action in [
-            'Qualified Dividend', 'Cash Dividend', 'Reinvest Dividend',
-            'Credit Interest', 'Bond Interest', 'Pr Yr Cash Div', 'Bank Interest'
-        ] or (trans.action in ['NRA Tax Adj', 'Pr Yr NRA Tax'] and trans.amount < 0)
+        """処理対象となる取引かどうかを判定"""
+        return (trans.action in self.DIVIDEND_ACTIONS or
+                (trans.action in self.TAX_ACTIONS and trans.amount < 0))
 
     def _create_dividend_record(self, trans: Transaction) -> DividendRecord:
+        """配当記録を新規作成"""
         return DividendRecord(
             date=trans.date,
             account=trans.account,
@@ -133,16 +173,30 @@ class TransactionProcessor:
         )
 
     def _update_record(self, record: DividendRecord, trans: Transaction) -> None:
-        if trans.action in ['NRA Tax Adj', 'Pr Yr NRA Tax']:
+        """配当記録を更新"""
+        if trans.action in self.TAX_ACTIONS:
             record.tax = abs(trans.amount)
         else:
             record.gross_amount = trans.amount
             if trans.action == 'Reinvest Dividend':
                 record.reinvested = True
 
-class ReportGenerator:
-    @staticmethod
-    def generate_csv(records: List[DividendRecord], filename: str) -> None:
+class ReportWriter(ABC):
+    """レポート出力の基底クラス"""
+    
+    @abstractmethod
+    def write(self, records: List[DividendRecord]) -> None:
+        """レポートを出力する"""
+        pass
+
+class CSVReportWriter(ReportWriter):
+    """CSV形式でレポートを出力するクラス"""
+
+    def __init__(self, filename: str):
+        self.filename = filename
+
+    def write(self, records: List[DividendRecord]) -> None:
+        """CSVファイルにレポートを出力"""
         fieldnames = [
             'date', 'account', 'symbol', 'description', 'type',
             'gross_amount_usd', 'tax_usd', 'net_amount_usd',
@@ -150,186 +204,121 @@ class ReportGenerator:
             'reinvested'
         ]
         
-        with open(filename, 'w', newline='', encoding='utf-8') as f:
+        with Path(self.filename).open('w', newline='', encoding=CSV_ENCODING) as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             for record in records:
-                writer.writerow(ReportGenerator._format_record(record))
+                writer.writerow(self._format_record(record))
 
     @staticmethod
     def _format_record(record: DividendRecord) -> Dict:
-        gross_usd = round(record.gross_amount, 2)
-        tax_usd = round(record.tax, 2)
-        net_usd = round(gross_usd - tax_usd, 2)
-        
-        gross_jpy = round(record.gross_amount * record.exchange_rate)
-        tax_jpy = round(record.tax * record.exchange_rate)
-        net_jpy = round(gross_jpy - tax_jpy)
-        
+        """配当記録をCSV出力用に整形"""
         return {
             'date': record.date,
             'account': record.account,
             'symbol': record.symbol,
             'description': record.description,
             'type': record.type,
-            'gross_amount_usd': gross_usd,
-            'tax_usd': tax_usd,
-            'net_amount_usd': net_usd,
+            'gross_amount_usd': round(record.gross_amount, 2),
+            'tax_usd': round(record.tax, 2),
+            'net_amount_usd': record.net_amount_usd,
             'exchange_rate': record.exchange_rate,
-            'gross_amount_jpy': gross_jpy,
-            'tax_jpy': tax_jpy,
-            'net_amount_jpy': net_jpy,
+            'gross_amount_jpy': round(record.gross_amount * record.exchange_rate),
+            'tax_jpy': round(record.tax * record.exchange_rate),
+            'net_amount_jpy': record.net_amount_jpy,
             'reinvested': 'Yes' if record.reinvested else 'No'
         }
 
-    @staticmethod
-    def print_summary(records: List[DividendRecord]) -> None:
-        account_summary = {}
-        
+class ConsoleReportWriter(ReportWriter):
+    """コンソールにレポートを出力するクラス"""
+
+    def write(self, records: List[DividendRecord]) -> None:
+        """アカウント別サマリーと総合計を出力"""
+        account_summary = self._create_account_summary(records)
+        self._print_account_summaries(account_summary)
+        self._print_total_summary(account_summary)
+
+    def _create_account_summary(self, records: List[DividendRecord]) -> Dict:
+        """アカウント別の集計を作成"""
+        summary = {}
         for record in records:
-            if record.account not in account_summary:
-                account_summary[record.account] = {
-                    'dividend_usd': Decimal('0'),
-                    'interest_usd': Decimal('0'),
-                    'tax_usd': Decimal('0'),
-                    'dividend_jpy': Decimal('0'),
-                    'interest_jpy': Decimal('0'),
-                    'tax_jpy': Decimal('0')
-                }
+            if record.account not in summary:
+                summary[record.account] = self._create_empty_summary()
             
-            summary = account_summary[record.account]
-            if record.type == 'Dividend':
-                summary['dividend_usd'] += record.gross_amount
-                summary['dividend_jpy'] += record.gross_amount * record.exchange_rate
-            else:
-                summary['interest_usd'] += record.gross_amount
-                summary['interest_jpy'] += record.gross_amount * record.exchange_rate
-            summary['tax_usd'] += record.tax
-            summary['tax_jpy'] += record.tax * record.exchange_rate
-
-        ReportGenerator._print_account_summaries(account_summary)
-        ReportGenerator._print_total_summary(account_summary)
+            self._update_summary(summary[record.account], record)
+        return summary
 
     @staticmethod
-    def _print_account_summaries(account_summary: Dict) -> None:
+    def _create_empty_summary() -> Dict:
+        """新しい集計辞書を作成"""
+        return {
+            'dividend_usd': Decimal('0'),
+            'interest_usd': Decimal('0'),
+            'tax_usd': Decimal('0'),
+            'dividend_jpy': Decimal('0'),
+            'interest_jpy': Decimal('0'),
+            'tax_jpy': Decimal('0')
+        }
+
+    @staticmethod
+    def _update_summary(summary: Dict, record: DividendRecord) -> None:
+        """集計を更新"""
+        if record.type == 'Dividend':
+            summary['dividend_usd'] += record.gross_amount
+            summary['dividend_jpy'] += record.gross_amount * record.exchange_rate
+        else:
+            summary['interest_usd'] += record.gross_amount
+            summary['interest_jpy'] += record.gross_amount * record.exchange_rate
+        summary['tax_usd'] += record.tax
+        summary['tax_jpy'] += record.tax * record.exchange_rate
+
+    def _print_account_summaries(self, account_summary: Dict) -> None:
+        """アカウント別の集計を出力"""
         print("\n=== アカウント別集計 ===")
         for account, summary in account_summary.items():
             print(f"\nアカウント: {account}")
-            print(f"配当金合計: ${summary['dividend_usd']:,.2f} (¥{int(summary['dividend_jpy']):,})")
-            print(f"利子合計: ${summary['interest_usd']:,.2f} (¥{int(summary['interest_jpy']):,})")
-            print(f"源泉徴収合計: ${summary['tax_usd']:,.2f} (¥{int(summary['tax_jpy']):,})")
-            net_usd = summary['dividend_usd'] + summary['interest_usd'] - summary['tax_usd']
-            net_jpy = summary['dividend_jpy'] + summary['interest_jpy'] - summary['tax_jpy']
-            print(f"手取り合計: ${net_usd:,.3f} (¥{int(net_jpy):,})")
+            self._print_summary_details(summary)
 
-    @staticmethod
-    def _print_total_summary(account_summary: Dict) -> None:
+    def _print_total_summary(self, account_summary: Dict) -> None:
+        """総合計を出力"""
         totals = {
-            'dividend_usd': sum(s['dividend_usd'] for s in account_summary.values()),
-            'interest_usd': sum(s['interest_usd'] for s in account_summary.values()),
-            'tax_usd': sum(s['tax_usd'] for s in account_summary.values()),
-            'dividend_jpy': sum(s['dividend_jpy'] for s in account_summary.values()),
-            'interest_jpy': sum(s['interest_jpy'] for s in account_summary.values()),
-            'tax_jpy': sum(s['tax_jpy'] for s in account_summary.values())
+            key: sum(s[key] for s in account_summary.values())
+            for key in self._create_empty_summary().keys()
         }
         
         print("\n=== 総合計 ===")
-        print(f"配当金合計: ${totals['dividend_usd']:,.2f} (¥{int(totals['dividend_jpy']):,})")
-        print(f"利子合計: ${totals['interest_usd']:,.2f} (¥{int(totals['interest_jpy']):,})")
-        print(f"源泉徴収合計: ${totals['tax_usd']:,.2f} (¥{int(totals['tax_jpy']):,})")
-        net_usd = totals['dividend_usd'] + totals['interest_usd'] - totals['tax_usd']
-        net_jpy = totals['dividend_jpy'] + totals['interest_jpy'] - totals['tax_jpy']
-        print(f"手取り合計: ${net_usd:,.2f} (¥{int(net_jpy):,})")
+        self._print_summary_details(totals)
 
     @staticmethod
-    def generate_symbol_summary_csv(records: List[DividendRecord], filename: str) -> None:
-        # シンボルごとの集計を行う辞書
-        symbol_summary = {}
+    def _print_summary_details(summary: Dict) -> None:
+        """集計の詳細を出力"""
+        print(f"配当金合計: ${summary['dividend_usd']:,.2f} (¥{int(summary['dividend_jpy']):,})")
+        print(f"利子合計: ${summary['interest_usd']:,.2f} (¥{int(summary['interest_jpy']):,})")
+        print(f"源泉徴収合計: ${summary['tax_usd']:,.2f} (¥{int(summary['tax_jpy']):,})")
         
-        for record in records:
-            # シンボルがない場合は説明文を使用
-            symbol_key = record.symbol if record.symbol else record.description
-            
-            if symbol_key not in symbol_summary:
-                symbol_summary[symbol_key] = {
-                    'symbol': symbol_key,
-                    'description': record.description,
-                    'type': record.type,
-                    'dividend_usd': Decimal('0'),
-                    'interest_usd': Decimal('0'),
-                    'tax_usd': Decimal('0'),
-                    'dividend_jpy': Decimal('0'),
-                    'interest_jpy': Decimal('0'),
-                    'tax_jpy': Decimal('0'),
-                    'transaction_count': 0
-                }
-            
-            summary = symbol_summary[symbol_key]
-            summary['transaction_count'] += 1
-            
-            if record.type == 'Dividend':
-                summary['dividend_usd'] += record.gross_amount
-                summary['dividend_jpy'] += record.gross_amount * record.exchange_rate
-            else:
-                summary['interest_usd'] += record.gross_amount
-                summary['interest_jpy'] += record.gross_amount * record.exchange_rate
-            
-            summary['tax_usd'] += record.tax
-            summary['tax_jpy'] += record.tax * record.exchange_rate
-        
-        # 集計結果をCSVに出力
-        fieldnames = [
-            'symbol', 'description', 'type',
-            'gross_amount_usd', 'tax_usd', 'net_amount_usd',
-            'gross_amount_jpy', 'tax_jpy', 'net_amount_jpy',
-            'transaction_count'
-        ]
-        
-        with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            
-            # 総額の大きい順にソート
-            sorted_symbols = sorted(
-                symbol_summary.values(),
-                key=lambda x: x['dividend_usd'] + x['interest_usd'],
-                reverse=True
-            )
-            
-            for summary in sorted_symbols:
-                gross_usd = summary['dividend_usd'] + summary['interest_usd']
-                tax_usd = summary['tax_usd']
-                net_usd = gross_usd - tax_usd
-                
-                gross_jpy = summary['dividend_jpy'] + summary['interest_jpy']
-                tax_jpy = summary['tax_jpy']
-                net_jpy = gross_jpy - tax_jpy
-                
-                writer.writerow({
-                    'symbol': summary['symbol'],
-                    'description': summary['description'],
-                    'type': summary['type'],
-                    'gross_amount_usd': round(gross_usd, 2),
-                    'tax_usd': round(tax_usd, 2),
-                    'net_amount_usd': round(net_usd, 2),
-                    'gross_amount_jpy': round(gross_jpy),
-                    'tax_jpy': round(tax_jpy),
-                    'net_amount_jpy': round(net_jpy),
-                    'transaction_count': summary['transaction_count']
-                })
+        net_usd = summary['dividend_usd'] + summary['interest_usd'] - summary['tax_usd']
+        net_jpy = summary['dividend_jpy'] + summary['interest_jpy'] - summary['tax_jpy']
+        print(f"手取り合計: ${net_usd:,.2f} (¥{int(net_jpy):,})")
 
 def main():
+    """メイン処理"""
     try:
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
         
+        # 初期化
         exchange_rate_manager = ExchangeRateManager()
         processor = TransactionProcessor(exchange_rate_manager)
         
+        # JSONファイルの処理
         json_files = list(Path('.').glob('*.json'))
         if not json_files:
             logging.error("処理対象のJSONファイルが見つかりません")
             return
         
+        # 取引データの読み込みと処理
         all_transactions = []
         for file in json_files:
             logging.info(f"ファイル {file} を処理中...")
@@ -338,19 +327,16 @@ def main():
         
         dividend_records = processor.process_transactions(all_transactions)
         
-        # 詳細な取引履歴のCSV出力
-        detail_filename = 'dividend_tax_history.csv'
-        ReportGenerator.generate_csv(dividend_records, detail_filename)
+        # レポート出力
+        csv_writer = CSVReportWriter('dividend_tax_history.csv')
+        csv_writer.write(dividend_records)
         
-        # シンボル別サマリーのCSV出力
-        summary_filename = 'dividend_tax_summary_by_symbol.csv'
-        ReportGenerator.generate_symbol_summary_csv(dividend_records, summary_filename)
+        console_writer = ConsoleReportWriter()
+        console_writer.write(dividend_records)
         
+        # 処理結果の表示
         logging.info(f"\n{len(json_files)}個のファイルから{len(dividend_records)}件のレコードを処理しました")
-        logging.info(f"取引履歴は {detail_filename} に出力されました")
-        logging.info(f"シンボル別集計は {summary_filename} に出力されました")
-        
-        ReportGenerator.print_summary(dividend_records)
+        logging.info("取引履歴は dividend_tax_history.csv に出力されました")
         
     except Exception as e:
         logging.error(f"エラーが発生しました: {e}")
