@@ -7,7 +7,7 @@ from ..constants import CSV_ENCODING
 from ..models.dividend import DividendRecord
 from .base import ReportWriter
 
-class CSVReportWriter(ReportWriter):
+class DividendReportWriter(ReportWriter):
     """CSV形式でレポートを出力するクラス"""
 
     def __init__(self, filename: str):

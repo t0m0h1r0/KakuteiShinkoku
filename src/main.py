@@ -3,7 +3,7 @@ import logging
 
 from .processors.exchange_rate import ExchangeRateManager
 from .processors.transaction import TransactionProcessor
-from .writers.csv_report import CSVReportWriter
+from .writers.dividend_report import DividendReportWriter
 from .writers.console import ConsoleReportWriter
 from .writers.symbol_summary import SymbolSummaryWriter
 
@@ -48,7 +48,7 @@ def main():
         
         # レポート出力の設定
         writers = [
-            CSVReportWriter(OUTPUT_DIR / 'dividend_tax_history.csv'),
+            DividendReportWriter(OUTPUT_DIR / 'dividend_tax_history.csv'),
             SymbolSummaryWriter(OUTPUT_DIR / 'dividend_tax_summary_by_symbol.csv'),
             ConsoleReportWriter()
         ]
