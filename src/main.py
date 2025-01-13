@@ -7,6 +7,14 @@ from .writers.csv_report import CSVReportWriter
 from .writers.console import ConsoleReportWriter
 from .writers.symbol_summary import SymbolSummaryWriter
 
+# Directory constants
+INPUT_DIR = Path('data')
+OUTPUT_DIR = Path('output')
+
+def ensure_output_directory():
+    """出力ディレクトリが存在しない場合は作成する"""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
 def main():
     """メイン処理"""
     try:
@@ -16,12 +24,15 @@ def main():
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
         
+        # 出力ディレクトリの確認・作成
+        ensure_output_directory()
+        
         # 初期化
-        exchange_rate_manager = ExchangeRateManager('data/HistoricalPrices.csv')
+        exchange_rate_manager = ExchangeRateManager(INPUT_DIR / 'HistoricalPrices.csv')
         processor = TransactionProcessor(exchange_rate_manager)
         
         # JSONファイルの処理
-        json_files = list(Path('data/').glob('*.json'))
+        json_files = list(INPUT_DIR.glob('*.json'))
         if not json_files:
             logging.error("処理対象のJSONファイルが見つかりません")
             return
@@ -37,8 +48,8 @@ def main():
         
         # レポート出力の設定
         writers = [
-            CSVReportWriter('output/dividend_tax_history.csv'),
-            SymbolSummaryWriter('output/dividend_tax_summary_by_symbol.csv'),
+            CSVReportWriter(OUTPUT_DIR / 'dividend_tax_history.csv'),
+            SymbolSummaryWriter(OUTPUT_DIR / 'dividend_tax_summary_by_symbol.csv'),
             ConsoleReportWriter()
         ]
         
