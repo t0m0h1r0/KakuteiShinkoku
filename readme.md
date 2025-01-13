@@ -47,7 +47,7 @@ mkdir -p data
    ├── data/
    │   └── HistoricalPrices.csv  # WSJからダウンロードしたデータ
    ├── src/
-   │   └── schwab/
+   │   └── models/
    └── ...
    ```
    - 為替レートファイルがない場合は、デフォルトレート（150円）が使用されます
@@ -55,7 +55,7 @@ mkdir -p data
 3. プログラムの実行：
 
 ```bash
-python -m schwab.main
+python -m src.main
 ```
 
 
@@ -95,7 +95,7 @@ python -m schwab.main
 ### プロジェクト構造
 
 ```
-schwab/
+src/
 ├── __init__.py
 ├── main.py
 ├── constants.py
@@ -110,7 +110,7 @@ schwab/
     ├── __init__.py
     ├── base.py
     ├── console.py
-    ├── csv_report.py
+    ├── divident_report.py
     └── symbol_summary.py
 ```
 
