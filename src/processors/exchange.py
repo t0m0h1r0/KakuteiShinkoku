@@ -3,27 +3,31 @@ from decimal import Decimal
 from pathlib import Path
 import csv
 import logging
+from typing import Dict
 
-from ..constants import DEFAULT_EXCHANGE_RATE, DATE_FORMAT, CSV_ENCODING
+from ..config import (
+    CSV_ENCODING, DEFAULT_EXCHANGE_RATE,
+    DATE_FORMAT, EXCHANGE_RATES_DIR
+)
 
 class ExchangeRateManager:
     """為替レートの管理を行うクラス"""
     
     def __init__(self, filename: str = 'HistoricalPrices.csv'):
         self.rates: Dict[str, Decimal] = {}
-        self._load_rates(filename)
+        self._load_rates(EXCHANGE_RATES_DIR / filename)
 
-    def _load_rates(self, filename: str) -> None:
+    def _load_rates(self, filepath: Path) -> None:
         """為替レートファイルを読み込む"""
         try:
-            with Path(filename).open('r', encoding=CSV_ENCODING) as f:
+            with filepath.open('r', encoding=CSV_ENCODING) as f:
                 reader = csv.DictReader(f)
                 self.rates = {
                     self._normalize_date(row['Date'].strip()): Decimal(row[' Close'])
                     for row in reader
                 }
         except FileNotFoundError:
-            logging.warning(f"為替レートファイル {filename} が見つかりません")
+            logging.warning(f"為替レートファイル {filepath} が見つかりません")
         except Exception as e:
             logging.error(f"為替レートファイルの読み込み中にエラー: {e}")
 

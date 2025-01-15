@@ -1,17 +1,17 @@
-from typing import List, Dict
 from decimal import Decimal
 from pathlib import Path
+from typing import Dict, List
 import csv
 
-from ..constants import CSV_ENCODING
-from ..models.dividend import DividendRecord
+from ..config import CSV_ENCODING, OUTPUT_DIR
+from ..models.records import DividendRecord
 from .base import ReportWriter
 
 class SymbolSummaryWriter(ReportWriter):
     """シンボル別サマリーをCSV形式で出力するクラス"""
     
     def __init__(self, filename: str):
-        self.filename = filename
+        self.filepath = OUTPUT_DIR / filename
 
     def write(self, records: List[DividendRecord]) -> None:
         """シンボル別サマリーをCSVファイルに出力"""
@@ -68,7 +68,7 @@ class SymbolSummaryWriter(ReportWriter):
             'transaction_count'
         ]
         
-        with Path(self.filename).open('w', newline='', encoding=CSV_ENCODING) as f:
+        with self.filepath.open('w', newline='', encoding=CSV_ENCODING) as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             

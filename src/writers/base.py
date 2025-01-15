@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
-from ..models.dividend import DividendRecord
+from ..models.records import DividendRecord
 
 class ReportWriter(ABC):
     """レポート出力の基底クラス"""

@@ -1,41 +1,4 @@
-from decimal import Decimal
-from typing import Dict, List
-
-from ..models.records import DividendRecord
-from .base import ReportWriter
-
-class ConsoleReportWriter(ReportWriter):
-    """コンソールにレポートを出力するクラス"""
-
-    def write(self, records: List[DividendRecord]) -> None:
-        """アカウント別サマリーと総合計を出力"""
-        account_summary = self._create_account_summary(records)
-        self._print_account_summaries(account_summary)
-        self._print_total_summary(account_summary)
-
-    def _create_account_summary(self, records: List[DividendRecord]) -> Dict:
-        """アカウント別の集計を作成"""
-        summary = {}
-        for record in records:
-            if record.account not in summary:
-                summary[record.account] = self._create_empty_summary()
-            
-            self._update_summary(summary[record.account], record)
-        return summary
-
-    @staticmethod
-    def _create_empty_summary() -> Dict:
-        """新しい集計辞書を作成"""
-        return {
-            'dividend_usd': Decimal('0'),
-            'interest_usd': Decimal('0'),
-            'tax_usd': Decimal('0'),
-            'dividend_jpy': Decimal('0'),
-            'interest_jpy': Decimal('0'),
-            'tax_jpy': Decimal('0')
-        }
-
-    @staticmethod
+@staticmethod
     def _update_summary(summary: Dict, record: DividendRecord) -> None:
         """集計を更新"""
         if record.type == 'Dividend':

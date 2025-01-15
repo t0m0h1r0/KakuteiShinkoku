@@ -1,17 +1,21 @@
-src/
-├── __init__.py
-├── models/
+schwab/
+├── data/                  # 入力データディレクトリ
+│   └── exchange_rates/    # 為替レートデータ
+├── output/                # 出力ディレクトリ
+├── src/                   # ソースコード
 │   ├── __init__.py
-│   └── dividend.py
-├── processors/
-│   ├── __init__.py
-│   ├── exchange_rate.py
-│   └── transaction.py
-├── writers/
-│   ├── __init__.py
-│   ├── base.py
-│   ├── console.py
-│   ├── csv_report.py
-│   └── symbol_summary.py
-├── constants.py
-└── main.py
+│   ├── models/           # データモデル
+│   │   ├── __init__.py
+│   │   └── records.py
+│   ├── processors/       # データ処理
+│   │   ├── __init__.py
+│   │   ├── exchange.py
+│   │   └── transaction.py
+│   ├── writers/         # レポート出力
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── dividend.py
+│   │   ├── console.py
+│   │   └── symbol.py
+│   └── config.py        # 設定
+└── main.py              # エントリーポイント
