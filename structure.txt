@@ -1,0 +1,26 @@
+src/
+  ├── core/
+  │   ├── __init__.py
+  │   ├── interfaces.py
+  │   └── models.py
+  ├── config/
+  │   ├── __init__.py
+  │   ├── settings.py
+  │   ├── constants.py
+  │   └── action_types.py
+  ├── processors/
+  │   ├── __init__.py
+  │   ├── base.py
+  │   ├── dividend.py
+  │   ├── cd.py
+  │   └── trade.py
+  ├── writers/
+  │   ├── __init__.py
+  │   ├── base.py
+  │   ├── csv.py
+  │   └── console.py
+  ├── utils/
+  │   ├── __init__.py
+  │   ├── exchange_rates.py
+  │   └── date_utils.py
+  └── main.py
