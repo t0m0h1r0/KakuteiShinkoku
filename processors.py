@@ -1,11 +1,16 @@
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Set
 import json
 import logging
+import re
 
-from config import CSV_ENCODING, DIVIDEND_ACTIONS, TAX_ACTIONS, DATE_FORMAT
+from config import (
+    CSV_ENCODING, DIVIDEND_ACTIONS, TAX_ACTIONS, DATE_FORMAT,
+    CD_MATURITY_ACTION, CD_ADJUSTMENT_ACTION, CD_INTEREST_ACTION,
+    CD_PURCHASE_KEYWORDS, CD_MATURED_KEYWORD
+)
 from models import Transaction, DividendRecord
 from exchange_rates import ExchangeRateManager
 
@@ -33,7 +38,7 @@ class TransactionProcessor:
         return Transaction(
             date=trans_data['Date'].split(' as of ')[0],
             account=account,
-            symbol=trans_data['Symbol'],
+            symbol=trans_data.get('Symbol', ''),
             description=trans_data['Description'],
             amount=self._parse_amount(trans_data['Amount']),
             action=trans_data['Action']
@@ -66,7 +71,8 @@ class TransactionProcessor:
                     'gross_amount': Decimal('0'),
                     'tax': Decimal('0'),
                     'exchange_rate': self.exchange_rate_manager.get_rate(trans.date),
-                    'reinvested': False
+                    'reinvested': False,
+                    'principal': Decimal('0')
                 }
             
             self._update_record_dict(record_dict[key], trans)
@@ -96,3 +102,64 @@ class TransactionProcessor:
             record_data['gross_amount'] = trans.amount
             if trans.action == 'Reinvest Dividend':
                 record_data['reinvested'] = True
+
+
+class CDProcessor:
+    """CD取引データの処理を行うクラス"""
+
+    def __init__(self, exchange_rate_manager: ExchangeRateManager):
+        self.exchange_rate_manager = exchange_rate_manager
+        self._cd_records: Dict[str, DividendRecord] = {}
+        self._principals: Dict[str, Decimal] = {}  # CDのシンボルごとの元本を保存
+
+    def process_transaction(self, trans: Transaction) -> None:
+        """CD取引を処理"""
+        if self._is_cd_purchase(trans):
+            self._process_cd_purchase(trans)
+        elif trans.action == CD_INTEREST_ACTION:
+            self._process_cd_interest(trans)
+
+    def get_interest_records(self) -> List[DividendRecord]:
+        """処理済みのCD取引から利子記録を生成"""
+        return sorted(
+            self._cd_records.values(),
+            key=lambda x: datetime.strptime(x.date, DATE_FORMAT)
+        )
+
+    def _is_cd_purchase(self, trans: Transaction) -> bool:
+        """CD購入取引かどうかを判定"""
+        return (trans.amount < 0 and
+                any(keyword in trans.description 
+                    for keyword in CD_PURCHASE_KEYWORDS))
+
+    def _process_cd_purchase(self, trans: Transaction) -> None:
+        """CD購入取引を処理"""
+        try:
+            self._principals[trans.symbol] = abs(trans.amount)
+            logging.info(f"CD purchase recorded: {trans.symbol}, Principal: {abs(trans.amount)}")
+        except Exception as e:
+            logging.error(f"CD購入取引の処理中にエラー: {e}, 取引: {trans}")
+
+    def _process_cd_interest(self, trans: Transaction) -> None:
+        """CD利子取引を処理"""
+        try:
+            principal = self._principals.get(trans.symbol, Decimal('0'))
+            
+            record = DividendRecord(
+                date=trans.date,
+                account=trans.account,
+                symbol=trans.symbol,
+                description=trans.description,
+                type='CD Interest',
+                gross_amount=trans.amount,
+                tax=Decimal('0'),
+                exchange_rate=self.exchange_rate_manager.get_rate(trans.date),
+                reinvested=False,
+                principal=principal
+            )
+            
+            self._cd_records[trans.symbol] = record
+            logging.info(f"CD interest recorded: {trans.symbol}, Interest: {trans.amount}")
+
+        except Exception as e:
+            logging.error(f"CD利子取引の処理中にエラー: {e}, 取引: {trans}")

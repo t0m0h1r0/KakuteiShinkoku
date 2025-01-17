@@ -13,7 +13,7 @@ class Transaction:
 
 @dataclass(frozen=True)
 class DividendRecord:
-    """配当に関する記録を表すイミュータブルなデータクラス"""
+    """投資収入に関する記録を表すイミュータブルなデータクラス"""
     date: str
     account: str
     symbol: str
@@ -23,6 +23,7 @@ class DividendRecord:
     tax: Decimal
     exchange_rate: Decimal
     reinvested: bool
+    principal: Decimal = Decimal('0')  # CD元本用
 
     @property
     def net_amount_usd(self) -> Decimal:
@@ -33,3 +34,13 @@ class DividendRecord:
     def net_amount_jpy(self) -> Decimal:
         """日本円での手取り額を計算"""
         return round((self.gross_amount - self.tax) * self.exchange_rate)
+        
+    @property
+    def gross_amount_jpy(self) -> Decimal:
+        """日本円での総額を計算"""
+        return round(self.gross_amount * self.exchange_rate)
+
+    @property
+    def tax_jpy(self) -> Decimal:
+        """日本円での税額を計算"""
+        return round(self.tax * self.exchange_rate)
