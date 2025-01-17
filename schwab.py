@@ -51,7 +51,7 @@ class ExchangeRateManager:
     """WSJのデータを使用"""
     """https://www.wsj.com/market-data/quotes/fx/USDJPY/historical-prices"""
     
-    def __init__(self, filename: str = 'HistoricalPrices.csv'):
+    def __init__(self, filename: str = 'data/HistoricalPrices.csv'):
         self.rates: Dict[str, Decimal] = {}
         self._load_rates(filename)
 
@@ -405,7 +405,7 @@ def main():
         processor = TransactionProcessor(exchange_rate_manager)
         
         # JSONファイルの処理
-        json_files = list(Path('.').glob('*.json'))
+        json_files = list(Path('data/').glob('*.json'))
         if not json_files:
             logging.error("処理対象のJSONファイルが見つかりません")
             return
@@ -420,8 +420,8 @@ def main():
         dividend_records = processor.process_transactions(all_transactions)
         
         # レポート出力
-        detail_filename = 'dividend_tax_history.csv'
-        summary_filename = 'dividend_tax_summary_by_symbol.csv'
+        detail_filename = 'output/dividend_tax_history.csv'
+        summary_filename = 'output/dividend_tax_summary_by_symbol.csv'
         
         csv_writer = CSVReportWriter(detail_filename)
         csv_writer.write(dividend_records)

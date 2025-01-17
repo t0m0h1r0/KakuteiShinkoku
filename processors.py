@@ -5,9 +5,9 @@ from typing import Dict, List, Optional, Tuple
 import json
 import logging
 
-from ..config import CSV_ENCODING, DIVIDEND_ACTIONS, TAX_ACTIONS, DATE_FORMAT
-from ..models.records import Transaction, DividendRecord
-from .exchange import ExchangeRateManager
+from config import CSV_ENCODING, DIVIDEND_ACTIONS, TAX_ACTIONS, DATE_FORMAT
+from models import Transaction, DividendRecord
+from exchange_rates import ExchangeRateManager
 
 class TransactionProcessor:
     """取引データの処理を行うクラス"""
@@ -82,7 +82,8 @@ class TransactionProcessor:
             key=lambda x: datetime.strptime(x.date, DATE_FORMAT)
         )
 
-    def _is_relevant_transaction(self, trans: Transaction) -> bool:
+    @staticmethod
+    def _is_relevant_transaction(trans: Transaction) -> bool:
         """処理対象となる取引かどうかを判定"""
         return (trans.action in DIVIDEND_ACTIONS or
                 (trans.action in TAX_ACTIONS and trans.amount < 0))
