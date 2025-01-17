@@ -4,6 +4,12 @@ from datetime import date
 from typing import Optional
 
 @dataclass(frozen=True)
+class Money:
+    """金額を表すイミュータブルなデータクラス"""
+    amount: Decimal
+    currency: str = 'USD'
+
+@dataclass(frozen=True)
 class Transaction:
     """取引情報を表すイミュータブルなデータクラス"""
     transaction_date: date
@@ -15,12 +21,6 @@ class Transaction:
     quantity: Optional[Decimal] = None
     price: Optional[Decimal] = None
     fees: Optional[Decimal] = None
-
-@dataclass(frozen=True)
-class Money:
-    """金額を表すイミュータブルなデータクラス"""
-    amount: Decimal
-    currency: str = 'USD'
 
 @dataclass(frozen=True)
 class DividendRecord:
@@ -64,7 +64,7 @@ class DividendRecord:
             (self.gross_amount.amount - self.tax_amount.amount) * self.exchange_rate,
             'JPY'
         )
-    
+
 @dataclass(frozen=True)
 class Position:
     """ポジション情報を表すイミュータブルなデータクラス"""
@@ -96,3 +96,35 @@ class TradeRecord:
     proceeds: Money
     exchange_rate: Decimal
     holding_period_days: Optional[int] = None
+
+    @property
+    def cost_basis_jpy(self) -> Money:
+        """日本円での取得価額"""
+        return Money(
+            self.cost_basis.amount * self.exchange_rate,
+            'JPY'
+        )
+
+    @property
+    def proceeds_jpy(self) -> Money:
+        """日本円での売却額"""
+        return Money(
+            self.proceeds.amount * self.exchange_rate,
+            'JPY'
+        )
+
+    @property
+    def realized_gain_jpy(self) -> Money:
+        """日本円での実現損益"""
+        return Money(
+            self.realized_gain.amount * self.exchange_rate,
+            'JPY'
+        )
+
+    @property
+    def fees_jpy(self) -> Money:
+        """日本円での手数料"""
+        return Money(
+            self.fees.amount * self.exchange_rate,
+            'JPY'
+        )

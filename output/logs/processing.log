@@ -55,3 +55,195 @@ Processing Summary:
 2025-01-18 06:48:27,832 - __main__ - INFO - - CD interest records: 0
 2025-01-18 06:48:27,832 - __main__ - INFO - - Trade records: 0
 2025-01-18 06:48:27,832 - __main__ - INFO - Output files generated in: /Users/tomohiro/Downloads/KakuteiShinkoku/output
+2025-01-18 06:53:22,809 - root - ERROR - Application error: name 'logging' is not defined
+Traceback (most recent call last):
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 196, in main
+    context = ApplicationContext()
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 35, in __init__
+    self.position_manager = PositionManager()
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/processors/trade.py", line 18, in __init__
+    self._logger = logging.getLogger(self.__class__.__name__)
+NameError: name 'logging' is not defined
+2025-01-18 06:54:02,396 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-213409.json
+2025-01-18 06:54:02,401 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
+2025-01-18 06:54:02,401 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
+2025-01-18 06:54:02,401 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
+2025-01-18 06:54:02,401 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
+2025-01-18 06:54:02,401 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
+2025-01-18 06:54:02,401 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
+2025-01-18 06:54:02,401 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
+2025-01-18 06:54:02,402 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
+2025-01-18 06:54:02,402 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
+2025-01-18 06:54:02,402 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
+2025-01-18 06:54:02,402 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
+2025-01-18 06:54:02,403 - PositionManager - WARNING - No position found for U
+2025-01-18 06:54:02,403 - __main__ - ERROR - Processing error: 'TradeRecord' object has no attribute 'record_date'
+Traceback (most recent call last):
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 119, in process_files
+    trade_records = self._generate_trade_records(all_transactions)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 165, in _generate_trade_records
+    return self.context.trade_processor.get_records()
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/processors/base.py", line 46, in get_records
+    return sorted(self.records, key=lambda x: x.record_date)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/processors/base.py", line 46, in <lambda>
+    return sorted(self.records, key=lambda x: x.record_date)
+AttributeError: 'TradeRecord' object has no attribute 'record_date'
+2025-01-18 06:54:15,217 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-213409.json
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
+2025-01-18 06:54:15,222 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
+2025-01-18 06:54:15,223 - PositionManager - WARNING - No position found for U
+2025-01-18 06:54:15,224 - __main__ - ERROR - Processing error: 'TradeRecord' object has no attribute 'record_date'
+Traceback (most recent call last):
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 119, in process_files
+    trade_records = self._generate_trade_records(all_transactions)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 165, in _generate_trade_records
+    return self.context.trade_processor.get_records()
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/processors/base.py", line 46, in get_records
+    return sorted(self.records, key=lambda x: x.record_date)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/processors/base.py", line 46, in <lambda>
+    return sorted(self.records, key=lambda x: x.record_date)
+AttributeError: 'TradeRecord' object has no attribute 'record_date'
+2025-01-18 06:55:36,141 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-213409.json
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
+2025-01-18 06:55:36,146 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
+2025-01-18 06:55:36,147 - PositionManager - WARNING - No position found for U
+2025-01-18 06:55:36,152 - __main__ - ERROR - Processing error: CSV writing error: 'TradeRecord' object has no attribute 'record_date'
+Traceback (most recent call last):
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 30, in write
+    for record in sorted(records, key=lambda x: x.record_date):
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 30, in <lambda>
+    for record in sorted(records, key=lambda x: x.record_date):
+AttributeError: 'TradeRecord' object has no attribute 'record_date'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 122, in process_files
+    self._write_reports(dividend_records, cd_records, trade_records)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 177, in _write_reports
+    self.context.writers['trade_history'].write(trade_records)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 33, in write
+    raise WriterError(f"CSV writing error: {e}")
+src.writers.base.WriterError: CSV writing error: 'TradeRecord' object has no attribute 'record_date'
+2025-01-18 06:59:05,909 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-213409.json
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
+2025-01-18 06:59:05,915 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
+2025-01-18 06:59:05,916 - PositionManager - WARNING - No position found for U
+2025-01-18 06:59:05,919 - __main__ - ERROR - Processing error: CSV writing error: name 're' is not defined
+Traceback (most recent call last):
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 101, in write
+    summary_records = self._aggregate_records(records)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 134, in _aggregate_records
+    base_description = self._normalize_description(record.description)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 197, in _normalize_description
+    normalized = re.sub(pattern, '', normalized)
+NameError: name 're' is not defined
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 122, in process_files
+    self._write_reports(dividend_records, cd_records, trade_records)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 176, in _write_reports
+    self.context.writers['dividend_summary'].write(all_income_records)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 107, in write
+    raise WriterError(f"CSV writing error: {e}")
+src.writers.base.WriterError: CSV writing error: name 're' is not defined
+2025-01-18 06:59:51,197 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-213409.json
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
+2025-01-18 06:59:51,203 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
+2025-01-18 06:59:51,204 - PositionManager - WARNING - No position found for U
+2025-01-18 06:59:51,208 - __main__ - ERROR - Processing error: CSV writing error: 'TradeRecord' object has no attribute 'cost_basis_jpy'
+Traceback (most recent call last):
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 32, in write
+    writer.writerow(self._format_record(record))
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 75, in _format_record
+    'cost_basis_jpy': self._format_money(record.cost_basis_jpy, 0),
+AttributeError: 'TradeRecord' object has no attribute 'cost_basis_jpy'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 122, in process_files
+    self._write_reports(dividend_records, cd_records, trade_records)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 177, in _write_reports
+    self.context.writers['trade_history'].write(trade_records)
+  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 34, in write
+    raise WriterError(f"CSV writing error: {e}")
+src.writers.base.WriterError: CSV writing error: 'TradeRecord' object has no attribute 'cost_basis_jpy'
+2025-01-18 07:01:06,827 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-213409.json
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
+2025-01-18 07:01:06,833 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
+2025-01-18 07:01:06,834 - PositionManager - WARNING - No position found for U
+2025-01-18 07:01:06,840 - __main__ - INFO - 
+Processing Summary:
+2025-01-18 07:01:06,840 - __main__ - INFO - - Files processed: 1
+2025-01-18 07:01:06,840 - __main__ - INFO - - Dividend records: 80
+2025-01-18 07:01:06,840 - __main__ - INFO - - CD interest records: 0
+2025-01-18 07:01:06,840 - __main__ - INFO - - Trade records: 50
+2025-01-18 07:01:06,840 - __main__ - INFO - Output files generated in: /Users/tomohiro/Downloads/KakuteiShinkoku/output
+2025-01-18 07:01:11,333 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-213409.json
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
+2025-01-18 07:01:11,338 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
+2025-01-18 07:01:11,339 - PositionManager - WARNING - No position found for U
+2025-01-18 07:01:11,345 - __main__ - INFO - 
+Processing Summary:
+2025-01-18 07:01:11,345 - __main__ - INFO - - Files processed: 1
+2025-01-18 07:01:11,345 - __main__ - INFO - - Dividend records: 80
+2025-01-18 07:01:11,345 - __main__ - INFO - - CD interest records: 0
+2025-01-18 07:01:11,345 - __main__ - INFO - - Trade records: 50
+2025-01-18 07:01:11,345 - __main__ - INFO - Output files generated in: /Users/tomohiro/Downloads/KakuteiShinkoku/output

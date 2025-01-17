@@ -43,7 +43,10 @@ class BaseProcessor(IProcessor, Generic[T]):
 
     def get_records(self) -> List[T]:
         """処理済みレコードを取得"""
-        return sorted(self.records, key=lambda x: x.record_date)
+        return sorted(
+            self.records, 
+            key=lambda x: getattr(x, 'record_date', getattr(x, 'trade_date', None))
+        )
 
     @abstractmethod
     def _is_target_transaction(self, transaction: Transaction) -> bool:
