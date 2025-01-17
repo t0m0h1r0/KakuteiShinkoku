@@ -4,10 +4,11 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Dict, List
 import csv
+import logging
+from datetime import datetime
 
-from config import CSV_ENCODING
-from models import DividendRecord
-
+from config import CSV_ENCODING, DATE_FORMAT
+from models import DividendRecord, TradeRecord
 
 class ReportWriter(ABC):
     """レポート出力の基底クラス"""
@@ -36,7 +37,7 @@ class CSVReportWriter(ReportWriter):
         with Path(self.filename).open('w', newline='', encoding=CSV_ENCODING) as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
-            for record in records:
+            for record in sorted(records, key=lambda x: datetime.strptime(x.date, DATE_FORMAT)):
                 writer.writerow(self._format_record(record))
 
     @staticmethod
@@ -220,4 +221,107 @@ class SymbolSummaryWriter(ReportWriter):
                     'tax_jpy': round(summary['tax_jpy']),
                     'net_amount_jpy': round(net_jpy),
                     'transaction_count': summary['transaction_count']
+                })
+
+
+class TradeReportWriter(ReportWriter):
+    """取引履歴をCSV形式で出力するクラス"""
+
+    def __init__(self, history_file: str, summary_file: str):
+        self.history_file = history_file
+        self.summary_file = summary_file
+
+    def write(self, records: List[TradeRecord]) -> None:
+        """取引履歴と取引サマリーを出力"""
+        self._write_history(records)
+        self._write_summary(records)
+    
+    def _write_history(self, records: List[TradeRecord]) -> None:
+        """取引履歴をCSVファイルに出力"""
+        fieldnames = [
+            'date', 'account', 'symbol', 'description', 'type', 'action',
+            'quantity', 'price', 'fees', 'cost_basis_usd', 'proceeds_usd',
+            'realized_gain_usd', 'exchange_rate', 'cost_basis_jpy',
+            'proceeds_jpy', 'realized_gain_jpy', 'holding_period'
+        ]
+        
+        with Path(self.history_file).open('w', newline='', encoding=CSV_ENCODING) as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for record in sorted(records, key=lambda x: datetime.strptime(x.date, DATE_FORMAT)):
+                writer.writerow({
+                    'date': record.date,
+                    'account': record.account,
+                    'symbol': record.symbol,
+                    'description': record.description,
+                    'type': record.type,
+                    'action': record.action,
+                    'quantity': record.quantity,
+                    'price': record.price,
+                    'fees': record.fees,
+                    'cost_basis_usd': round(record.cost_basis, 2),
+                    'proceeds_usd': round(record.proceeds, 2),
+                    'realized_gain_usd': round(record.realized_gain, 2),
+                    'exchange_rate': record.exchange_rate,
+                    'cost_basis_jpy': round(record.cost_basis_jpy),
+                    'proceeds_jpy': round(record.proceeds_jpy),
+                    'realized_gain_jpy': round(record.realized_gain_jpy),
+                    'holding_period': record.holding_period or ''
+                })
+
+    def _write_summary(self, records: List[TradeRecord]) -> None:
+        """銘柄別サマリーをCSVファイルに出力"""
+        summary: Dict[str, Dict] = {}
+        
+        for record in records:
+            key = record.symbol.split()[0]  # オプションの場合は原資産のシンボルを使用
+            
+            if key not in summary:
+                summary[key] = {
+                    'symbol': key,
+                    'stock_count': 0,
+                    'stock_gain_usd': Decimal('0'),
+                    'stock_gain_jpy': Decimal('0'),
+                    'option_count': 0,
+                    'option_gain_usd': Decimal('0'),
+                    'option_gain_jpy': Decimal('0'),
+                    'total_gain_usd': Decimal('0'),
+                    'total_gain_jpy': Decimal('0')
+                }
+            
+            s = summary[key]
+            if record.type in ['Stock', 'Stock Assignment']:
+                s['stock_count'] += 1
+                s['stock_gain_usd'] += record.realized_gain
+                s['stock_gain_jpy'] += record.realized_gain_jpy
+            else:  # Option or Option Premium
+                s['option_count'] += 1
+                s['option_gain_usd'] += record.realized_gain
+                s['option_gain_jpy'] += record.realized_gain_jpy
+            
+            s['total_gain_usd'] = s['stock_gain_usd'] + s['option_gain_usd']
+            s['total_gain_jpy'] = s['stock_gain_jpy'] + s['option_gain_jpy']
+        
+        # サマリーの出力
+        fieldnames = [
+            'symbol', 'stock_count', 'stock_gain_usd', 'stock_gain_jpy',
+            'option_count', 'option_gain_usd', 'option_gain_jpy',
+            'total_gain_usd', 'total_gain_jpy'
+        ]
+        
+        with Path(self.summary_file).open('w', newline='', encoding=CSV_ENCODING) as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for s in sorted(summary.values(), key=lambda x: x['total_gain_usd'], reverse=True):
+                writer.writerow({
+                    'symbol': s['symbol'],
+                    'stock_count': s['stock_count'],
+                    'stock_gain_usd': round(s['stock_gain_usd'], 2),
+                    'stock_gain_jpy': round(s['stock_gain_jpy']),
+                    'option_count': s['option_count'],
+                    'option_gain_usd': round(s['option_gain_usd'], 2),
+                    'option_gain_jpy': round(s['option_gain_jpy']),
+                    'total_gain_usd': round(s['total_gain_usd'], 2),
+                    'total_gain_jpy': round(s['total_gain_jpy'])
                 })
