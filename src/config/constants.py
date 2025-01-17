@@ -8,12 +8,9 @@ class TransactionType:
 
 # Income types
 class IncomeType:
-    DIVIDEND = 'dividend'
-    QUALIFIED_DIVIDEND = 'qualified_dividend'
-    INTEREST = 'interest'
-    CD_INTEREST = 'cd_interest'
-    BOND_INTEREST = 'bond_interest'
-
+    DIVIDEND = 'Dividend'
+    INTEREST = 'Interest'
+    
 # Option types
 class OptionType:
     CALL = 'C'

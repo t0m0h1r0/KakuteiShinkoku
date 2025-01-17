@@ -5,20 +5,25 @@ class ActionTypes:
     
     # Dividend related actions
     DIVIDEND_ACTIONS: FrozenSet[str] = frozenset({
+        'Reinvest Dividend',  # 実際のトランザクションの形式に合わせて追加
+        'Cash Dividend',      # 実際のトランザクションの形式に合わせて追加
         'QUALIFIED_DIVIDEND',
         'CASH_DIVIDEND',
         'REINVEST_DIVIDEND',
-        'Credit Interest',    # 修正
+        'Credit Interest',    
         'BOND_INTEREST',
         'PRIOR_YEAR_DIVIDEND',
-        'Bank Interest',      # 修正
-        'CD Interest'         # 修正
+        'Bank Interest',      
+        'CD Interest',
+        'Pr Yr Cash Div',    # 過去年度の配当も追加
+        'Bond Interest'      # 債券利息も追加
     })
 
     # Tax related actions
     TAX_ACTIONS: FrozenSet[str] = frozenset({
-        'NRA Tax Adj',       # 修正
-        'PRIOR_YEAR_NRA_TAX'
+        'NRA Tax Adj',       
+        'PRIOR_YEAR_NRA_TAX',
+        'Pr Yr NRA Tax'     # 過去年度の税金も追加
     })
 
     # Option related actions
@@ -39,10 +44,10 @@ class ActionTypes:
 
     # CD related actions
     CD_ACTIONS: FrozenSet[str] = frozenset({
-        'CD Deposit Funds',   # 修正
-        'CD Maturity',        # 修正
-        'CD Interest',        # 修正
-        'CD Deposit Adj'      # 修正
+        'CD Deposit Funds',   
+        'CD Maturity',        
+        'CD Interest',        
+        'CD Deposit Adj'      
     })
 
     @classmethod

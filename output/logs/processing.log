@@ -1,87 +1,57 @@
-2025-01-18 01:43:55,089 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-112052.json
-2025-01-18 01:43:55,090 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
-2025-01-18 01:43:55,090 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
-2025-01-18 01:43:55,091 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
-2025-01-18 01:43:55,091 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
-2025-01-18 01:43:55,091 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
-2025-01-18 01:43:55,091 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
-2025-01-18 01:43:55,091 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
-2025-01-18 01:43:55,091 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
-2025-01-18 01:43:55,091 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
-2025-01-18 01:43:55,091 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
-2025-01-18 01:43:55,091 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
-2025-01-18 01:43:55,092 - __main__ - INFO - 
+2025-01-18 06:34:35,675 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-213409.json
+2025-01-18 06:34:35,679 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
+2025-01-18 06:34:35,679 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
+2025-01-18 06:34:35,679 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
+2025-01-18 06:34:35,679 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
+2025-01-18 06:34:35,679 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
+2025-01-18 06:34:35,679 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
+2025-01-18 06:34:35,679 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
+2025-01-18 06:34:35,679 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
+2025-01-18 06:34:35,679 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
+2025-01-18 06:34:35,679 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
+2025-01-18 06:34:35,680 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
+2025-01-18 06:34:35,682 - __main__ - INFO - 
 Processing Summary:
-2025-01-18 01:43:55,092 - __main__ - INFO - - Files processed: 1
-2025-01-18 01:43:55,092 - __main__ - INFO - - Dividend records: 0
-2025-01-18 01:43:55,092 - __main__ - INFO - - CD interest records: 0
-2025-01-18 01:43:55,092 - __main__ - INFO - - Trade records: 0
-2025-01-18 01:43:55,092 - __main__ - INFO - Output files generated in: /Users/tomohiro/Downloads/KakuteiShinkoku/output
-2025-01-18 01:45:27,243 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-112052.json
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
-2025-01-18 01:45:27,245 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
-2025-01-18 01:45:27,246 - __main__ - INFO - 
+2025-01-18 06:34:35,682 - __main__ - INFO - - Files processed: 1
+2025-01-18 06:34:35,682 - __main__ - INFO - - Dividend records: 30
+2025-01-18 06:34:35,682 - __main__ - INFO - - CD interest records: 0
+2025-01-18 06:34:35,682 - __main__ - INFO - - Trade records: 0
+2025-01-18 06:34:35,682 - __main__ - INFO - Output files generated in: /Users/tomohiro/Downloads/KakuteiShinkoku/output
+2025-01-18 06:43:45,357 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-213409.json
+2025-01-18 06:43:45,362 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
+2025-01-18 06:43:45,362 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
+2025-01-18 06:43:45,362 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
+2025-01-18 06:43:45,363 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
+2025-01-18 06:43:45,363 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
+2025-01-18 06:43:45,363 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
+2025-01-18 06:43:45,363 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
+2025-01-18 06:43:45,363 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
+2025-01-18 06:43:45,363 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
+2025-01-18 06:43:45,363 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
+2025-01-18 06:43:45,363 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
+2025-01-18 06:43:45,365 - __main__ - INFO - 
 Processing Summary:
-2025-01-18 01:45:27,246 - __main__ - INFO - - Files processed: 1
-2025-01-18 01:45:27,246 - __main__ - INFO - - Dividend records: 0
-2025-01-18 01:45:27,246 - __main__ - INFO - - CD interest records: 0
-2025-01-18 01:45:27,246 - __main__ - INFO - - Trade records: 0
-2025-01-18 01:45:27,246 - __main__ - INFO - Output files generated in: /Users/tomohiro/Downloads/KakuteiShinkoku/output
-2025-01-18 01:47:34,356 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-112052.json
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
-2025-01-18 01:47:34,358 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
-2025-01-18 01:47:34,358 - __main__ - ERROR - Processing error: CSV writing error: 'DividendRecord' object has no attribute 'gross_amount_jpy'
-Traceback (most recent call last):
-  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 29, in write
-    writer.writerow(self._format_record(record))
-  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 62, in _format_record
-    'gross_amount_jpy': self._format_money(record.gross_amount_jpy, 0),
-AttributeError: 'DividendRecord' object has no attribute 'gross_amount_jpy'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 122, in process_files
-    self._write_reports(dividend_records, cd_records, trade_records)
-  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/main.py", line 175, in _write_reports
-    self.context.writers['dividend_history'].write(all_income_records)
-  File "/Users/tomohiro/Downloads/KakuteiShinkoku/src/writers/csv.py", line 31, in write
-    raise WriterError(f"CSV writing error: {e}")
-src.writers.base.WriterError: CSV writing error: 'DividendRecord' object has no attribute 'gross_amount_jpy'
-2025-01-18 01:49:16,393 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-112052.json
-2025-01-18 01:49:16,395 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
-2025-01-18 01:49:16,395 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
-2025-01-18 01:49:16,395 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
-2025-01-18 01:49:16,395 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
-2025-01-18 01:49:16,395 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
-2025-01-18 01:49:16,395 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
-2025-01-18 01:49:16,395 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
-2025-01-18 01:49:16,395 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
-2025-01-18 01:49:16,396 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
-2025-01-18 01:49:16,396 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
-2025-01-18 01:49:16,396 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
-2025-01-18 01:49:16,398 - __main__ - INFO - 
+2025-01-18 06:43:45,365 - __main__ - INFO - - Files processed: 1
+2025-01-18 06:43:45,365 - __main__ - INFO - - Dividend records: 31
+2025-01-18 06:43:45,365 - __main__ - INFO - - CD interest records: 0
+2025-01-18 06:43:45,365 - __main__ - INFO - - Trade records: 0
+2025-01-18 06:43:45,365 - __main__ - INFO - Output files generated in: /Users/tomohiro/Downloads/KakuteiShinkoku/output
+2025-01-18 06:48:27,822 - __main__ - INFO - Processing file: /Users/tomohiro/Downloads/KakuteiShinkoku/data/Schwab_Main_XXX989_Transactions_20250117-213409.json
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 80280JWK3, Principal: 10000.00
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 92937CLU0, Principal: 51000.00
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 710465KD6, Principal: 73000.00
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 27579TUX6, Principal: 3000.00
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 903285BE3, Principal: 7000.00
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 49306SK39, Principal: 3000.00
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 17801DGD2, Principal: 20000.00
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 60685BPW5, Principal: 36000.00
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 02007GK36, Principal: 5000.00
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 06187RAU6, Principal: 1000.00
+2025-01-18 06:48:27,827 - CDProcessor - INFO - Recorded CD purchase: 70323MAB0, Principal: 1000.00
+2025-01-18 06:48:27,832 - __main__ - INFO - 
 Processing Summary:
-2025-01-18 01:49:16,399 - __main__ - INFO - - Files processed: 1
-2025-01-18 01:49:16,399 - __main__ - INFO - - Dividend records: 28
-2025-01-18 01:49:16,399 - __main__ - INFO - - CD interest records: 0
-2025-01-18 01:49:16,399 - __main__ - INFO - - Trade records: 0
-2025-01-18 01:49:16,399 - __main__ - INFO - Output files generated in: /Users/tomohiro/Downloads/KakuteiShinkoku/output
+2025-01-18 06:48:27,832 - __main__ - INFO - - Files processed: 1
+2025-01-18 06:48:27,832 - __main__ - INFO - - Dividend records: 80
+2025-01-18 06:48:27,832 - __main__ - INFO - - CD interest records: 0
+2025-01-18 06:48:27,832 - __main__ - INFO - - Trade records: 0
+2025-01-18 06:48:27,832 - __main__ - INFO - Output files generated in: /Users/tomohiro/Downloads/KakuteiShinkoku/output
