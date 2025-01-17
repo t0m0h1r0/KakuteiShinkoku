@@ -1,6 +1,6 @@
 from decimal import Decimal
 from typing import Dict, Tuple, List, Optional
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from .base import BaseProcessor
 from src.core.models import Transaction, DividendRecord, Money
@@ -11,114 +11,102 @@ class DividendProcessor(BaseProcessor[DividendRecord]):
     def __init__(self, exchange_rate_provider):
         super().__init__(exchange_rate_provider)
         self._dividend_records: Dict[Tuple[str, str, date], Dict] = {}  # (symbol, account_id, date) -> record
-        self._current_month_records: Dict[Tuple[str, str, date], Dict] = {}  # 現在月の記録
-        self._tax_records: Dict[Tuple[str, str], List[Dict]] = {}  # (symbol, account_id) -> [tax records]
+        self._tax_records: Dict[str, Dict[date, Decimal]] = {}  # symbol -> {date: tax_amount}
 
     def _is_target_transaction(self, transaction: Transaction) -> bool:
         return (ActionTypes.is_dividend_action(transaction.action_type) or
                 ActionTypes.is_tax_action(transaction.action_type))
 
-    def _create_record_key(self, transaction: Transaction) -> Tuple[str, str, date]:
-        """シンボル、アカウント、日付でキーを生成"""
-        return (
-            transaction.symbol or transaction.description,
+    def _process_transaction(self, transaction: Transaction) -> None:
+        """トランザクションを処理"""
+        if ActionTypes.is_tax_action(transaction.action_type):
+            self._process_tax(transaction)
+        else:
+            self._process_dividend(transaction)
+
+    def _process_tax(self, transaction: Transaction) -> None:
+        """税金トランザクションを処理"""
+        symbol = transaction.symbol
+        if symbol not in self._tax_records:
+            self._tax_records[symbol] = {}
+        self._tax_records[symbol][transaction.transaction_date] = abs(transaction.amount)
+
+    def _process_dividend(self, transaction: Transaction) -> None:
+        """配当トランザクションを処理"""
+        key = (
+            transaction.symbol,
             transaction.account_id,
             transaction.transaction_date
         )
 
-    def _process_transaction(self, transaction: Transaction) -> None:
-        key = self._create_record_key(transaction)
-        tax_key = (key[0], key[1])  # symbol, account_id for tax lookup
-        
-        if ActionTypes.is_tax_action(transaction.action_type):
-            if tax_key not in self._tax_records:
-                self._tax_records[tax_key] = []
-            self._tax_records[tax_key].append({
-                'date': transaction.transaction_date,
-                'amount': abs(transaction.amount),
-                'description': transaction.description
-            })
-        else:
-            record = {
-                'record_date': transaction.transaction_date,
-                'account_id': transaction.account_id,
-                'symbol': transaction.symbol,
-                'description': transaction.description,
-                'income_type': self._determine_income_type(transaction),
-                'gross_amount': self._create_money(transaction.amount),
-                'tax_amount': self._create_money(Decimal('0')),
-                'exchange_rate': self._get_exchange_rate(transaction.transaction_date),
-                'is_reinvested': 'Reinvest' in transaction.action_type,
-                'principal_amount': self._create_money(Decimal('0'))
-            }
+        # 対応する税金を検索
+        tax_amount = self._find_matching_tax(
+            transaction.symbol,
+            transaction.transaction_date
+        )
 
-            # 対応する税金記録を探す
-            if tax_key in self._tax_records:
-                # 最も日付の近い税金記録を探す
-                closest_tax = self._find_closest_tax_record(
-                    transaction.transaction_date,
-                    self._tax_records[tax_key]
-                )
-                if closest_tax:
-                    record['tax_amount'] = self._create_money(closest_tax['amount'])
-                    self._tax_records[tax_key].remove(closest_tax)  # 使用した税金記録を削除
+        record = {
+            'record_date': transaction.transaction_date,
+            'account_id': transaction.account_id,
+            'symbol': transaction.symbol,
+            'description': transaction.description,
+            'income_type': self._determine_income_type(transaction),
+            'gross_amount': self._create_money(transaction.amount),
+            'tax_amount': self._create_money(tax_amount),
+            'exchange_rate': self._get_exchange_rate(transaction.transaction_date),
+            'is_reinvested': 'Reinvest' in transaction.action_type,
+            'principal_amount': self._create_money(Decimal('0'))
+        }
 
-            self._dividend_records[key] = record
+        self._dividend_records[key] = record
 
-    def _find_closest_tax_record(self, target_date: date, tax_records: List[Dict]) -> Optional[Dict]:
-        """最も日付の近い税金記録を探す"""
-        if not tax_records:
-            return None
+    def _find_matching_tax(self, symbol: str, dividend_date: date) -> Decimal:
+        """配当に対応する税金を検索"""
+        if symbol not in self._tax_records:
+            return Decimal('0')
 
-        # 日付の差が60日以内の税金記録を探す
-        valid_records = [
-            record for record in tax_records
-            if abs((record['date'] - target_date).days) <= 60
-        ]
+        # 同じ日付の税金を探す
+        if dividend_date in self._tax_records[symbol]:
+            return self._tax_records[symbol][dividend_date]
 
-        if not valid_records:
-            return None
+        # 前後3日以内の税金を探す
+        for i in range(1, 4):
+            # 後の日付を確認
+            future_date = dividend_date + timedelta(days=i)
+            if future_date in self._tax_records[symbol]:
+                return self._tax_records[symbol][future_date]
 
-        # 日付の差が最小のものを返す
-        return min(valid_records, key=lambda x: abs((x['date'] - target_date).days))
+            # 前の日付を確認
+            past_date = dividend_date - timedelta(days=i)
+            if past_date in self._tax_records[symbol]:
+                return self._tax_records[symbol][past_date]
 
-    def process_all(self, transactions: List[Transaction]) -> List[DividendRecord]:
-        """複数トランザクションの一括処理"""
-        # 日付でソートしてから処理
-        sorted_transactions = sorted(transactions, key=lambda x: x.transaction_date)
-        for transaction in sorted_transactions:
-            try:
-                self.process(transaction)
-            except Exception as e:
-                self._logger.error(f"Error processing transaction: {e}")
-                continue
-
-        # 未処理の税金記録から配当記録を作成
-        for tax_key, tax_list in self._tax_records.items():
-            for tax in tax_list:
-                key = (tax_key[0], tax_key[1], tax['date'])
-                if key not in self._dividend_records:
-                    self._dividend_records[key] = {
-                        'record_date': tax['date'],
-                        'account_id': tax_key[1],
-                        'symbol': tax_key[0],
-                        'description': tax['description'],
-                        'income_type': IncomeType.DIVIDEND,
-                        'gross_amount': self._create_money(Decimal('0')),
-                        'tax_amount': self._create_money(tax['amount']),
-                        'exchange_rate': self._get_exchange_rate(tax['date']),
-                        'is_reinvested': False,
-                        'principal_amount': self._create_money(Decimal('0'))
-                    }
-
-        self.records = [
-            DividendRecord(**record)
-            for record in self._dividend_records.values()
-        ]
-        return self.get_records()
+        return Decimal('0')
 
     def _determine_income_type(self, transaction: Transaction) -> str:
         if ('Interest' in transaction.action_type or 
             'INTEREST' in transaction.action_type):
             return IncomeType.INTEREST
         return IncomeType.DIVIDEND
+
+    def process_all(self, transactions: List[Transaction]) -> List[DividendRecord]:
+        """複数のトランザクションを処理"""
+        # 日付でソートしてから処理
+        sorted_transactions = sorted(transactions, key=lambda x: x.transaction_date)
+        
+        # まず税金記録を処理
+        tax_transactions = [t for t in sorted_transactions if ActionTypes.is_tax_action(t.action_type)]
+        for transaction in tax_transactions:
+            self._process_tax(transaction)
+        
+        # 次に配当記録を処理
+        dividend_transactions = [t for t in sorted_transactions if ActionTypes.is_dividend_action(t.action_type)]
+        for transaction in dividend_transactions:
+            self._process_dividend(transaction)
+        
+        self.records = [
+            DividendRecord(**record)
+            for record in self._dividend_records.values()
+        ]
+
+        return self.get_records()
