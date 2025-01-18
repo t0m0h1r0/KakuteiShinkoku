@@ -1,10 +1,13 @@
 from pathlib import Path
-from typing import List
+from typing import List, Dict, Any
 import logging
 import csv
+from collections import defaultdict
+from decimal import Decimal
+import re
 
 from ..core.types.transaction import Transaction
-from ..app.context import ApplicationContext
+from .context import ApplicationContext
 from ..config import settings
 
 class InvestmentDataProcessor:
@@ -67,56 +70,108 @@ class InvestmentDataProcessor:
         self.context.writers['console'].write(dividend_records)
 
     def _write_profit_loss_summary(self, dividend_records, trade_records):
-        """損益サマリーの出力"""
-        # 配当収入の集計
-        total_dividend_usd = sum(r.gross_amount.amount - r.tax_amount.amount for r in dividend_records)
-        total_dividend_jpy = sum((r.gross_amount.amount - r.tax_amount.amount) * r.exchange_rate for r in dividend_records)
-
-        # 取引損益の集計（簡易的な方法）
-        total_realized_gain_usd = sum(r.realized_gain.amount for r in trade_records if hasattr(r, 'realized_gain'))
-        total_realized_gain_jpy = sum(r.realized_gain.amount * r.exchange_rate for r in trade_records if hasattr(r, 'realized_gain'))
-
-        # サマリーデータの作成
-        summary_data = [
-            {
-                'Category': 'Dividend Income (USD)',
-                'Amount': f'{total_dividend_usd:.2f}'
-            },
-            {
-                'Category': 'Dividend Income (JPY)',
-                'Amount': f'{total_dividend_jpy:.2f}'
-            },
-            {
-                'Category': 'Realized Gain/Loss (USD)',
-                'Amount': f'{total_realized_gain_usd:.2f}'
-            },
-            {
-                'Category': 'Realized Gain/Loss (JPY)',
-                'Amount': f'{total_realized_gain_jpy:.2f}'
-            },
-            {
-                'Category': 'Total Income (USD)',
-                'Amount': f'{total_dividend_usd + total_realized_gain_usd:.2f}'
-            },
-            {
-                'Category': 'Total Income (JPY)',
-                'Amount': f'{total_dividend_jpy + total_realized_gain_jpy:.2f}'
-            }
-        ]
-
-        # CSV出力
-        summary_path = settings.OUTPUT_FILES.get('profit_loss_summary', Path('output/profit_loss_summary.csv'))
+        """詳細な損益サマリーの出力"""
+        # 損益サマリーを生成
+        detailed_summary = self._generate_detailed_profit_loss_summary(dividend_records, trade_records)
+        
+        # サマリーをCSV出力
+        summary_path = settings.OUTPUT_FILES.get('detailed_profit_loss_summary', Path('output/detailed_profit_loss_summary.csv'))
         
         try:
-            with summary_path.open('w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=['Category', 'Amount'])
-                writer.writeheader()
-                writer.writerows(summary_data)
+            # ディレクトリが存在しない場合は作成
+            summary_path.parent.mkdir(parents=True, exist_ok=True)
             
-            self.logger.info(f"Profit/Loss summary written to {summary_path}")
+            with summary_path.open('w', newline='', encoding='utf-8') as f:
+                # データがない場合は空のファイルを作成
+                if not detailed_summary:
+                    return
+                
+                # ヘッダーはデータの最初の辞書のキーを使用
+                fieldnames = ['Symbol', 'Type', 'Gain or Loss (USD)', 'Tax (USD)', 'Rate(USDJPY)', 'Gain or Loss (JPY)', 'Tax (JPY)', 'Count']
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                
+                writer.writeheader()
+                writer.writerows(detailed_summary)
+            
+            self.logger.info(f"Detailed profit/loss summary written to {summary_path}")
         
         except Exception as e:
-            self.logger.error(f"Error writing profit/loss summary: {e}")
+            self.logger.error(f"Error writing detailed summary to {summary_path}: {e}")
+
+    def _generate_detailed_profit_loss_summary(self, dividend_records, trade_records) -> List[Dict[str, Any]]:
+        """詳細な損益サマリーを生成"""
+        # オプションを解析して基本シンボルを抽出する関数
+        def extract_option_base_symbol(symbol):
+            """オプションシンボルから基本シンボルを抽出"""
+            try:
+                # U 03/17/2023 25.00 P のような形式を想定
+                # 正規表現でシンボル部分を抽出
+                match = re.match(r'^(\w+)', symbol)
+                if match:
+                    return match.group(1)
+                return symbol
+            except Exception:
+                return symbol
+
+        # シンボルと種別ごとに集計するための辞書
+        summary_dict = defaultdict(lambda: {
+            'Gain or Loss (USD)': Decimal('0'),
+            'Tax (USD)': Decimal('0'),
+            'Rate(USDJPY)': Decimal('0'),
+            'Gain or Loss (JPY)': Decimal('0'),
+            'Tax (JPY)': Decimal('0'),
+            'Count': 0
+        })
+
+        # 配当・利子収入の集計
+        for record in dividend_records:
+            key = (record.symbol or 'Unknown', record.income_type)
+            summary = summary_dict[key]
+            
+            summary['Gain or Loss (USD)'] += record.gross_amount.amount
+            summary['Tax (USD)'] += record.tax_amount.amount
+            summary['Rate(USDJPY)'] = record.exchange_rate  # 最後の為替レートを使用
+            summary['Gain or Loss (JPY)'] += record.gross_amount.amount * record.exchange_rate
+            summary['Tax (JPY)'] += record.tax_amount.amount * record.exchange_rate
+            summary['Count'] += 1
+
+        # 取引損益の集計
+        for record in trade_records:
+            if hasattr(record, 'realized_gain'):
+                # オプションの場合は特別な処理
+                if record.trade_type == 'Option':
+                    symbol = extract_option_base_symbol(record.symbol)
+                    key = (symbol, 'Option')
+                else:
+                    key = (record.symbol or 'Unknown', record.trade_type)
+                
+                summary = summary_dict[key]
+                
+                summary['Gain or Loss (USD)'] += record.realized_gain.amount
+                summary['Tax (USD)'] += Decimal('0')
+                summary['Rate(USDJPY)'] = record.exchange_rate  # 最後の為替レートを使用
+                summary['Gain or Loss (JPY)'] += record.realized_gain.amount * record.exchange_rate
+                summary['Tax (JPY)'] += Decimal('0')
+                summary['Count'] += 1
+
+        # 結果を整形
+        detailed_summary = []
+        for (symbol, type_), amounts in summary_dict.items():
+            # ゼロでないエントリーのみ追加
+            if amounts['Count'] > 0:
+                summary_entry = {
+                    'Symbol': symbol,
+                    'Type': type_,
+                    'Gain or Loss (USD)': f"{amounts['Gain or Loss (USD)']:.2f}",
+                    'Tax (USD)': f"{amounts['Tax (USD)']:.2f}",
+                    'Rate(USDJPY)': f"{amounts['Rate(USDJPY)']:.2f}",
+                    'Gain or Loss (JPY)': f"{amounts['Gain or Loss (JPY)']:.2f}",
+                    'Tax (JPY)': f"{amounts['Tax (JPY)']:.2f}",
+                    'Count': amounts['Count']
+                }
+                detailed_summary.append(summary_entry)
+
+        return detailed_summary
 
     def _format_dividend_record(self, record):
         """配当記録のフォーマット"""
