@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from ..core.interfaces import IWriter
 from ..app.context import ApplicationContext
 from ..processors.trade_records import StockTradeRecord, OptionTradeRecord, PremiumRecord
+from ..processors.interest_income import InterestRecord
 
 class ReportGenerator(ABC):
     """レポート生成の基本クラス"""
@@ -26,17 +27,19 @@ class InvestmentReportGenerator(ReportGenerator):
         try:
             # 各種レコードの取得
             dividend_records = data.get('dividend_records', [])
+            interest_records = data.get('interest_records', [])
             stock_records = data.get('stock_records', [])
             option_records = data.get('option_records', [])
             premium_records = data.get('premium_records', [])
 
             # 各種レポートの生成
             self._write_dividend_report(dividend_records)
+            self._write_interest_report(interest_records)
             self._write_stock_report(stock_records)
             self._write_option_report(option_records)
             self._write_premium_report(premium_records)
-            self._write_summary_report(dividend_records, stock_records, 
-                                     option_records, premium_records)
+            self._write_summary_report(dividend_records, interest_records, 
+                                     stock_records, option_records, premium_records)
 
         except Exception as e:
             self.logger.error(f"Report generation error: {e}", exc_info=True)
@@ -47,6 +50,12 @@ class InvestmentReportGenerator(ReportGenerator):
         formatted_records = [self._format_dividend_record(r) for r in dividend_records]
         self.context.writers['dividend_csv'].output(formatted_records)
         self.context.writers['console'].output(dividend_records)
+
+    def _write_interest_report(self, interest_records: List[InterestRecord]) -> None:
+        """利子レポートの生成"""
+        formatted_records = [self._format_interest_record(r) for r in interest_records]
+        self.context.writers['interest_csv'].output(formatted_records)
+        self.context.writers['console'].output(interest_records)
 
     def _write_stock_report(self, stock_records: List) -> None:
         """株式取引レポートの生成"""
@@ -74,6 +83,20 @@ class InvestmentReportGenerator(ReportGenerator):
             'gross_amount': record.gross_amount.amount,
             'tax_amount': record.tax_amount.amount,
             'net_amount': record.gross_amount.amount - record.tax_amount.amount
+        }
+
+    def _format_interest_record(self, record: InterestRecord) -> Dict:
+        """利子記録のフォーマット"""
+        return {
+            'date': record.record_date,
+            'account': record.account_id,
+            'symbol': record.symbol,
+            'description': record.description,
+            'type': record.income_type,
+            'gross_amount': record.gross_amount.amount,
+            'tax_amount': record.tax_amount.amount,
+            'net_amount': record.gross_amount.amount - record.tax_amount.amount,
+            'is_matured': record.is_matured
         }
 
     def _format_stock_record(self, record: StockTradeRecord) -> Dict:
@@ -120,13 +143,17 @@ class InvestmentReportGenerator(ReportGenerator):
         }
 
     def _write_summary_report(self, dividend_records: List, 
-                            stock_records: List,
-                            option_records: List,
-                            premium_records: List) -> None:
+                             interest_records: List,
+                             stock_records: List,
+                             option_records: List,
+                             premium_records: List) -> None:
         """サマリーレポートの生成"""
         try:
             # 配当・利子収入の集計
-            dividend_summary = self._calculate_dividend_summary(dividend_records)
+            income_summary = self._calculate_dividend_summary(
+                dividend_records, 
+                interest_records
+            )
             
             # 取引損益の集計
             trading_summary = self._calculate_trading_summary(
@@ -135,13 +162,13 @@ class InvestmentReportGenerator(ReportGenerator):
             
             # 全体のサマリーを作成
             total_summary = {
-                'income': dividend_summary,
+                'income': income_summary,
                 'trading': trading_summary,
                 'total': {
-                    'total_income': dividend_summary['net_total'],
+                    'total_income': income_summary['net_total'],
                     'total_trading': trading_summary['net_total'],
                     'grand_total': (
-                        dividend_summary['net_total'] + 
+                        income_summary['net_total'] + 
                         trading_summary['net_total']
                     )
                 }
@@ -155,20 +182,21 @@ class InvestmentReportGenerator(ReportGenerator):
             self.logger.error(f"Error generating summary report: {e}")
             raise
 
-    def _calculate_dividend_summary(self, dividend_records: List) -> Dict:
+    def _calculate_dividend_summary(self, 
+                                   dividend_records: List, 
+                                   interest_records: List) -> Dict:
         """配当・利子収入のサマリー計算"""
         summary = {
             'dividend_total': sum(r.gross_amount.amount 
-                                for r in dividend_records 
-                                if r.income_type == 'Dividend'),
+                                for r in dividend_records),
             'interest_total': sum(r.gross_amount.amount 
-                                for r in dividend_records 
+                                for r in interest_records 
                                 if r.income_type == 'Interest'),
             'cd_interest_total': sum(r.gross_amount.amount 
-                                   for r in dividend_records 
-                                   if r.income_type == 'CD Interest'),
+                                   for r in interest_records 
+                                   if r.income_type in ['CD Interest', 'Bond Interest']),
             'tax_total': sum(r.tax_amount.amount 
-                           for r in dividend_records)
+                           for r in dividend_records + interest_records)
         }
         
         summary['net_total'] = (
@@ -180,9 +208,10 @@ class InvestmentReportGenerator(ReportGenerator):
         
         return summary
 
-    def _calculate_trading_summary(self, stock_records: List,
-                                 option_records: List,
-                                 premium_records: List) -> Dict:
+    def _calculate_trading_summary(self, 
+                                  stock_records: List,
+                                  option_records: List, 
+                                  premium_records: List) -> Dict:
         """取引損益のサマリー計算"""
         summary = {
             'stock_gain': sum(r.realized_gain.amount for r in stock_records),
