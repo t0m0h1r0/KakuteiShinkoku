@@ -234,39 +234,85 @@ class DividendHistoryWriter(CSVWriter):
         }
 
 class OptionPremiumWriter(CSVWriter):
-    """オプションプレミアム出力クラス"""
+    """オプションプレミアム出力クラス（改善版）"""
     
     def __init__(self, filename: Path):
         super().__init__(filename, [
-            'date', 'symbol', 'description', 'premium_usd', 'fees_usd',
-            'net_premium_usd', 'exchange_rate', 'premium_jpy', 'fees_jpy',
-            'net_premium_jpy', 'action', 'quantity'
+            'date', 'symbol', 'description', 'action', 'status',
+            'quantity', 'premium_usd', 'fees_usd', 'net_premium_usd',
+            'exchange_rate', 'premium_jpy', 'fees_jpy', 'net_premium_jpy',
+            'cumulative_realized_usd', 'cumulative_unrealized_usd',
+            'cumulative_total_usd', 'holding_period_days'
         ])
 
+    def write(self, records: List[dict]) -> None:
+        """レコードをCSVファイルに出力"""
+        try:
+            self._ensure_output_dir(self.filename)
+            with self.filename.open('w', newline='', encoding=self.encoding) as f:
+                writer = csv.DictWriter(f, fieldnames=self.fieldnames)
+                writer.writeheader()
+                
+                # 累積値の計算
+                cumulative_realized = Decimal('0')
+                cumulative_unrealized = Decimal('0')
+                
+                for record in self._sort_records(records):
+                    if record['status'] == 'OPEN':
+                        cumulative_unrealized += record['net_premium']
+                    else:  # CLOSED
+                        cumulative_realized += record['net_premium']
+                        cumulative_unrealized -= (record['premium'] - record['fees'])
+                    
+                    writer.writerow(self._format_record(record, 
+                                                      cumulative_realized,
+                                                      cumulative_unrealized))
+            
+            self._logger.info(f"Successfully wrote {len(records)} records to {self.filename}")
+            
+        except Exception as e:
+            error_msg = f"Failed to write option premium records: {e}"
+            self._logger.error(error_msg)
+            raise WriterError(error_msg)
+
     def _sort_records(self, records: List[dict]) -> List[dict]:
-        """レコードをソート（日付でソート）"""
+        """レコードを日付でソート"""
         return sorted(records, key=lambda x: x['date'])
 
-    def _format_record(self, record: dict) -> Dict[str, Any]:
+    def _format_record(self, record: dict, 
+                      cumulative_realized: Decimal,
+                      cumulative_unrealized: Decimal) -> Dict[str, str]:
         """オプションプレミアム記録をCSV出力用に整形"""
-        exchange_rate = Decimal('150.0')  # デフォルト値を設定
-        premium_usd = record['premium']
-        fees_usd = record.get('fees', Decimal('0'))
-        net_premium_usd = premium_usd - fees_usd
-
+        exchange_rate = self._get_exchange_rate(record['date'])
+        holding_period = ''
+        
+        if record['status'] == 'CLOSED':
+            # 保有期間を計算（オープンポジションがある場合のみ）
+            if 'open_date' in record:
+                holding_period = (record['date'] - record['open_date']).days
+        
         return {
             'date': record['date'].strftime('%Y-%m-%d'),
             'symbol': record['symbol'],
             'description': record['description'],
-            'premium_usd': self._format_money(Money(premium_usd)),
-            'fees_usd': self._format_money(Money(fees_usd)),
-            'net_premium_usd': self._format_money(Money(net_premium_usd)),
+            'action': record['action'],
+            'status': record['status'],
+            'quantity': str(record['quantity']),
+            'premium_usd': self._format_money(Money(record['premium'])),
+            'fees_usd': self._format_money(Money(record['fees'])),
+            'net_premium_usd': self._format_money(Money(record['net_premium'])),
             'exchange_rate': f"{exchange_rate:.2f}",
-            'premium_jpy': self._format_money(Money(premium_usd * exchange_rate, 'JPY'), 0),
-            'fees_jpy': self._format_money(Money(fees_usd * exchange_rate, 'JPY'), 0),
-            'net_premium_jpy': self._format_money(Money(net_premium_usd * exchange_rate, 'JPY'), 0),
-            'action': record.get('action', ''),
-            'quantity': record.get('quantity', 0)
+            'premium_jpy': self._format_money(
+                Money(record['premium'] * exchange_rate, Currency.JPY), 0),
+            'fees_jpy': self._format_money(
+                Money(record['fees'] * exchange_rate, Currency.JPY), 0),
+            'net_premium_jpy': self._format_money(
+                Money(record['net_premium'] * exchange_rate, Currency.JPY), 0),
+            'cumulative_realized_usd': self._format_money(Money(cumulative_realized)),
+            'cumulative_unrealized_usd': self._format_money(Money(cumulative_unrealized)),
+            'cumulative_total_usd': self._format_money(
+                Money(cumulative_realized + cumulative_unrealized)),
+            'holding_period_days': str(holding_period) if holding_period != '' else ''
         }
 
     def write_summary(self, summary: dict) -> None:
@@ -276,17 +322,35 @@ class OptionPremiumWriter(CSVWriter):
         try:
             with summary_file.open('w', encoding=self.encoding) as f:
                 f.write("=== Option Premium Summary ===\n\n")
-                f.write(f"Total Premium Income: ${self._format_money(Money(summary['total_premium']))}\n")
-                f.write(f"Total Fees: ${self._format_money(Money(summary['total_fees']))}\n")
-                f.write(f"Net Premium Income: ${self._format_money(Money(summary['net_premium']))}\n")
-                f.write(f"Number of Transactions: {summary['transaction_count']}\n")
+                
+                # 取引概要
+                f.write("Transaction Summary:\n")
+                f.write(f"- Total Trades: {summary['transaction_count']}\n")
+                f.write(f"- Total Contracts: {summary['total_contracts']}\n")
+                f.write(f"- Active Contracts: {summary['active_contracts']}\n")
+                f.write(f"- Expired Contracts: {summary['expired_contracts']}\n")
+                f.write(f"- Assigned Contracts: {summary['assigned_contracts']}\n\n")
+                
+                # プレミアム概要（USD）
+                f.write("Premium Summary (USD):\n")
+                f.write(f"- Total Premium Income: ${self._format_money(Money(summary['total_premium']))}\n")
+                f.write(f"- Total Fees: ${self._format_money(Money(summary['total_fees']))}\n")
+                f.write(f"- Net Premium Income: ${self._format_money(Money(summary['net_premium']))}\n")
+                f.write(f"- Realized Premium: ${self._format_money(Money(summary['realized_premium']))}\n")
+                f.write(f"- Unrealized Premium: ${self._format_money(Money(summary['unrealized_premium']))}\n")
+                
                 if summary['transaction_count'] > 0:
-                    f.write(f"Average Net Premium per Trade: ${self._format_money(Money(summary['average_premium']))}\n")
-                f.write(f"Open Positions: {summary['open_positions']}\n")
+                    f.write(f"- Average Net Premium per Trade: "
+                           f"${self._format_money(Money(summary['average_premium']))}\n")
+                
+                # 現在のポジション状況
+                f.write(f"\nCurrent Status:\n")
+                f.write(f"- Open Positions: {summary['open_positions']}\n")
+                f.write(f"- Active Contracts: {summary['active_contracts']}\n")
+                
+            self._logger.info(f"Successfully wrote summary to {summary_file}")
+            
         except Exception as e:
-            raise WriterError(f"Summary writing error: {e}")
-        
-    def _get_exchange_rate(self, date_: date) -> Decimal:
-        """為替レートを取得"""
-        # 実装は環境に応じて適切に行う必要があります
-        return Decimal('150.0')  # サンプル値
+            error_msg = f"Failed to write summary: {e}"
+            self._logger.error(error_msg)
+            raise WriterError(error_msg)
