@@ -183,26 +183,22 @@ class DividendSummaryWriter(CSVWriter):
 
     def _normalize_description(self, description: str) -> str:
         """説明文から日付部分を除去して正規化"""
-        # 日付パターンを定義
         date_patterns = [
-            r'\d{2}/\d{2}/\d{2,4}',                  # MM/DD/YY or MM/DD/YYYY
-            r'\d{2}-\d{2}-\d{2,4}',                  # MM-DD-YY or MM-DD-YYYY
-            r'\d{2}/\d{2}-\d{2}/\d{2}',             # MM/DD-MM/DD
-            r'\d{2}/\d{2}/\d{2,4}-\d{2}/\d{2}/\d{2,4}'  # MM/DD/YY-MM/DD/YY
+            r'\d{2}/\d{2}/\d{2,4}',                  
+            r'\d{2}-\d{2}-\d{2,4}',                  
+            r'\d{2}/\d{2}-\d{2}/\d{2}',             
+            r'\d{2}/\d{2}/\d{2,4}-\d{2}/\d{2}/\d{2,4}'  
         ]
         
         normalized = description
         
-        # 日付パターンを削除
         for pattern in date_patterns:
             normalized = re.sub(pattern, '', normalized)
         
-        # "MATURED"など特定のキーワードを削除
         keywords_to_remove = ['MATURED', '**MATURED**']
         for keyword in keywords_to_remove:
             normalized = normalized.replace(keyword, '')
         
-        # 余分な空白を削除して整形
         normalized = ' '.join(normalized.split())
         
         return normalized.strip()
@@ -236,3 +232,61 @@ class DividendHistoryWriter(CSVWriter):
             'net_amount_jpy': self._format_money(record.net_amount_jpy, 0),
             'reinvested': 'Yes' if record.is_reinvested else 'No'
         }
+
+class OptionPremiumWriter(CSVWriter):
+    """オプションプレミアム出力クラス"""
+    
+    def __init__(self, filename: Path):
+        super().__init__(filename, [
+            'date', 'symbol', 'description', 'premium_usd', 'fees_usd',
+            'net_premium_usd', 'exchange_rate', 'premium_jpy', 'fees_jpy',
+            'net_premium_jpy', 'action', 'quantity'
+        ])
+
+    def _sort_records(self, records: List[dict]) -> List[dict]:
+        """レコードをソート（日付でソート）"""
+        return sorted(records, key=lambda x: x['date'])
+
+    def _format_record(self, record: dict) -> Dict[str, Any]:
+        """オプションプレミアム記録をCSV出力用に整形"""
+        exchange_rate = Decimal('150.0')  # デフォルト値を設定
+        premium_usd = record['premium']
+        fees_usd = record.get('fees', Decimal('0'))
+        net_premium_usd = premium_usd - fees_usd
+
+        return {
+            'date': record['date'].strftime('%Y-%m-%d'),
+            'symbol': record['symbol'],
+            'description': record['description'],
+            'premium_usd': self._format_money(Money(premium_usd)),
+            'fees_usd': self._format_money(Money(fees_usd)),
+            'net_premium_usd': self._format_money(Money(net_premium_usd)),
+            'exchange_rate': f"{exchange_rate:.2f}",
+            'premium_jpy': self._format_money(Money(premium_usd * exchange_rate, 'JPY'), 0),
+            'fees_jpy': self._format_money(Money(fees_usd * exchange_rate, 'JPY'), 0),
+            'net_premium_jpy': self._format_money(Money(net_premium_usd * exchange_rate, 'JPY'), 0),
+            'action': record.get('action', ''),
+            'quantity': record.get('quantity', 0)
+        }
+
+    def write_summary(self, summary: dict) -> None:
+        """サマリー情報を別ファイルに出力"""
+        summary_file = self.filename.parent / 'option_premium_summary.txt'
+        
+        try:
+            with summary_file.open('w', encoding=self.encoding) as f:
+                f.write("=== Option Premium Summary ===\n\n")
+                f.write(f"Total Premium Income: ${self._format_money(Money(summary['total_premium']))}\n")
+                f.write(f"Total Fees: ${self._format_money(Money(summary['total_fees']))}\n")
+                f.write(f"Net Premium Income: ${self._format_money(Money(summary['net_premium']))}\n")
+                f.write(f"Number of Transactions: {summary['transaction_count']}\n")
+                if summary['transaction_count'] > 0:
+                    f.write(f"Average Net Premium per Trade: ${self._format_money(Money(summary['average_premium']))}\n")
+                f.write(f"Open Positions: {summary['open_positions']}\n")
+        except Exception as e:
+            raise WriterError(f"Summary writing error: {e}")
+        
+    def _get_exchange_rate(self, date_: date) -> Decimal:
+        """為替レートを取得"""
+        # 実装は環境に応じて適切に行う必要があります
+        return Decimal('150.0')  # サンプル値

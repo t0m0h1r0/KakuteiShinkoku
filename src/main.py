@@ -17,7 +17,7 @@ from src.processors.cd import CDProcessor
 from src.processors.trade import TradeProcessor, PositionManager
 from src.writers.csv import (
     DividendHistoryWriter, TradeHistoryWriter,
-    DividendSummaryWriter
+    DividendSummaryWriter, OptionPremiumWriter
 )
 from src.writers.console import PrettyConsoleWriter
 
@@ -54,18 +54,15 @@ class ApplicationContext:
     @staticmethod
     def _setup_directories():
         """ディレクトリ構造の設定"""
-        # データディレクトリの存在確認
         if not DATA_DIR.exists():
             raise FileNotFoundError(
                 f"Data directory not found: {DATA_DIR}. "
                 "Please create the directory and add required data files."
             )
 
-        # 出力ディレクトリの作成
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-        # 必要なファイルの存在確認
         if not EXCHANGE_RATE_FILE.exists():
             raise FileNotFoundError(
                 f"Exchange rate file not found: {EXCHANGE_RATE_FILE}. "
@@ -88,6 +85,9 @@ class ApplicationContext:
             ),
             'trade_history': TradeHistoryWriter(
                 OUTPUT_FILES['trade_history']
+            ),
+            'option_premium': OptionPremiumWriter(  # 新規追加
+                OUTPUT_FILES['option_premium']
             ),
             'console': PrettyConsoleWriter()
         }
@@ -120,6 +120,9 @@ class InvestmentDataProcessor:
 
             # レポート出力
             self._write_reports(dividend_records, cd_records, trade_records)
+            
+            # オプションプレミアムレポートの出力
+            self._write_option_premium_report()
             
             # 処理結果のサマリー表示
             self._display_processing_summary(
@@ -177,6 +180,22 @@ class InvestmentDataProcessor:
         self.context.writers['trade_history'].write(trade_records)
         self.context.writers['console'].write(all_income_records)
 
+    def _write_option_premium_report(self) -> None:
+        """オプションプレミアムレポートの出力"""
+        # プレミアム記録の取得
+        premium_records = self.context.trade_processor.get_option_premium_records()
+        if premium_records:
+            # プレミアム取引の詳細を出力
+            self.context.writers['option_premium'].write(premium_records)
+            
+            # サマリー情報を出力
+            summary = self.context.trade_processor.get_option_premium_summary()
+            self.context.writers['option_premium'].write_summary(summary)
+            
+            self.logger.info(
+                f"Option premium report generated with {len(premium_records)} records"
+            )
+
     def _display_processing_summary(self, file_count: int,
                                  dividend_count: int,
                                  cd_count: int,
@@ -187,6 +206,17 @@ class InvestmentDataProcessor:
         self.logger.info(f"- Dividend records: {dividend_count}")
         self.logger.info(f"- CD interest records: {cd_count}")
         self.logger.info(f"- Trade records: {trade_count}")
+        
+        # オプションプレミアムのサマリーを追加
+        option_summary = self.context.trade_processor.get_option_premium_summary()
+        if option_summary['transaction_count'] > 0:
+            self.logger.info(
+                f"- Option premium records: {option_summary['transaction_count']}"
+            )
+            self.logger.info(
+                f"- Total net premium: ${option_summary['net_premium']:.2f}"
+            )
+        
         self.logger.info(f"Output files generated in: {OUTPUT_DIR}")
 
 def main():
