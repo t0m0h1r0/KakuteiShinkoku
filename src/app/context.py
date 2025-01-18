@@ -135,26 +135,27 @@ class ApplicationContext:
             self.display_outputs['console'].output(dividend_records)
 
             # サマリーファイルとログファイルに出力
-            if summary_data:
+            if summary_data and 'total' in summary_data:
                 # CSVライターを使用して明示的に出力
                 account_name = list(summary_data['accounts'].keys())[0]
+                total_summary = summary_data['total']
                 summary_record = {
                     'Account': account_name,
-                    'Dividend': summary_data['total']['Dividend'],
-                    'Interest': summary_data['total']['Interest'],
-                    'CD Interest': summary_data['total'].get('CD Interest', Decimal('0')),
-                    'Tax': summary_data['total']['Tax'],
+                    'Dividend': total_summary.get('Dividend', Decimal('0')),
+                    'Interest': total_summary.get('Interest', Decimal('0')),
+                    'CD Interest': total_summary.get('CD Interest', Decimal('0')),
+                    'Tax': total_summary.get('Tax', Decimal('0')),
                     'Net Total': (
-                        summary_data['total']['Dividend'] + 
-                        summary_data['total']['Interest'] +
-                        summary_data['total'].get('CD Interest', Decimal('0')) - 
-                        summary_data['total']['Tax']
+                        total_summary.get('Dividend', Decimal('0')) + 
+                        total_summary.get('Interest', Decimal('0')) +
+                        total_summary.get('CD Interest', Decimal('0')) - 
+                        total_summary.get('Tax', Decimal('0'))
                     )
                 }
 
                 self.writers['profit_loss_csv'].output([summary_record])
 
-                # ログ用の出力文字列を作成
+                # ログ用の文字列を作成
                 log_content = "\n".join([
                     f"Account: {account_name}",
                     f"Dividend: ${summary_record['Dividend']:.2f}",

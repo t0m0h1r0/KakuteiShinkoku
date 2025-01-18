@@ -53,7 +53,14 @@ class LogFileOutput(FileOutput):
     def output(self, data: Any) -> None:
         """プレフィックス付きでデータを出力"""
         try:
-            formatted_data = self._format_data(data)
+            # データを文字列に変換
+            if not isinstance(data, str):
+                if self.formatter is not None:
+                    formatted_data = self._format_data(data)
+                else:
+                    formatted_data = str(data)
+            else:
+                formatted_data = data
             
             # 各行にプレフィックスを追加
             if self.line_prefix:
