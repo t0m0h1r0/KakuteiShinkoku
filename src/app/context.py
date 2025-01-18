@@ -106,8 +106,8 @@ class ApplicationContext:
                 OUTPUT_FILES['interest_history'],
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
-                    'type', 'gross_amount', 'tax_amount', 'net_amount', 
-                    'is_matured'
+                    'type', 'income_type', 'gross_amount', 'tax_amount', 
+                    'net_amount', 'is_matured'
                 ]
             ),
             'stock_trade_csv': CSVWriter(
@@ -202,12 +202,6 @@ class ApplicationContext:
     def _calculate_income_summary(self, 
                                  dividend_records: List[DividendRecord], 
                                  interest_records: List[InterestRecord]) -> Dict:
-        """収入サマリーの計算"""
-        # デバッグ出力
-        print("\n--- 利子レコード詳細 ---")
-        for record in interest_records:
-            print(f"Income Type: {record.income_type}, Amount: {record.gross_amount.amount}")
-        print("--- 利子レコード詳細 終了 ---\n")
 
         summary = {
             'dividend_total': sum(r.gross_amount.amount for r in dividend_records),

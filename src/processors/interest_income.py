@@ -114,9 +114,6 @@ class InterestProcessor(BaseProcessor[InterestRecord]):
             is_matured='MATURITY' in transaction.action_type.upper()
         )
         
-        # デバッグ出力
-        print(f"利子レコード作成: Type: {income_type}, Amount: {interest_record.gross_amount}")
-        
         self.records.append(interest_record)
 
     def _find_matching_tax(self, transaction: Transaction) -> Decimal:
