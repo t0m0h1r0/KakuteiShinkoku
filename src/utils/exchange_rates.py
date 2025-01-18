@@ -8,7 +8,7 @@ from functools import lru_cache
 
 from ..core.interfaces import IExchangeRateProvider
 from ..config.settings import FILE_ENCODING, DEFAULT_EXCHANGE_RATE
-from ..config.constants import Currency
+from ..core.constants.currency import Currency
 
 class ExchangeRateError(Exception):
     """為替レート関連のエラー"""
@@ -58,7 +58,7 @@ class ExchangeRateProvider(IExchangeRateProvider):
                         rate_date = self._parse_date(row['Date'].strip())
                         rate = Decimal(row[' Close'].strip())
                         self._rates[rate_date] = rate
-                    except (ValueError, KeyError, decimal.InvalidOperation) as e:
+                    except (ValueError, KeyError) as e:
                         self._logger.error(f"Error parsing rate data: {e}")
                         continue
             

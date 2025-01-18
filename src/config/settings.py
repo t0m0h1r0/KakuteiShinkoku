@@ -1,36 +1,38 @@
 from pathlib import Path
 from decimal import Decimal
 
-# Base paths
+# ベースパス
 BASE_DIR = Path(__file__).parent.parent.parent
 DATA_DIR = BASE_DIR / 'data'
 OUTPUT_DIR = BASE_DIR / 'output'
 LOG_DIR = OUTPUT_DIR / 'logs'
 
-# File settings
+# ファイル設定
 FILE_ENCODING = 'utf-8'
 
-# Date formats
-INPUT_DATE_FORMAT = '%m/%d/%Y'    # JSONファイルの日付形式
-OUTPUT_DATE_FORMAT = '%Y-%m-%d'    # 出力ファイルの日付形式
+# 日付形式
+INPUT_DATE_FORMAT = '%m/%d/%Y'
+OUTPUT_DATE_FORMAT = '%Y-%m-%d'
 
-# Exchange rate settings
+# 為替レート設定
 DEFAULT_EXCHANGE_RATE = Decimal('150.0')
 
-# Input files
+# 入力ファイル
 EXCHANGE_RATE_FILE = DATA_DIR / 'HistoricalPrices.csv'
 
-# Output files
+# 出力ファイル
+# 出力ファイル
 OUTPUT_FILES = {
     'dividend_history': OUTPUT_DIR / 'dividend_history.csv',
     'dividend_summary': OUTPUT_DIR / 'dividend_summary.csv',
     'trade_history': OUTPUT_DIR / 'trade_history.csv',
     'trade_summary': OUTPUT_DIR / 'trade_summary.csv',
-    'option_premium': OUTPUT_DIR / 'option_premium.csv',    # 追加：オプションプレミアム出力
-    'option_summary': OUTPUT_DIR / 'option_premium_summary.txt'  # 追加：オプションサマリー出力
+    'option_premium': OUTPUT_DIR / 'option_premium.csv',
+    'option_summary': OUTPUT_DIR / 'option_premium_summary.txt',
+    'profit_loss_summary': OUTPUT_DIR / 'profit_loss_summary.csv'
 }
 
-# Logging configuration
+# ロギング設定
 LOGGING_CONFIG = {
     'version': 1,
     'formatters': {
@@ -57,11 +59,11 @@ LOGGING_CONFIG = {
     }
 }
 
-# Option Trading Constants
+# オプション取引設定
 OPTION_TRADING_CONFIG = {
-    'min_premium_threshold': Decimal('10.0'),  # 最小プレミアム閾値（USD）
-    'max_loss_threshold': Decimal('1000.0'),   # 最大損失閾値（USD）
-    'premium_calculation_method': 'NET',       # 'NET' or 'GROSS'
+    'min_premium_threshold': Decimal('10.0'),  # 最小プレミアム閾値
+    'max_loss_threshold': Decimal('1000.0'),   # 最大損失閾値
+    'premium_calculation_method': 'NET',       # プレミアム計算方法
     'include_expired_options': True,           # 期限切れオプションを含めるか
-    'include_assigned_options': True           # 権利行使されたオプションを含めるか
+    'include_assigned_options': True           # 権利行使オプションを含めるか
 }
