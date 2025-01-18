@@ -1,6 +1,6 @@
 from pathlib import Path
 import logging.config
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from decimal import Decimal
 
 from ..config.settings import (
@@ -11,11 +11,14 @@ from ..config.settings import (
 from ..exchange.factories import create_rate_provider
 from ..processors.transaction_loader import JSONTransactionLoader
 from ..processors.dividend import DividendProcessor
-from ..processors.trade import TradeProcessor
+from ..processors.stock_trade import StockTradeProcessor
+from ..processors.option_trade import OptionTradeProcessor
+from ..processors.option_premium import OptionPremiumProcessor
 from ..display.factories import create_display_output
 from ..display.formatters.table_formatter import TableFormatter
 from ..display.formatters.text_formatter import TextFormatter
 from ..display.outputs.csv_writer import CSVWriter
+from ..core.types.transaction import Transaction
 
 class ApplicationContext:
     """アプリケーションのコンテキスト管理クラス"""
@@ -34,7 +37,9 @@ class ApplicationContext:
         # プロセッサーの初期化
         self.transaction_loader = JSONTransactionLoader()
         self.dividend_processor = DividendProcessor(self.exchange_rate_provider)
-        self.trade_processor = TradeProcessor(self.exchange_rate_provider)
+        self.stock_processor = StockTradeProcessor(self.exchange_rate_provider)
+        self.option_processor = OptionTradeProcessor(self.exchange_rate_provider)
+        self.premium_processor = OptionPremiumProcessor(self.exchange_rate_provider)
         
         # 出力系の初期化
         self.display_outputs = self._setup_display_outputs(use_color_output)
@@ -66,7 +71,7 @@ class ApplicationContext:
             'console': create_display_output(
                 'console',
                 use_color=use_color,
-                formatter=table_formatter
+                formatter=text_formatter
             ),
             'summary_file': create_display_output(
                 'file',
@@ -96,7 +101,7 @@ class ApplicationContext:
                 OUTPUT_FILES['stock_trade_history'],
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
-                    'type', 'action', 'quantity', 'price'
+                    'type', 'action', 'quantity', 'price', 'realized_gain'
                 ]
             ),
             'option_trade_csv': CSVWriter(
@@ -104,8 +109,14 @@ class ApplicationContext:
                 fieldnames=[
                     'date', 'account', 'symbol', 'expiry_date',
                     'strike_price', 'option_type', 'position_type',
-                    'description', 'action', 'quantity',
-                    'premium_or_gain', 'is_expired'
+                    'description', 'action', 'quantity', 'price', 'is_expired'
+                ]
+            ),
+            'option_premium_csv': CSVWriter(
+                OUTPUT_FILES['option_premium'],
+                fieldnames=[
+                    'date', 'account', 'symbol', 'expiry_date',
+                    'strike_price', 'option_type', 'premium_amount'
                 ]
             ),
             'profit_loss_csv': CSVWriter(
@@ -117,6 +128,29 @@ class ApplicationContext:
             )
         }
 
+    def process_data(self, transactions: List[Transaction]) -> bool:
+        """トランザクションデータの処理"""
+        try:
+            # 各種レコードの生成
+            dividend_records = self.dividend_processor.process_all(transactions)
+            stock_records = self.stock_processor.process_all(transactions)
+            option_records = self.option_processor.process_all(transactions)
+            premium_records = self.premium_processor.process_all(transactions)
+
+            # 結果をコンテキストに保存
+            self.processing_results = {
+                'dividend_records': dividend_records,
+                'stock_records': stock_records,
+                'option_records': option_records,
+                'premium_records': premium_records
+            }
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Data processing error: {e}")
+            return False
+
     def display_results(self) -> None:
         """処理結果を表示"""
         if not self.processing_results:
@@ -124,97 +158,134 @@ class ApplicationContext:
             return
 
         try:
-            # 結果をタイプ別に取得
+            # 各種レコードの取得
             dividend_records = self.processing_results.get('dividend_records', [])
-            trade_records = self.processing_results.get('trade_records', [])
+            stock_records = self.processing_results.get('stock_records', [])
+            option_records = self.processing_results.get('option_records', [])
+            premium_records = self.processing_results.get('premium_records', [])
 
-            # サマリーデータの準備
-            summary_data = self._prepare_summary_data(dividend_records, trade_records)
-
-            # まずコンソール出力（一度だけ）
+            # まず配当記録を表示（コンソール）
             self.display_outputs['console'].output(dividend_records)
 
-            # サマリーファイルとログファイルに出力
-            if summary_data and 'total' in summary_data:
-                # CSVライターを使用して明示的に出力
-                account_name = list(summary_data['accounts'].keys())[0]
-                total_summary = summary_data['total']
-                summary_record = {
-                    'Account': account_name,
-                    'Dividend': total_summary.get('Dividend', Decimal('0')),
-                    'Interest': total_summary.get('Interest', Decimal('0')),
-                    'CD Interest': total_summary.get('CD Interest', Decimal('0')),
-                    'Tax': total_summary.get('Tax', Decimal('0')),
-                    'Net Total': (
-                        total_summary.get('Dividend', Decimal('0')) + 
-                        total_summary.get('Interest', Decimal('0')) +
-                        total_summary.get('CD Interest', Decimal('0')) - 
-                        total_summary.get('Tax', Decimal('0'))
-                    )
-                }
+            # サマリーデータの準備
+            income_summary = self._calculate_income_summary(dividend_records)
+            trading_summary = self._calculate_trading_summary(
+                stock_records, option_records, premium_records
+            )
+            
+            total_summary = {
+                'total_income': income_summary['net_total'],
+                'total_trading': trading_summary['net_total'],
+                'grand_total': income_summary['net_total'] + trading_summary['net_total']
+            }
 
-                self.writers['profit_loss_csv'].output([summary_record])
+            # 総合サマリーの作成
+            full_summary = {
+                'income': income_summary,
+                'trading': trading_summary,
+                'total': total_summary
+            }
 
-                # ログ用の文字列を作成
-                log_content = "\n".join([
-                    f"Account: {account_name}",
-                    f"Dividend: ${summary_record['Dividend']:.2f}",
-                    f"Interest: ${summary_record['Interest']:.2f}",
-                    f"CD Interest: ${summary_record['CD Interest']:.2f}",
-                    f"Tax: ${summary_record['Tax']:.2f}",
-                    f"Net Total: ${summary_record['Net Total']:.2f}"
-                ])
+            # サマリーファイルに出力
+            self.display_outputs['summary_file'].output(full_summary)
 
-                # ログファイル出力を文字列で渡す
-                try:
-                    self.display_outputs['log_file'].output(log_content)
-                except Exception:
-                    # ログ出力中のエラーを抑制
-                    pass
-        
+            # CSVファイルへの出力
+            self._write_summary_to_csv(income_summary, trading_summary)
+            
+            # ログファイルに出力
+            log_content = self._prepare_log_content(income_summary, trading_summary, total_summary)
+            self.display_outputs['log_file'].output(log_content)
+
         except Exception as e:
             self.logger.error(f"Error displaying results: {e}", exc_info=True)
 
-    def _prepare_summary_data(self, dividend_records, trade_records) -> dict:
-        """サマリーデータの準備"""
-        # 配当・利子収入の集計
-        dividend_summary = {
-            'Dividend': sum(r.gross_amount.amount for r in dividend_records if r.income_type == 'Dividend'),
-            'Interest': sum(r.gross_amount.amount for r in dividend_records if r.income_type == 'Interest'),
-            'CD Interest': sum(r.gross_amount.amount for r in dividend_records if r.income_type == 'CD Interest'),
-            'Tax': sum(r.tax_amount.amount for r in dividend_records),
+    def _calculate_income_summary(self, dividend_records: List) -> Dict:
+        """収入サマリーの計算"""
+        summary = {
+            'dividend_total': Decimal('0'),
+            'interest_total': Decimal('0'),
+            'cd_interest_total': Decimal('0'),
+            'tax_total': Decimal('0')
         }
-
-        # 取引損益の集計
-        trade_summary = {
-            'realized_gain': sum(r.realized_gain.amount for r in trade_records if hasattr(r, 'realized_gain')),
-        }
-
-        # アカウントごとの集計を準備
-        accounts = {}
+        
         for record in dividend_records:
-            if record.account_id not in accounts:
-                accounts[record.account_id] = {
-                    'Dividend': Decimal('0'),
-                    'Interest': Decimal('0'),
-                    'CD Interest': Decimal('0'),
-                    'Tax': Decimal('0'),
-                }
-            summary = accounts[record.account_id]
-            
             if record.income_type == 'Dividend':
-                summary['Dividend'] += record.gross_amount.amount
+                summary['dividend_total'] += record.gross_amount.amount
             elif record.income_type == 'CD Interest':
-                summary['CD Interest'] += record.gross_amount.amount
+                summary['cd_interest_total'] += record.gross_amount.amount
             else:
-                summary['Interest'] += record.gross_amount.amount
-            summary['Tax'] += record.tax_amount.amount
+                summary['interest_total'] += record.gross_amount.amount
+            summary['tax_total'] += record.tax_amount.amount
 
-        return {
-            'total': dividend_summary,
-            'trade': trade_summary,
-            'accounts': accounts
+        summary['net_total'] = (
+            summary['dividend_total'] +
+            summary['interest_total'] +
+            summary['cd_interest_total'] -
+            summary['tax_total']
+        )
+        
+        return summary
+
+    def _calculate_trading_summary(self, stock_records: List,
+                               option_records: List,
+                               premium_records: List) -> Dict:
+        """取引サマリーの計算"""
+        summary = {
+            'stock_gain': sum(r.realized_gain.amount for r in stock_records),
+            'option_gain': sum(r.price.amount for r in option_records if r.action == 'SELL'),
+            'premium_income': sum(r.premium_amount.amount for r in premium_records)
         }
+        
+        summary['net_total'] = (
+            summary['stock_gain'] +
+            summary['option_gain'] +
+            summary['premium_income']
+        )
+        
+        return summary
+
+    def _write_summary_to_csv(self, income_summary: Dict, trading_summary: Dict) -> None:
+        """サマリーをCSVに出力"""
+        summary_record = {
+            'Account': 'ALL',
+            'Dividend': income_summary['dividend_total'],
+            'Interest': income_summary['interest_total'],
+            'CD Interest': income_summary['cd_interest_total'],
+            'Tax': income_summary['tax_total'],
+            'Net Total': (
+                income_summary['net_total'] +
+                trading_summary['net_total']
+            )
+        }
+        self.writers['profit_loss_csv'].output([summary_record])
+
+    def _prepare_log_content(self, income_summary: Dict,
+                          trading_summary: Dict,
+                          total_summary: Dict) -> str:
+        """ログ内容の準備"""
+        lines = ["Investment Summary Report"]
+        lines.append("-" * 30)
+        
+        lines.append("\nIncome Summary:")
+        lines.append(f"Dividend Total: ${income_summary['dividend_total']:.2f}")
+        lines.append(f"Interest Total: ${income_summary['interest_total']:.2f}")
+        if income_summary['cd_interest_total']:
+            lines.append(f"CD Interest Total: ${income_summary['cd_interest_total']:.2f}")
+        lines.append(f"Tax Total: ${income_summary['tax_total']:.2f}")
+        lines.append(f"Net Income: ${income_summary['net_total']:.2f}")
+        
+        lines.append("\nTrading Summary:")
+        lines.append(f"Stock Trading Gain: ${trading_summary['stock_gain']:.2f}")
+        lines.append(f"Option Trading Gain: ${trading_summary['option_gain']:.2f}")
+        lines.append(f"Option Premium Income: ${trading_summary['premium_income']:.2f}")
+        lines.append(f"Net Trading Gain: ${trading_summary['net_total']:.2f}")
+        
+        lines.append("\nTotal Summary:")
+        lines.append(f"Total Income: ${total_summary['total_income']:.2f}")
+        lines.append(f"Total Trading: ${total_summary['total_trading']:.2f}")
+        lines.append(f"Grand Total: ${total_summary['grand_total']:.2f}")
+        
+        return "\n".join(lines)
 
     def cleanup(self) -> None:
         """コンテキストのクリーンアップ"""

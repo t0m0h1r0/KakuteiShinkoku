@@ -45,20 +45,24 @@ class InvestmentDataProcessor(DataProcessor):
     def process_data(self, transactions: List[Transaction]) -> bool:
         """トランザクションデータの処理"""
         try:
-            # レコードの生成
+            # 各種レコードの生成
             dividend_records = self.context.dividend_processor.process_all(transactions)
-            trade_records = self.context.trade_processor.process_all(transactions)
+            stock_records = self.context.stock_processor.process_all(transactions)
+            option_records = self.context.option_processor.process_all(transactions)
+            premium_records = self.context.premium_processor.process_all(transactions)
 
             # 結果をコンテキストに保存
             self.context.processing_results = {
                 'dividend_records': dividend_records,
-                'trade_records': trade_records
+                'stock_records': stock_records,
+                'option_records': option_records,
+                'premium_records': premium_records
             }
 
             return True
 
         except Exception as e:
-            self.logger.error(f"Data processing error: {e}", exc_info=True)
+            self.logger.error(f"Data processing error: {e}")
             return False
 
     def _load_transactions(self, json_files: List[Path]) -> List[Transaction]:
