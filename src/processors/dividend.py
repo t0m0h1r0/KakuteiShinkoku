@@ -3,9 +3,9 @@ from typing import Dict, Tuple, List
 from datetime import date, timedelta
 
 from .base import BaseProcessor
-from src.core.types.transaction import Transaction
-from src.core.types.money import Money
-from src.core.interfaces import IExchangeRateProvider
+from ..core.types.transaction import Transaction
+from ..core.types.money import Money
+from ..core.interfaces import IExchangeRateProvider
 
 class DividendRecord:
     def __init__(self, 

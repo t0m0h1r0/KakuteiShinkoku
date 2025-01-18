@@ -1,9 +1,9 @@
 import sys
 from pathlib import Path
 
-from src.config.settings import DATA_DIR
-from src.app.context import ApplicationContext
-from src.app.processor import InvestmentDataProcessor
+from .config.settings import DATA_DIR
+from .app.context import ApplicationContext
+from .app.processor import InvestmentDataProcessor
 
 def main():
     """メインエントリーポイント"""
