@@ -3,31 +3,35 @@ from typing import List, Dict, Any
 import csv
 import logging
 
-from .base import BaseWriter
+from .base import BaseOutput
+from ..formatters.base import BaseFormatter
 
-class CSVWriter(BaseWriter):
+class CSVWriter(BaseOutput):
     """CSV出力クラス"""
     
     def __init__(self, output_path: Path, fieldnames: List[str], 
                  encoding: str = 'utf-8'):
-        super().__init__(output_path, encoding)
+        super().__init__()
+        self.output_path = output_path
         self.fieldnames = fieldnames
-        self._logger = logging.getLogger(self.__class__.__name__)
+        self.encoding = encoding
+        self.logger = logging.getLogger(self.__class__.__name__)
     
-    def write(self, records: List[Dict[str, Any]]) -> None:
+    def output(self, records: List[Dict[str, Any]]) -> None:
         """レコードをCSVに出力"""
         try:
-            self._ensure_output_directory()
+            # 出力ディレクトリの作成
+            self.output_path.parent.mkdir(parents=True, exist_ok=True)
             
             with self.output_path.open('w', newline='', encoding=self.encoding) as f:
                 writer = csv.DictWriter(f, fieldnames=self.fieldnames)
                 writer.writeheader()
                 writer.writerows(records)
             
-            self._logger.info(f"Successfully wrote {len(records)} records to {self.output_path}")
+            self.logger.info(f"Successfully wrote {len(records)} records to {self.output_path}")
         
         except Exception as e:
-            self._logger.error(f"Error writing to CSV: {e}")
+            self.logger.error(f"Error writing to CSV: {e}")
             raise
 
     def _format_record(self, record: Dict[str, Any]) -> Dict[str, Any]:

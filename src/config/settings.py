@@ -29,7 +29,7 @@ OUTPUT_FILES = {
     'trade_summary': OUTPUT_DIR / 'trade_summary.csv',
     'option_premium': OUTPUT_DIR / 'option_premium.csv',
     'option_summary': OUTPUT_DIR / 'option_premium_summary.txt',
-    'profit_loss_summary': OUTPUT_DIR / 'profit_loss_summary.csv',
+    'profit_loss_summary': OUTPUT_DIR / 'profit_loss_summary.csv',  # Ensuring CSV extension
     'detailed_profit_loss_summary': OUTPUT_DIR / 'detailed_profit_loss_summary.csv'
 }
 
