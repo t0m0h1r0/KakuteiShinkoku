@@ -1,7 +1,7 @@
 from pathlib import Path
 import logging.config
 
-from src.config.settings import (
+from ..config.settings import (
     DATA_DIR, OUTPUT_DIR, LOG_DIR,
     EXCHANGE_RATE_FILE, OUTPUT_FILES,
     LOGGING_CONFIG
@@ -64,11 +64,20 @@ class ApplicationContext:
                     'type', 'gross_amount', 'tax_amount', 'net_amount'
                 ]
             ),
-            'trade_csv': CSVWriter(
-                OUTPUT_FILES['trade_history'], 
+            'stock_trade_csv': CSVWriter(
+                OUTPUT_FILES['stock_trade_history'], 
                 fieldnames=[
                     'date', 'account', 'symbol', 'description', 
                     'type', 'action', 'quantity', 'price'
+                ]
+            ),
+            'option_trade_csv': CSVWriter(
+                OUTPUT_FILES['option_trade_history'], 
+                fieldnames=[
+                    'date', 'account', 'symbol', 'expiry_date', 
+                    'strike_price', 'option_type', 'position_type', 
+                    'description', 'action', 'quantity', 
+                    'premium_or_gain', 'is_expired'
                 ]
             ),
             'console': ConsoleWriter()

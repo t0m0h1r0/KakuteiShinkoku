@@ -62,8 +62,17 @@ class InvestmentDataProcessor:
         self.context.writers['dividend_csv'].write(
             [self._format_dividend_record(r) for r in dividend_records]
         )
-        self.context.writers['trade_csv'].write(
-            [self._format_trade_record(r) for r in trade_records]
+
+        # 株式取引と取引オプション取引を分離
+        stock_trades = [r for r in trade_records if r.trade_type != 'Option']
+        option_trades = [r for r in trade_records if r.trade_type == 'Option']
+
+        # 株式取引とオプション取引を別々に出力
+        self.context.writers['stock_trade_csv'].write(
+            [self._format_trade_record(r, 'stock') for r in stock_trades]
+        )
+        self.context.writers['option_trade_csv'].write(
+            [self._format_trade_record(r, 'option') for r in option_trades]
         )
         
         # コンソール出力
@@ -173,6 +182,57 @@ class InvestmentDataProcessor:
 
         return detailed_summary
 
+    def _format_trade_record(self, record, trade_type='stock'):
+        """取引記録のフォーマット"""
+        if trade_type == 'stock':
+            return {
+                'date': record.trade_date,
+                'account': record.account_id,
+                'symbol': record.symbol,
+                'description': record.description,
+                'type': record.trade_type,
+                'action': record.action,
+                'quantity': record.quantity,
+                'price': record.price.amount
+            }
+        elif trade_type == 'option':
+            # オプション取引の詳細フォーマット
+            # シンボル解析
+            option_details = self._parse_option_symbol(record.symbol)
+            
+            # 売りか買いかを判定
+            position_type = 'Short' if 'SELL' in record.action.upper() else 'Long'
+            
+            # 期限切れの場合の特別処理
+            is_expired = record.action.upper() == 'EXPIRED'
+            
+            return {
+                'date': record.trade_date,
+                'account': record.account_id,
+                'symbol': option_details['base_symbol'],
+                'expiry_date': option_details['expiry_date'],
+                'strike_price': option_details['strike_price'],
+                'option_type': option_details['option_type'],
+                'position_type': position_type,
+                'description': record.description,
+                'action': record.action,
+                'quantity': record.quantity,
+                'premium_or_gain': record.realized_gain.amount if is_expired else record.price.amount,
+                'is_expired': is_expired
+            }
+
+    def _parse_option_symbol(self, symbol: str) -> Dict[str, str]:
+        """オプションシンボルをパース"""
+        # 例: U 03/17/2023 25.00 P
+        parts = symbol.split()
+        
+        return {
+            'base_symbol': parts[0],
+            'expiry_date': parts[1] if len(parts) > 1 else 'Unknown',
+            'strike_price': parts[2] if len(parts) > 2 else 'Unknown',
+            'option_type': parts[3] if len(parts) > 3 else 'Unknown'
+        }
+
     def _format_dividend_record(self, record):
         """配当記録のフォーマット"""
         return {
@@ -184,17 +244,4 @@ class InvestmentDataProcessor:
             'gross_amount': record.gross_amount.amount,
             'tax_amount': record.tax_amount.amount,
             'net_amount': record.gross_amount.amount - record.tax_amount.amount
-        }
-
-    def _format_trade_record(self, record):
-        """取引記録のフォーマット"""
-        return {
-            'date': record.trade_date,
-            'account': record.account_id,
-            'symbol': record.symbol,
-            'description': record.description,
-            'type': record.trade_type,
-            'action': record.action,
-            'quantity': record.quantity,
-            'price': record.price.amount
         }

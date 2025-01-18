@@ -21,18 +21,16 @@ DEFAULT_EXCHANGE_RATE = Decimal('150.0')
 EXCHANGE_RATE_FILE = DATA_DIR / 'HistoricalPrices.csv'
 
 # 出力ファイル
-# 出力ファイル
-# 出力ファイル
 OUTPUT_FILES = {
     'dividend_history': OUTPUT_DIR / 'dividend_history.csv',
     'dividend_summary': OUTPUT_DIR / 'dividend_summary.csv',
-    'trade_history': OUTPUT_DIR / 'trade_history.csv',
+    'stock_trade_history': OUTPUT_DIR / 'stock_trade_history.csv',
+    'option_trade_history': OUTPUT_DIR / 'option_trade_history.csv',
     'trade_summary': OUTPUT_DIR / 'trade_summary.csv',
     'option_premium': OUTPUT_DIR / 'option_premium.csv',
     'option_summary': OUTPUT_DIR / 'option_premium_summary.txt',
     'profit_loss_summary': OUTPUT_DIR / 'profit_loss_summary.csv',
-    'symbol_profit_loss_summary': OUTPUT_DIR / 'symbol_profit_loss_summary.csv',
-    'type_profit_loss_summary': OUTPUT_DIR / 'type_profit_loss_summary.csv'
+    'detailed_profit_loss_summary': OUTPUT_DIR / 'detailed_profit_loss_summary.csv'
 }
 
 # ロギング設定
