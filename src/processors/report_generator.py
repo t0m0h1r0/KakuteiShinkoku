@@ -87,7 +87,7 @@ class InvestmentReportGenerator(ReportGenerator):
             'action': record.action,
             'quantity': record.quantity,
             'price': record.price.amount,
-            'realized_gain': record.realized_gain.amount
+            'realized_gain': record.realized_gain.amount if hasattr(record, 'realized_gain') else 0
         }
 
     def _format_option_record(self, record: OptionTradeRecord) -> Dict:

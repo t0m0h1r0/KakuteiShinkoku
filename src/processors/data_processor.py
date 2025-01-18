@@ -45,15 +45,27 @@ class InvestmentDataProcessor(DataProcessor):
     def process_data(self, transactions: List[Transaction]) -> bool:
         """トランザクションデータの処理"""
         try:
-            # 各種レコードの生成
-            dividend_records = self.context.dividend_processor.process_all(transactions)
-            stock_records = self.context.stock_processor.process_all(transactions)
-            option_records = self.context.option_processor.process_all(transactions)
-            premium_records = self.context.premium_processor.process_all(transactions)
+            # トランザクションを日付順にソート
+            sorted_transactions = sorted(transactions, key=lambda x: x.transaction_date)
+            
+            # 各プロセッサで処理
+            dividend_records = self.context.dividend_processor.process_all(sorted_transactions)
+            interest_records = self.context.interest_processor.process_all(sorted_transactions)
+            stock_records = self.context.stock_processor.process_all(sorted_transactions)
+            option_records = self.context.option_processor.process_all(sorted_transactions)
+            premium_records = self.context.premium_processor.process_all(sorted_transactions)
+
+            # デバッグ出力
+            print("\n--- 株式トランザクション詳細 ---")
+            print(f"株式レコード数: {len(stock_records)}")
+            for record in stock_records:
+                print(f"Date: {record.trade_date}, Action: {record.action}, Symbol: {record.symbol}, Price: {record.price.amount}")
+            print("--- 株式トランザクション出力終了 ---\n")
 
             # 結果をコンテキストに保存
             self.context.processing_results = {
                 'dividend_records': dividend_records,
+                'interest_records': interest_records,
                 'stock_records': stock_records,
                 'option_records': option_records,
                 'premium_records': premium_records
