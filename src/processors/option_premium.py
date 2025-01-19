@@ -2,8 +2,8 @@ import re
 from decimal import Decimal
 from typing import Optional, Dict
 
-from ..core.types.transaction import Transaction
-from ..core.types.money import Money
+from ..core.transaction import Transaction
+from ..core.money import Money
 from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .trade_records import PremiumRecord

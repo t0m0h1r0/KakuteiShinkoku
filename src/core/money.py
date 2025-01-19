@@ -2,7 +2,17 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Optional
 
-from ..constants.currency import Currency
+class Currency:
+    """通貨コードの定数"""
+    USD = 'USD'
+    JPY = 'JPY'
+    EUR = 'EUR'
+    GBP = 'GBP'
+    
+    @classmethod
+    def is_valid(cls, currency: str) -> bool:
+        """通貨コードが有効かを確認"""
+        return currency in [cls.USD, cls.JPY, cls.EUR, cls.GBP]
 
 @dataclass(frozen=True)
 class Money:

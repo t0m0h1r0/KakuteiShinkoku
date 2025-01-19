@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
 from decimal import Decimal
 from .base import BaseFormatter
-from ...core.types.money import Money
+from ...core.money import Money
 
 class TableFormatter(BaseFormatter):
     """表形式のフォーマッタ"""

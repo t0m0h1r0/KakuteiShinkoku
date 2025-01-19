@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime, date
 from decimal import Decimal
 
-from ..core.types.transaction import Transaction
+from ..core.transaction import Transaction
 from ..config.settings import INPUT_DATE_FORMAT
 
 class TransactionLoader(ABC):

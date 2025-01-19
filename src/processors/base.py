@@ -3,7 +3,7 @@ from typing import Generic, TypeVar, List
 from datetime import date
 from decimal import Decimal
 
-from ..core.types.transaction import Transaction
+from ..core.transaction import Transaction
 from ..core.interfaces import IExchangeRateProvider
 
 T = TypeVar('T')

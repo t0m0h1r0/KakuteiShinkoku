@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 import logging
 from abc import ABC, abstractmethod
 
-from ..core.types.transaction import Transaction
+from ..core.transaction import Transaction
 from ..app.application_context import ApplicationContext
 
 class DataProcessor(ABC):

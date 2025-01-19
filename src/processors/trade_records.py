@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from datetime import date
 
-from ..core.types.money import Money
+from ..core.money import Money
 
 @dataclass
 class StockTradeRecord:
