@@ -1,9 +1,9 @@
 import re
-from decimal import Decimal
-from typing import Optional, Dict, List, Any
+from decimal import Decimal, ROUND_HALF_UP
+from datetime import date
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from collections import defaultdict
-from datetime import date
 
 from ..core.transaction import Transaction
 from ..core.money import Money, Currency
@@ -11,6 +11,125 @@ from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .trade_records import OptionTradeRecord, StockTradeRecord
 from .stock_trade import StockTradeProcessor
+
+class OptionPosition:
+    """オプションポジション管理クラス"""
+    def __init__(self):
+        self.long_positions = 0    # 買建玉数
+        self.short_positions = 0   # 売建玉数
+        self.open_trades = []      # オープンポジションの記録
+        self.closed_trades = []    # クローズされた取引の記録
+        self.premium_trades = []   # 期日到来で精算された取引の記録
+
+    def add_trade(self, trade):
+        """取引を追加し、ポジションを更新"""
+        trade_type = 'LONG' if trade['action'] == 'BUY_TO_OPEN' else 'SHORT'
+        quantity = trade['quantity']
+        premium = -trade['premium'] if trade_type == 'LONG' else trade['premium']
+
+        if trade_type == 'LONG':
+            self.long_positions += quantity
+        else:
+            self.short_positions += quantity
+
+        self.open_trades.append({
+            'type': trade_type,
+            'quantity': quantity,
+            'premium': premium,
+            'date': trade['date']
+        })
+
+    def close_position(self, trade):
+        """反対売買によるクローズ処理"""
+        is_buy_to_close = trade['action'] == 'BUY_TO_CLOSE'
+        positions_to_check = self.short_positions if is_buy_to_close else self.long_positions
+        target_type = 'SHORT' if is_buy_to_close else 'LONG'
+        remaining_quantity = trade['quantity']
+
+        if positions_to_check <= 0:
+            return
+
+        # ポジションの更新
+        if is_buy_to_close:
+            self.short_positions -= trade['quantity']
+        else:
+            self.long_positions -= trade['quantity']
+
+        # FIFOでクローズ処理
+        for open_trade in self.open_trades:
+            if remaining_quantity <= 0:
+                break
+
+            if open_trade['type'] == target_type and open_trade['quantity'] > 0:
+                close_qty = min(remaining_quantity, open_trade['quantity'])
+                premium_multiplier = close_qty / open_trade['quantity']
+                close_premium_multiplier = close_qty / trade['quantity']
+                
+                # プレミアムの計算（符号の調整）
+                close_premium = (-trade['premium'] if is_buy_to_close else trade['premium']) * close_premium_multiplier
+
+                # 譲渡損益を記録
+                self.closed_trades.append({
+                    'open_date': open_trade['date'],
+                    'close_date': trade['date'],
+                    'quantity': close_qty,
+                    'open_premium': open_trade['premium'] * premium_multiplier,
+                    'close_premium': close_premium
+                })
+
+                open_trade['quantity'] -= close_qty
+                remaining_quantity -= close_qty
+
+    def handle_expiration(self, expiry_date):
+        """期限到来時の処理"""
+        remaining_longs = self.long_positions
+        remaining_shorts = self.short_positions
+
+        if remaining_longs == 0 and remaining_shorts == 0:
+            return
+
+        # 期限到来時のプレミアム損益を計算
+        for trade in self.open_trades:
+            if trade['quantity'] > 0:  # 未決済分がある場合
+                self.premium_trades.append({
+                    'open_date': trade['date'],
+                    'expire_date': expiry_date,
+                    'quantity': trade['quantity'],
+                    'premium': trade['premium'],
+                    'type': trade['type']
+                })
+                
+                if trade['type'] == 'LONG':
+                    self.long_positions -= trade['quantity']
+                else:
+                    self.short_positions -= trade['quantity']
+                trade['quantity'] = 0
+
+    def calculate_gains(self):
+        """損益計算"""
+        trading_gains = Decimal('0')  # 譲渡損益
+        premium_gains = Decimal('0')  # プレミアム損益
+
+        # 反対売買による譲渡損益の計算
+        for trade in self.closed_trades:
+            trading_gains += trade['close_premium'] + trade['open_premium']
+
+        # 期限到来によるプレミアム損益の計算
+        for trade in self.premium_trades:
+            premium_gains += trade['premium']
+
+        return {
+            'trading_gains': trading_gains.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
+            'premium_gains': premium_gains.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
+        }
+
+    def get_position_status(self):
+        """現在のポジション状況を取得"""
+        return {
+            'long_positions': self.long_positions,
+            'short_positions': self.short_positions,
+            'has_open_positions': self.long_positions > 0 or self.short_positions > 0
+        }
 
 @dataclass
 class OptionLot:
@@ -21,188 +140,54 @@ class OptionLot:
     open_date: date
     fees: Decimal
     position_type: str  # 'Long' or 'Short'
-    exchange_rate: Decimal  # 為替レートを追加
-
-class OptionPosition:
-    """オプションポジション管理クラス"""
-    def __init__(self):
-        self.lots: List[OptionLot] = []
-        self.reversed_trades: List[Dict] = []  # 逆順取引を一時的に保存
-    
-    def add_lot(self, lot: OptionLot):
-        """ロットを追加"""
-        self.lots.append(lot)
-    
-    def close_position(self, quantity: int, price: Decimal, fees: Decimal,
-                      is_buy_to_close: bool, trade_date: date,
-                      exchange_rate: Decimal) -> Decimal:  # 為替レートを追加
-        """ポジションをクローズし損益を計算（FIFO）"""
-        # 対応するオープンポジションが存在しない場合
-        if not self.lots:
-            # 逆順取引として記録
-            self.reversed_trades.append({
-                'quantity': quantity,
-                'price': price,
-                'fees': fees,
-                'is_buy_to_close': is_buy_to_close,
-                'date': trade_date,
-                'exchange_rate': exchange_rate  # 為替レートを追加
-            })
-            return Decimal('0')  # 損益は後で計算
-        
-        remaining_quantity = quantity
-        realized_gain = Decimal('0')
-        
-        while remaining_quantity > 0 and self.lots:
-            lot = self.lots[0]
-            
-            # クローズする数量を決定
-            close_quantity = min(remaining_quantity, lot.quantity)
-            quantity_ratio = Decimal(close_quantity) / Decimal(lot.quantity)
-            
-            # 損益計算
-            if lot.position_type == 'Long':
-                # Long position
-                cost_basis = lot.price * close_quantity + lot.fees * quantity_ratio
-                sale_proceed = price * close_quantity - fees * quantity_ratio
-                realized_gain += sale_proceed - cost_basis
-            else:
-                # Short position
-                if is_buy_to_close:
-                    original_credit = lot.price * close_quantity - lot.fees * quantity_ratio
-                    closing_debit = price * close_quantity + fees * quantity_ratio
-                    realized_gain += original_credit - closing_debit
-            
-            # ロットの更新
-            if close_quantity == lot.quantity:
-                self.lots.pop(0)
-            else:
-                lot.quantity -= close_quantity
-                lot.fees -= lot.fees * quantity_ratio
-            
-            remaining_quantity -= close_quantity
-        
-        return realized_gain
-
-    def match_reversed_trades(self) -> List[Dict]:
-        """逆順取引のマッチングと損益計算"""
-        realized_gains = []
-        
-        # Buy to OpenとSell to Closeの組み合わせを探す
-        while self.reversed_trades:
-            trade = self.reversed_trades[0]
-            matching_trades = [
-                t for t in self.reversed_trades[1:]
-                if ((trade['is_buy_to_close'] and not t['is_buy_to_close']) or
-                    (not trade['is_buy_to_close'] and t['is_buy_to_close']))
-            ]
-            
-            if matching_trades:
-                # マッチする取引を見つけた場合
-                matching_trade = matching_trades[0]
-                
-                # 損益を計算
-                if trade['is_buy_to_close']:
-                    buy_trade = trade
-                    sell_trade = matching_trade
-                else:
-                    buy_trade = matching_trade
-                    sell_trade = trade
-                
-                # 最小の数量を使用
-                quantity = min(trade['quantity'], matching_trade['quantity'])
-                
-                # 損益計算
-                cost_basis = buy_trade['price'] * quantity + buy_trade['fees']
-                sale_proceed = sell_trade['price'] * quantity - sell_trade['fees']
-                realized_gain = sale_proceed - cost_basis
-                
-                realized_gains.append({
-                    'date': max(trade['date'], matching_trade['date']),
-                    'gain': realized_gain,
-                    'quantity': quantity,
-                    'exchange_rate': trade['exchange_rate']  # 為替レートを追加
-                })
-                
-                # 使用した数量を更新
-                trade['quantity'] -= quantity
-                matching_trade['quantity'] -= quantity
-                
-                # 数量が0になった取引を削除
-                self.reversed_trades = [
-                    t for t in self.reversed_trades 
-                    if t['quantity'] > 0
-                ]
-            else:
-                # マッチする取引が見つからない場合
-                break
-        
-        return realized_gains
+    exchange_rate: Decimal  # 為替レート
 
 class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
-    """オプション取引の処理クラス（権利行使連携と損益計算対応）"""
+    """オプション取引の処理クラス"""
     
     def __init__(self, exchange_rate_provider: IExchangeRateProvider, stock_processor: StockTradeProcessor):
         super().__init__(exchange_rate_provider)
         self.stock_processor = stock_processor
         self._positions: Dict[str, OptionPosition] = defaultdict(OptionPosition)
-    
+
     def process(self, transaction: Transaction) -> None:
         """オプション取引トランザクションを処理"""
         if not self._is_option_trade(transaction):
             return
-        
+
         option_info = self._parse_option_info(transaction.symbol)
         if not option_info:
             return
 
         action = transaction.action_type.upper()
         position = self._positions[transaction.symbol]
-        realized_gain = Decimal('0')
-        position_type = self._determine_position_type(action, option_info['option_type'])
         exchange_rate = self._get_exchange_rate(transaction.transaction_date)
 
         quantity = abs(int(transaction.quantity or 0))
         price = Decimal(str(transaction.price or 0))
         fees = Decimal(str(transaction.fees or 0))
 
-        if action in ['BUY TO OPEN', 'SELL TO OPEN']:
-            # ポジションオープン
-            lot = OptionLot(
-                symbol=transaction.symbol,
-                quantity=quantity,
-                price=price,
-                open_date=transaction.transaction_date,
-                fees=fees,
-                position_type=position_type,
-                exchange_rate=exchange_rate  # 為替レートを追加
-            )
-            position.add_lot(lot)
-        elif action in ['BUY TO CLOSE', 'SELL TO CLOSE']:
-            # ポジションクローズ
-            is_buy_to_close = action == 'BUY TO CLOSE'
-            realized_gain = position.close_position(
-                quantity, price, fees, is_buy_to_close, 
-                transaction.transaction_date, exchange_rate
-            )
-            
-            # 逆順取引のマッチングと損益計算
-            reversed_gains = position.match_reversed_trades()
-            for gain_info in reversed_gains:
-                if gain_info['date'] == transaction.transaction_date:
-                    realized_gain += gain_info['gain']
-        elif action == 'ASSIGNED':
-            # 権利行使情報を株式取引プロセッサに連携
-            self._handle_assignment(transaction, option_info)
-            position.lots = []
-        elif action == 'EXPIRED':
-            # 期限切れの場合、現在の損益を確定
-            position.lots = []
+        # 取引情報の作成
+        trade_info = {
+            'action': action,
+            'quantity': quantity,
+            'premium': price,
+            'date': transaction.transaction_date
+        }
 
+        if action in ['BUY_TO_OPEN', 'SELL_TO_OPEN']:
+            position.add_trade(trade_info)
+        elif action in ['BUY_TO_CLOSE', 'SELL_TO_CLOSE']:
+            position.close_position(trade_info)
+        elif action == 'EXPIRED':
+            position.handle_expiration(transaction.transaction_date)
+
+        # 損益の計算
+        gains = position.calculate_gains()
+        
         # 為替レート付きでMoneyオブジェクトを作成
-        price_money = self._create_money_with_rate(price, exchange_rate)
-        fees_money = self._create_money_with_rate(fees, exchange_rate)
-        realized_gain_money = self._create_money_with_rate(realized_gain, exchange_rate)
+        trading_gains_money = self._create_money_with_rate(gains['trading_gains'], exchange_rate)
+        premium_gains_money = self._create_money_with_rate(gains['premium_gains'], exchange_rate)
 
         trade_record = OptionTradeRecord(
             trade_date=transaction.transaction_date,
@@ -211,49 +196,46 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
             description=transaction.description,
             action=action,
             quantity=quantity,
-            price=price_money,
-            fees=fees_money,
+            price=self._create_money_with_rate(price, exchange_rate),
+            fees=self._create_money_with_rate(fees, exchange_rate),
+            exchange_rate=exchange_rate,
             expiry_date=option_info['expiry_date'],
             strike_price=option_info['strike_price'],
             option_type=option_info['option_type'],
-            position_type=position_type,
-            is_expired=action == 'EXPIRED',
-            exchange_rate=exchange_rate,
-            realized_gain=realized_gain_money,
-            price_jpy=price_money.convert_to_jpy(exchange_rate),
-            fees_jpy=fees_money.convert_to_jpy(exchange_rate),
-            realized_gain_jpy=realized_gain_money.convert_to_jpy(exchange_rate)
+            position_type=self._determine_position_type(action),
+            is_expired=(action == 'EXPIRED'),
+            trading_gains=trading_gains_money,
+            premium_gains=premium_gains_money
         )
         
         self.records.append(trade_record)
 
-    # 以下のメソッドは変更なし
-    def _handle_assignment(self, transaction: Transaction, option_info: Dict[str, Any]) -> None:
-        underlying_symbol = option_info['underlying']
-        quantity = abs(int(transaction.quantity or 0))
-        strike_price = option_info['strike_price']
-        
-        self.stock_processor.record_option_assignment(
-            symbol=underlying_symbol,
-            date=transaction.transaction_date,
-            quantity=quantity,
-            strike_price=strike_price
-        )
-    
     def _is_option_trade(self, transaction: Transaction) -> bool:
-        option_actions = {'BUY', 'SELL', 'EXPIRED', 'ASSIGNED', 
-                          'BUY TO OPEN', 'SELL TO OPEN', 
-                          'BUY TO CLOSE', 'SELL TO CLOSE'}
+        """オプション取引トランザクションかどうかを判定"""
+        option_actions = {
+            'BUY_TO_OPEN', 'SELL_TO_OPEN', 
+            'BUY_TO_CLOSE', 'SELL_TO_CLOSE',
+            'EXPIRED', 'ASSIGNED'
+        }
         return (
             transaction.action_type.upper() in option_actions and
             self._is_option_symbol(transaction.symbol)
         )
-    
+
+    def _determine_position_type(self, action: str) -> str:
+        """ポジションタイプを判定"""
+        if action in ['BUY_TO_OPEN', 'SELL_TO_CLOSE']:
+            return 'Long'
+        return 'Short'
+
+    # 以下のメソッドは既存のまま
     def _is_option_symbol(self, symbol: str) -> bool:
+        """オプションシンボルかどうかを判定"""
         option_pattern = r'\d{2}/\d{2}/\d{4}\s+\d+\.\d+\s+[CP]'
         return bool(re.search(option_pattern, symbol))
-    
+
     def _parse_option_info(self, symbol: str) -> Optional[Dict]:
+        """オプションシンボルを解析"""
         try:
             pattern = r'(\w+)\s+(\d{2}/\d{2}/\d{4})\s+(\d+\.\d+)\s+([CP])'
             match = re.match(pattern, symbol)
@@ -267,17 +249,3 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
                 }
         except (ValueError, AttributeError):
             return None
-            
-    def _determine_position_type(self, action: str, option_type: str) -> str:
-        action = action.upper()
-        
-        if action == 'SELL TO OPEN':
-            return 'Short'
-        elif action == 'BUY TO OPEN':
-            return 'Long'
-        elif action == 'SELL TO CLOSE':
-            return 'Long'
-        elif action == 'BUY TO CLOSE':
-            return 'Short'
-        
-        return 'Long'  # デフォルト値

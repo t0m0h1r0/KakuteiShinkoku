@@ -42,8 +42,8 @@ class WriterManager:
                 fieldnames=[
                     'date', 'account', 'symbol', 
                     'description', 'action', 'quantity', 'price',
-                    'price_jpy', 'fees_jpy', 'realized_gain_jpy',
-                    'exchange_rate'
+                    'price_jpy', 'fees_jpy', 'trading_gains_jpy', 
+                    'premium_gains_jpy', 'exchange_rate'
                 ]
             ),
             'option_premium_csv': CSVWriter(

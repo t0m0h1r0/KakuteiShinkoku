@@ -222,27 +222,17 @@ class InvestmentReportGenerator(ReportGenerator):
         
         return summary
 
-    def _calculate_trading_summary(self, stock_records: List,
-                                 option_records: List) -> Dict:
+    def _calculate_trading_summary(self, stock_records: List, option_records: List) -> Dict:
         """取引損益のサマリー計算"""
         stock_gain = sum(r.realized_gain.amount for r in stock_records)
         
-        option_gain = sum(
-            summary.net_premium 
-            for summary in self.context.premium_processor._transactions.values()
-            if summary.is_closed and summary.status == 'CLOSED'
-        )
-        
-        premium_gain = sum(
-            summary.net_premium 
-            for summary in self.context.premium_processor._transactions.values()
-            if summary.is_closed and summary.status == 'EXPIRED'
-        )
+        option_trading_gain = sum(r.trading_gains.amount for r in option_records)
+        option_premium_gain = sum(r.premium_gains.amount for r in option_records)
         
         summary = {
             'stock_gain': stock_gain,
-            'option_gain': option_gain,
-            'premium_income': premium_gain
+            'option_gain': option_trading_gain,
+            'premium_income': option_premium_gain
         }
         
         summary['net_total'] = (
@@ -295,12 +285,14 @@ class InvestmentReportGenerator(ReportGenerator):
 
     def _calculate_option_final_summary(self, records: List[OptionTradeRecord]) -> Dict:
         """オプション取引の最終サマリー計算"""
-        total_usd = sum(r.realized_gain.amount for r in records)
-        total_jpy = sum(r.realized_gain_jpy.amount for r in records)
+        total_trading_usd = sum(r.trading_gains.amount for r in records)
+        total_premium_usd = sum(r.premium_gains.amount for r in records)
+        total_trading_jpy = sum(r.trading_gains_jpy.amount for r in records)
+        total_premium_jpy = sum(r.premium_gains_jpy.amount for r in records)
 
         return {
-            'total_usd': total_usd,
-            'total_jpy': total_jpy
+            'total_usd': total_trading_usd + total_premium_usd,
+            'total_jpy': total_trading_jpy + total_premium_jpy
         }
 
     def _calculate_premium_final_summary(self, records: List[PremiumRecord]) -> Dict:
@@ -407,7 +399,10 @@ class InvestmentReportGenerator(ReportGenerator):
             'fees_jpy': int(record.fees_jpy.amount.quantize(
                 Decimal('1'), rounding=ROUND_HALF_UP
             )),
-            'realized_gain_jpy': int(record.realized_gain_jpy.amount.quantize(
+            'trading_gains_jpy': int(record.trading_gains_jpy.amount.quantize(
+                Decimal('1'), rounding=ROUND_HALF_UP
+            )),
+            'premium_gains_jpy': int(record.premium_gains_jpy.amount.quantize(
                 Decimal('1'), rounding=ROUND_HALF_UP
             )),
             'exchange_rate': record.exchange_rate
