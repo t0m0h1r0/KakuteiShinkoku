@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from pathlib import Path
-from .console_output import ConsoleOutput, ColorConsoleOutput
+from .console_output import ConsoleOutput, ColorConsoleOutput, ImprovedConsoleOutput
 from .file_output import FileOutput, AppendFileOutput, LogFileOutput
 
 def create_output(output_type: str = 'console', **kwargs) -> Any:
@@ -8,7 +8,10 @@ def create_output(output_type: str = 'console', **kwargs) -> Any:
     if output_type == 'console':
         use_color = kwargs.get('use_color', False)
         formatter = kwargs.get('formatter')
-        return ColorConsoleOutput(formatter) if use_color else ConsoleOutput(formatter)
+        return (
+            ColorConsoleOutput(formatter) if use_color else 
+            ImprovedConsoleOutput(formatter)
+        )
     
     elif output_type == 'file':
         output_path = kwargs.get('output_path')
