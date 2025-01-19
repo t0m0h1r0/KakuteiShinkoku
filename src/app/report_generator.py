@@ -77,21 +77,15 @@ class InvestmentReportGenerator(ReportGenerator):
     def _format_premium_record(self, record: PremiumRecord) -> Dict:
         """プレミアム記録のフォーマット"""
         summary = self.context.premium_processor._transactions[record.symbol]
-        trading_gain = (summary.sell_to_close_amount - summary.buy_to_close_amount)
         final_premium = (summary.sell_to_open_amount - summary.buy_to_open_amount +
-                        trading_gain - summary.fees)
+                        (summary.sell_to_close_amount - summary.buy_to_close_amount) - 
+                        summary.fees)
 
         return {
+            'account': record.account_id,
             'symbol': record.symbol,
-            'expiry_date': record.expiry_date,
-            'strike_price': record.strike_price,
-            'option_type': record.option_type,
-            'sell_to_open_total': summary.sell_to_open_amount,
-            'buy_to_open_total': summary.buy_to_open_amount,
-            'buy_to_close_total': summary.buy_to_close_amount,
-            'sell_to_close_total': summary.sell_to_close_amount,
+            'description': record.description,
             'fees_total': summary.fees,
-            'trading_gain': trading_gain,
             'final_premium': final_premium,
             'status': summary.status,
             'close_date': summary.close_date
@@ -117,7 +111,7 @@ class InvestmentReportGenerator(ReportGenerator):
             'account': record.account_id,
             'symbol': record.symbol or '',
             'description': record.description,
-            'type': record.income_type,
+            'action': record.action_type,
             'gross_amount': record.gross_amount.amount,
             'tax_amount': record.tax_amount.amount,
             'net_amount': record.gross_amount.amount - record.tax_amount.amount
@@ -125,6 +119,9 @@ class InvestmentReportGenerator(ReportGenerator):
 
     def _format_stock_record(self, record: StockTradeRecord) -> Dict:
         """株式取引記録のフォーマット"""
+        # priceの小数点以下の桁数を取得
+        price_decimal_places = len(str(record.price.amount).split('.')[1]) if '.' in str(record.price.amount) else 0
+        
         return {
             'date': record.trade_date,
             'account': record.account_id,
@@ -134,7 +131,7 @@ class InvestmentReportGenerator(ReportGenerator):
             'action': record.action,
             'quantity': record.quantity,
             'price': record.price.amount,
-            'realized_gain': record.realized_gain.amount
+            'realized_gain': round(record.realized_gain.amount, price_decimal_places)
         }
 
     def _format_option_record(self, record: OptionTradeRecord) -> Dict:
@@ -143,21 +140,13 @@ class InvestmentReportGenerator(ReportGenerator):
             'date': record.trade_date,
             'account': record.account_id,
             'symbol': record.symbol,
-            'expiry_date': record.expiry_date,
-            'strike_price': record.strike_price,
-            'option_type': record.option_type,
-            'position_type': record.position_type,
             'description': record.description,
             'action': record.action,
             'quantity': record.quantity,
-            'price': record.price.amount,
-            'realized_gain': record.realized_gain.amount,
-            'is_expired': record.is_expired
+            'price': record.price.amount
         }
 
-    def _calculate_dividend_summary(self, 
-                                    dividend_records: List, 
-                                    interest_records: List) -> Dict:
+    def _calculate_dividend_summary(self, dividend_records: List, interest_records: List) -> Dict:
         """配当・利子収入のサマリー計算"""
         summary = {
             'dividend_total': sum(r.gross_amount.amount for r in dividend_records),
@@ -173,9 +162,7 @@ class InvestmentReportGenerator(ReportGenerator):
         
         return summary
 
-    def _calculate_trading_summary(self, 
-                                  stock_records: List,
-                                  option_records: List) -> Dict:
+    def _calculate_trading_summary(self, stock_records: List, option_records: List) -> Dict:
         """取引損益のサマリー計算"""
         # 株式取引の損益
         stock_gain = sum(r.realized_gain.amount for r in stock_records)

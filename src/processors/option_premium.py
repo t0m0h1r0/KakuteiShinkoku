@@ -100,7 +100,8 @@ class OptionPremiumProcessor(BaseProcessor[PremiumRecord]):
                 strike_price=option_info['strike_price'],
                 option_type=option_info['option_type'],
                 premium_amount=Money(Decimal('0')),
-                exchange_rate=self._get_exchange_rate(transaction.transaction_date)
+                exchange_rate=self._get_exchange_rate(transaction.transaction_date),
+                description=transaction.description  # 元のトランザクションの説明文をそのまま使用
             )
 
     def _handle_expiration(self, transaction: Transaction, option_info: Dict, summary: OptionTransactionSummary) -> None:

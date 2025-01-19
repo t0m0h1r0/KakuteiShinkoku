@@ -21,7 +21,7 @@ class WriterManager:
                 OUTPUT_FILES['interest_history'],
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
-                    'type', 'gross_amount', 'tax_amount', 'net_amount'
+                    'action', 'gross_amount', 'tax_amount', 'net_amount'
                 ]
             ),
             'stock_trade_csv': CSVWriter(
@@ -34,19 +34,15 @@ class WriterManager:
             'option_trade_csv': CSVWriter(
                 OUTPUT_FILES['option_trade_history'],
                 fieldnames=[
-                    'date', 'account', 'symbol', 'expiry_date',
-                    'strike_price', 'option_type', 'position_type',
-                    'description', 'action', 'quantity', 'price', 
-                    'realized_gain', 'is_expired'
+                    'date', 'account', 'symbol', 
+                    'description', 'action', 'quantity', 'price'
                 ]
             ),
             'option_premium_csv': CSVWriter(
                 OUTPUT_FILES['option_premium'],
                 fieldnames=[
-                    'symbol', 'expiry_date', 'strike_price', 'option_type',
-                    'sell_to_open_total', 'buy_to_open_total',
-                    'buy_to_close_total', 'sell_to_close_total',
-                    'fees_total', 'trading_gain', 'final_premium',
+                    'account', 'symbol', 'description', 
+                    'fees_total', 'final_premium', 
                     'status', 'close_date'
                 ]
             ),

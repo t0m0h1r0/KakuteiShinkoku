@@ -48,3 +48,4 @@ class PremiumRecord:
     option_type: str
     premium_amount: Money
     exchange_rate: Decimal
+    description: str = ''  # デフォルト値として空文字を追加
