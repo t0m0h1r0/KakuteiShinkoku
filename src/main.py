@@ -5,7 +5,7 @@ import argparse
 from datetime import datetime
 
 from .config.settings import DATA_DIR
-from .app.context import ApplicationContext
+from .app.application_context import ApplicationContext
 from .processors.data_processor import InvestmentDataProcessor
 from .processors.report_generator import InvestmentReportGenerator
 

@@ -4,7 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 
 from ..core.interfaces import IWriter
-from ..app.context import ApplicationContext
+from ..app.application_context import ApplicationContext
 from ..processors.trade_records import StockTradeRecord, OptionTradeRecord, PremiumRecord
 from ..processors.interest_income import InterestRecord
 from ..processors.dividend_income import DividendRecord

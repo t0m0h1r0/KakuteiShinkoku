@@ -4,7 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 
 from ..core.types.transaction import Transaction
-from ..app.context import ApplicationContext
+from ..app.application_context import ApplicationContext
 
 class DataProcessor(ABC):
     """データ処理の基本クラス"""
