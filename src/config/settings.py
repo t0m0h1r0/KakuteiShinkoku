@@ -24,12 +24,11 @@ EXCHANGE_RATE_FILE = DATA_DIR / 'HistoricalPrices.csv'
 OUTPUT_FILES = {
     'dividend_history': OUTPUT_DIR / 'dividend_history.csv',
     'dividend_summary': OUTPUT_DIR / 'dividend_summary.csv',
-    'interest_history': OUTPUT_DIR / 'interest_history.csv',  # 新しく追加
+    'interest_history': OUTPUT_DIR / 'interest_history.csv',
     'stock_trade_history': OUTPUT_DIR / 'stock_history.csv',
     'option_trade_history': OUTPUT_DIR / 'option_history.csv',
-    'trade_summary': OUTPUT_DIR / 'trade_summary.csv',
     'option_premium': OUTPUT_DIR / 'option_summary.csv',
-    'profit_loss_summary': OUTPUT_DIR / 'final_summary.csv'
+    'final_summary': OUTPUT_DIR / 'final_summary.csv'  # 新しく追加
 }
 
 # ロギング設定
@@ -61,9 +60,9 @@ LOGGING_CONFIG = {
 
 # オプション取引設定
 OPTION_TRADING_CONFIG = {
-    'min_premium_threshold': Decimal('10.0'),  # 最小プレミアム閾値
-    'max_loss_threshold': Decimal('1000.0'),   # 最大損失閾値
-    'premium_calculation_method': 'NET',       # プレミアム計算方法
-    'include_expired_options': True,           # 期限切れオプションを含めるか
-    'include_assigned_options': True           # 権利行使オプションを含めるか
+    'min_premium_threshold': Decimal('10.0'),
+    'max_loss_threshold': Decimal('1000.0'),
+    'premium_calculation_method': 'NET',
+    'include_expired_options': True,
+    'include_assigned_options': True
 }

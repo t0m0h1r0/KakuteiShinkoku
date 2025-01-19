@@ -15,7 +15,7 @@ class WriterManager:
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
                     'type', 'gross_amount', 'tax_amount', 'net_amount',
-                    'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',  # JPY追加
+                    'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',
                     'exchange_rate'
                 ]
             ),
@@ -24,7 +24,7 @@ class WriterManager:
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
                     'action', 'gross_amount', 'tax_amount', 'net_amount',
-                    'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',  # JPY追加
+                    'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',
                     'exchange_rate'
                 ]
             ),
@@ -33,7 +33,7 @@ class WriterManager:
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
                     'action', 'quantity', 'price', 'realized_gain',
-                    'price_jpy', 'realized_gain_jpy',  # JPY追加
+                    'price_jpy', 'realized_gain_jpy',
                     'exchange_rate'
                 ]
             ),
@@ -42,7 +42,7 @@ class WriterManager:
                 fieldnames=[
                     'date', 'account', 'symbol', 
                     'description', 'action', 'quantity', 'price',
-                    'price_jpy', 'fees_jpy', 'realized_gain_jpy',  # JPY追加
+                    'price_jpy', 'fees_jpy', 'realized_gain_jpy',
                     'exchange_rate'
                 ]
             ),
@@ -51,8 +51,16 @@ class WriterManager:
                 fieldnames=[
                     'account', 'symbol', 'description', 
                     'fees_total', 'final_premium', 'status', 'close_date',
-                    'final_premium_jpy', 'fees_total_jpy',  # JPY追加
+                    'final_premium_jpy', 'fees_total_jpy',
                     'exchange_rate'
+                ]
+            ),
+            'final_summary': CSVWriter(
+                OUTPUT_FILES['final_summary'],
+                fieldnames=[
+                    'item',      # 項目名 (配当、利子など)
+                    'usd',       # USD金額
+                    'jpy'        # JPY金額
                 ]
             )
         }
