@@ -1,15 +1,13 @@
 from typing import Dict, Any
 from pathlib import Path
-from .formatters.text_formatter import TextFormatter
-from .formatters.table_formatter import TableFormatter
-from .outputs.console_output import ConsoleOutput, ColorConsoleOutput
-from .outputs.file_output import FileOutput, AppendFileOutput, LogFileOutput
+from .console_output import ConsoleOutput, ColorConsoleOutput
+from .file_output import FileOutput, AppendFileOutput, LogFileOutput
 
-def create_display_output(output_type: str = 'console', **kwargs) -> Any:
+def create_output(output_type: str = 'console', **kwargs) -> Any:
     """出力オブジェクトを作成"""
     if output_type == 'console':
         use_color = kwargs.get('use_color', False)
-        formatter = kwargs.get('formatter', TextFormatter())
+        formatter = kwargs.get('formatter')
         return ColorConsoleOutput(formatter) if use_color else ConsoleOutput(formatter)
     
     elif output_type == 'file':
@@ -18,7 +16,7 @@ def create_display_output(output_type: str = 'console', **kwargs) -> Any:
             raise ValueError("output_path is required for file output")
         
         append_mode = kwargs.get('append', False)
-        formatter = kwargs.get('formatter', TextFormatter())
+        formatter = kwargs.get('formatter')
         
         if append_mode:
             return AppendFileOutput(output_path, formatter)
@@ -29,7 +27,7 @@ def create_display_output(output_type: str = 'console', **kwargs) -> Any:
         if not output_path:
             raise ValueError("output_path is required for log output")
         
-        formatter = kwargs.get('formatter', TextFormatter())
+        formatter = kwargs.get('formatter')
         log_output = LogFileOutput(output_path, formatter)
         
         if 'prefix' in kwargs:

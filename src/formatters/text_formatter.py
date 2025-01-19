@@ -2,9 +2,9 @@ from typing import Dict, Any, List, Union
 from decimal import Decimal
 from collections import defaultdict
 
-from ..formatters.base import BaseFormatter
-from ...core.money import Money
-from ...core.money import Currency
+from .base_formatter import BaseFormatter
+from ..core.money import Money
+from ..core.money import Currency
 
 class TextFormatter(BaseFormatter):
     """テキスト形式のフォーマッタ"""

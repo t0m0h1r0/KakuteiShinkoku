@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 from decimal import Decimal
-from ...core.money import Money
+from ..core.money import Money
 
 class BaseFormatter(ABC):
     """表示フォーマットの基底クラス"""

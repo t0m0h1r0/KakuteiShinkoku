@@ -3,8 +3,8 @@ from typing import List, Dict, Any
 import csv
 import logging
 
-from .base import BaseOutput
-from ..formatters.base import BaseFormatter
+from .base_output import BaseOutput
+from ..formatters.base_formatter import BaseFormatter
 
 class CSVWriter(BaseOutput):
     """CSV出力クラス"""

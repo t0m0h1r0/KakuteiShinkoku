@@ -1,6 +1,6 @@
 from typing import Dict
 from ..config.settings import OUTPUT_FILES
-from ..display.outputs.csv_writer import CSVWriter
+from ..outputs.csv_writer import CSVWriter
 
 class WriterManager:
     """ライター管理クラス"""

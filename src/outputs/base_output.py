@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 import logging
-from ..formatters.base import BaseFormatter
+from ..formatters.base_formatter import BaseFormatter
 
 class BaseOutput(ABC):
     """出力処理の基底クラス"""
