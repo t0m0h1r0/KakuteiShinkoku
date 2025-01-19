@@ -17,7 +17,8 @@ class InterestRecord:
                  gross_amount: Money, 
                  tax_amount: Money,
                  exchange_rate: Decimal,
-                 is_matured: bool = False):
+                 is_matured: bool = False,
+                 action_type: str = ''):  # action_typeを追加
         self.record_date = record_date
         self.account_id = account_id
         self.symbol = symbol
@@ -27,6 +28,7 @@ class InterestRecord:
         self.tax_amount = tax_amount
         self.exchange_rate = exchange_rate
         self.is_matured = is_matured
+        self.action_type = action_type  # action_typeを設定
 
 class InterestProcessor(BaseProcessor[InterestRecord]):
     def __init__(self, exchange_rate_provider: IExchangeRateProvider):
@@ -111,7 +113,8 @@ class InterestProcessor(BaseProcessor[InterestRecord]):
             gross_amount=Money(abs(transaction.amount)),
             tax_amount=Money(tax_amount),
             exchange_rate=self._get_exchange_rate(transaction.transaction_date),
-            is_matured='MATURITY' in transaction.action_type.upper()
+            is_matured='MATURITY' in transaction.action_type.upper(),
+            action_type=transaction.action_type  # action_typeを追加
         )
         
         self.records.append(interest_record)

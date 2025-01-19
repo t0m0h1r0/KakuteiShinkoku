@@ -106,8 +106,7 @@ class ApplicationContext:
                 OUTPUT_FILES['interest_history'],
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
-                    'type', 'income_type', 'gross_amount', 'tax_amount', 
-                    'net_amount', 'is_matured'
+                    'type', 'gross_amount', 'tax_amount', 'net_amount'
                 ]
             ),
             'stock_trade_csv': CSVWriter(

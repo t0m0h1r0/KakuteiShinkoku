@@ -55,13 +55,6 @@ class InvestmentDataProcessor(DataProcessor):
             option_records = self.context.option_processor.process_all(sorted_transactions)
             premium_records = self.context.premium_processor.process_all(sorted_transactions)
 
-            # デバッグ出力
-            print("\n--- 株式トランザクション詳細 ---")
-            print(f"株式レコード数: {len(stock_records)}")
-            for record in stock_records:
-                print(f"Date: {record.trade_date}, Action: {record.action}, Symbol: {record.symbol}, Price: {record.price.amount}")
-            print("--- 株式トランザクション出力終了 ---\n")
-
             # 結果をコンテキストに保存
             self.context.processing_results = {
                 'dividend_records': dividend_records,

@@ -94,12 +94,10 @@ class InvestmentReportGenerator(ReportGenerator):
             'account': record.account_id,
             'symbol': record.symbol or '',
             'description': record.description,
-            'type': self._categorize_interest_type(record),
-            'income_type': record.income_type,
+            'type': record.action_type,
             'gross_amount': record.gross_amount.amount,
             'tax_amount': record.tax_amount.amount,
-            'net_amount': record.gross_amount.amount - record.tax_amount.amount,
-            'is_matured': record.is_matured
+            'net_amount': record.gross_amount.amount - record.tax_amount.amount
         }
 
     def _format_stock_record(self, record: StockTradeRecord) -> Dict:
@@ -145,20 +143,6 @@ class InvestmentReportGenerator(ReportGenerator):
             'premium_amount': record.premium_amount.amount
         }
 
-    def _categorize_interest_type(self, record: InterestRecord) -> str:
-        """利子の詳細カテゴリを判定"""
-        original_type = record.income_type.lower()
-        description = record.description.lower()
-
-        if 'cd interest' in original_type or 'cd interest' in description:
-            return 'CD Interest'
-        elif 'bond interest' in original_type or 'bond interest' in description:
-            return 'Bond Interest'
-        elif 'bank interest' in description or 'credit interest' in description or 'schwab1 int' in description:
-            return 'Bank/Credit Interest'
-        else:
-            return 'Other Interest'
-
     def _write_summary_report(self, dividend_records: List, 
                              interest_records: List,
                              stock_records: List,
@@ -200,8 +184,8 @@ class InvestmentReportGenerator(ReportGenerator):
             raise
 
     def _calculate_dividend_summary(self, 
-                                   dividend_records: List, 
-                                   interest_records: List) -> Dict:
+                                  dividend_records: List, 
+                                  interest_records: List) -> Dict:
         """配当・利子収入のサマリー計算"""
         # 利子の詳細カテゴリごとに集計
         interest_breakdown = {
@@ -241,14 +225,16 @@ class InvestmentReportGenerator(ReportGenerator):
 
     def _get_interest_total_key(self, record: InterestRecord) -> str:
         """利子の集計キーを取得"""
-        type_mapping = {
-            'CD Interest': 'cd_interest_total',
-            'Bond Interest': 'bond_interest_total',
-            'Bank/Credit Interest': 'bank_credit_interest_total', 
-            'Other Interest': 'other_interest_total'
-        }
-        categorized_type = self._categorize_interest_type(record)
-        return type_mapping.get(categorized_type, 'other_interest_total')
+        action_type = record.action_type.upper()
+
+        if action_type == 'CD INTEREST':
+            return 'cd_interest_total'
+        elif action_type == 'BOND INTEREST':
+            return 'bond_interest_total'
+        elif action_type == 'CREDIT INTEREST' or action_type == 'BANK INTEREST':
+            return 'bank_credit_interest_total'
+        else:
+            return 'other_interest_total'
 
     def _calculate_trading_summary(self, 
                                   stock_records: List,
