@@ -6,7 +6,7 @@ from datetime import datetime
 
 from .config.settings import DATA_DIR
 from .app.application_context import ApplicationContext
-from .processors.data_processor import InvestmentDataProcessor
+from .app.data_processor import InvestmentDataProcessor
 from .app.report_generator import InvestmentReportGenerator
 
 def parse_arguments():

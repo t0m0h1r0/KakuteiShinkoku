@@ -9,7 +9,7 @@ from ..config.settings import (
     EXCHANGE_RATE_FILE, LOGGING_CONFIG
 )
 from ..exchange.factories import create_rate_provider
-from ..processors.transaction_loader import JSONTransactionLoader
+from ..core.transaction_loader import JSONTransactionLoader
 from ..processors.dividend_income import DividendProcessor
 from ..processors.interest_income import InterestProcessor
 from ..processors.stock_trade import StockTradeProcessor
