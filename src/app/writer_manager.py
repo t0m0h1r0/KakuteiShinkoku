@@ -49,9 +49,17 @@ class WriterManager:
             'option_premium_csv': CSVWriter(
                 OUTPUT_FILES['option_premium'],
                 fieldnames=[
-                    'account', 'symbol', 'description', 
-                    'fees_total', 'final_premium', 'status', 'close_date',
-                    'final_premium_jpy', 'fees_total_jpy',
+                    'account',
+                    'symbol',
+                    'description',
+                    'fees_total',
+                    'premium_income',          # プレミアム収入
+                    'trading_gains',           # 譲渡損益
+                    'status',
+                    'close_date',
+                    'premium_income_jpy',      # プレミアム収入（JPY）
+                    'trading_gains_jpy',       # 譲渡損益（JPY）
+                    'fees_total_jpy',
                     'exchange_rate'
                 ]
             ),

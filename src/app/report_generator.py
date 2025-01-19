@@ -416,26 +416,45 @@ class InvestmentReportGenerator(ReportGenerator):
     def _format_premium_record(self, record: PremiumRecord) -> Dict:
         """プレミアム記録のフォーマット"""
         summary = self.context.premium_processor._transactions[record.symbol]
-        final_premium = (summary.sell_to_open_amount - summary.buy_to_open_amount +
-                        (summary.sell_to_close_amount - summary.buy_to_close_amount) - 
-                        summary.fees)
+        
+        # プレミアム収入（売り建て時の受取プレミアム - 買い建て時の支払いプレミアム）
+        premium_income = summary.sell_to_open_amount - summary.buy_to_open_amount
+        
+        # 譲渡損益（売り決済時の受取プレミアム - 買い決済時の支払いプレミアム）
+        trading_gains = summary.sell_to_close_amount - summary.buy_to_close_amount
+        
+        # 手数料を比率で按分
+        total_amount = abs(premium_income) + abs(trading_gains)
+        if total_amount != 0:
+            premium_fees = summary.fees * (abs(premium_income) / total_amount)
+            trading_fees = summary.fees * (abs(trading_gains) / total_amount)
+        else:
+            premium_fees = trading_fees = Decimal('0')
+        
+        # 純利益の計算（USD）
+        net_premium_income = (premium_income - premium_fees).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        net_trading_gains = (trading_gains - trading_fees).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        fees_total = summary.fees.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-        final_premium_jpy = final_premium * record.exchange_rate
-        fees_total_jpy = summary.fees * record.exchange_rate
+        # JPY換算（整数に丸め）
+        premium_income_jpy = (net_premium_income * record.exchange_rate).quantize(
+            Decimal('1'), rounding=ROUND_HALF_UP)
+        trading_gains_jpy = (net_trading_gains * record.exchange_rate).quantize(
+            Decimal('1'), rounding=ROUND_HALF_UP)
+        fees_total_jpy = (summary.fees * record.exchange_rate).quantize(
+            Decimal('1'), rounding=ROUND_HALF_UP)
 
         return {
             'account': record.account_id,
             'symbol': record.symbol,
             'description': record.description,
-            'fees_total': summary.fees,
-            'final_premium': final_premium,
+            'fees_total': fees_total,
+            'premium_income': net_premium_income,
+            'trading_gains': net_trading_gains,
             'status': summary.status,
             'close_date': summary.close_date,
-            'final_premium_jpy': int(final_premium_jpy.quantize(
-                Decimal('1'), rounding=ROUND_HALF_UP
-            )),
-            'fees_total_jpy': int(fees_total_jpy.quantize(
-                Decimal('1'), rounding=ROUND_HALF_UP
-            )),
+            'premium_income_jpy': premium_income_jpy,
+            'trading_gains_jpy': trading_gains_jpy,
+            'fees_total_jpy': fees_total_jpy,
             'exchange_rate': record.exchange_rate
         }
