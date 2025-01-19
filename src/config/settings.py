@@ -25,13 +25,11 @@ OUTPUT_FILES = {
     'dividend_history': OUTPUT_DIR / 'dividend_history.csv',
     'dividend_summary': OUTPUT_DIR / 'dividend_summary.csv',
     'interest_history': OUTPUT_DIR / 'interest_history.csv',  # 新しく追加
-    'stock_trade_history': OUTPUT_DIR / 'stock_trade_history.csv',
-    'option_trade_history': OUTPUT_DIR / 'option_trade_history.csv',
+    'stock_trade_history': OUTPUT_DIR / 'stock_history.csv',
+    'option_trade_history': OUTPUT_DIR / 'option_history.csv',
     'trade_summary': OUTPUT_DIR / 'trade_summary.csv',
-    'option_premium': OUTPUT_DIR / 'option_premium.csv',
-    'option_summary': OUTPUT_DIR / 'option_premium_summary.txt',
-    'profit_loss_summary': OUTPUT_DIR / 'profit_loss_summary.csv',
-    'detailed_profit_loss_summary': OUTPUT_DIR / 'detailed_profit_loss_summary.csv'
+    'option_premium': OUTPUT_DIR / 'option_summary.csv',
+    'profit_loss_summary': OUTPUT_DIR / 'final_summary.csv'
 }
 
 # ロギング設定
