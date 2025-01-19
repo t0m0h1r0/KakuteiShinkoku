@@ -36,7 +36,8 @@ class WriterManager:
                 fieldnames=[
                     'date', 'account', 'symbol', 'expiry_date',
                     'strike_price', 'option_type', 'position_type',
-                    'description', 'action', 'quantity', 'price', 'is_expired'
+                    'description', 'action', 'quantity', 'price', 
+                    'realized_gain', 'is_expired'  # realized_gain を追加
                 ]
             ),
             'option_premium_csv': CSVWriter(

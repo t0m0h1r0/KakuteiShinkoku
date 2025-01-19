@@ -97,7 +97,7 @@ class InvestmentReportGenerator(ReportGenerator):
             'account': record.account_id,
             'symbol': record.symbol or '',
             'description': record.description,
-            'type': record.action_type,
+            'type': record.income_type,  # Changed from action_type
             'gross_amount': record.gross_amount.amount,
             'tax_amount': record.tax_amount.amount,
             'net_amount': record.gross_amount.amount - record.tax_amount.amount
@@ -114,7 +114,7 @@ class InvestmentReportGenerator(ReportGenerator):
             'action': record.action,
             'quantity': record.quantity,
             'price': record.price.amount,
-            'realized_gain': record.realized_gain.amount if hasattr(record, 'realized_gain') else 0
+            'realized_gain': record.realized_gain.amount
         }
 
     def _format_option_record(self, record: OptionTradeRecord) -> Dict:
@@ -131,6 +131,7 @@ class InvestmentReportGenerator(ReportGenerator):
             'action': record.action,
             'quantity': record.quantity,
             'price': record.price.amount,
+            'realized_gain': record.realized_gain.amount,
             'is_expired': record.is_expired
         }
 
@@ -170,9 +171,12 @@ class InvestmentReportGenerator(ReportGenerator):
                                   premium_summary: Dict) -> Dict:
         """取引損益のサマリー計算"""
         # 株式取引の損益
-        stock_gain = sum(r.realized_gain.amount for r in stock_records if hasattr(r, 'realized_gain'))
+        stock_gain = sum(r.realized_gain.amount for r in stock_records)
         
-        # オプション取引の集計
+        # オプション取引の損益
+        option_gain = sum(r.realized_gain.amount for r in option_records)
+        
+        # プレミアム収入の計算
         total_premium = Decimal('0')
         total_closing_cost = Decimal('0')
         
@@ -184,7 +188,7 @@ class InvestmentReportGenerator(ReportGenerator):
         
         summary = {
             'stock_gain': stock_gain,
-            'option_gain': Decimal('0'),  # オプション取引損益は別途計算
+            'option_gain': option_gain,
             'premium_income': net_premium
         }
         
@@ -203,13 +207,18 @@ class InvestmentReportGenerator(ReportGenerator):
                              premium_summary: Dict) -> None:
         """サマリーレポートの生成"""
         try:
-            # 収入サマリーの計算
-            income_summary = self._calculate_dividend_summary(dividend_records, interest_records)
+            # 配当・利子収入の集計
+            income_summary = self._calculate_dividend_summary(
+                dividend_records, 
+                interest_records
+            )
             
-            # 取引損益の計算
-            trading_summary = self._calculate_trading_summary(stock_records, option_records, premium_summary)
+            # 取引損益の集計
+            trading_summary = self._calculate_trading_summary(
+                stock_records, option_records, premium_summary
+            )
             
-            # 総合サマリーの作成
+            # 全体のサマリーを作成
             total_summary = {
                 'income': income_summary,
                 'trading': trading_summary,
@@ -223,7 +232,7 @@ class InvestmentReportGenerator(ReportGenerator):
                 }
             }
 
-            # 結果をファイルに出力
+            # CSVへの出力
             self._write_summary_to_csv(income_summary, trading_summary)
 
             # 各出力先に書き出し

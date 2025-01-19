@@ -35,6 +35,7 @@ class OptionTradeRecord:
     position_type: str
     is_expired: bool
     exchange_rate: Decimal
+    realized_gain: Money = Money(Decimal('0'))  # 追加
 
 @dataclass
 class PremiumRecord:
