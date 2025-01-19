@@ -1,5 +1,5 @@
 from typing import Dict, List, Any
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import logging
 from abc import ABC, abstractmethod
 
@@ -88,9 +88,9 @@ class InvestmentReportGenerator(ReportGenerator):
             'gross_amount': record.gross_amount.amount,
             'tax_amount': record.tax_amount.amount,
             'net_amount': net_amount,
-            'gross_amount_jpy': record.gross_amount_jpy.amount,
-            'tax_amount_jpy': record.tax_amount_jpy.amount,
-            'net_amount_jpy': net_amount_jpy,
+            'gross_amount_jpy': int(record.gross_amount_jpy.amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+            'tax_amount_jpy': int(record.tax_amount_jpy.amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+            'net_amount_jpy': int(net_amount_jpy.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
             'exchange_rate': record.exchange_rate
         }
 
@@ -108,9 +108,9 @@ class InvestmentReportGenerator(ReportGenerator):
             'gross_amount': record.gross_amount.amount,
             'tax_amount': record.tax_amount.amount,
             'net_amount': net_amount,
-            'gross_amount_jpy': record.gross_amount_jpy.amount,
-            'tax_amount_jpy': record.tax_amount_jpy.amount,
-            'net_amount_jpy': net_amount_jpy,
+            'gross_amount_jpy': int(record.gross_amount_jpy.amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+            'tax_amount_jpy': int(record.tax_amount_jpy.amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+            'net_amount_jpy': int(net_amount_jpy.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
             'exchange_rate': record.exchange_rate
         }
 
@@ -126,8 +126,8 @@ class InvestmentReportGenerator(ReportGenerator):
             'quantity': record.quantity,
             'price': record.price.amount,
             'realized_gain': record.realized_gain.amount,
-            'price_jpy': record.price_jpy.amount,
-            'realized_gain_jpy': record.realized_gain_jpy.amount,
+            'price_jpy': int(record.price_jpy.amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+            'realized_gain_jpy': int(record.realized_gain_jpy.amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
             'exchange_rate': record.exchange_rate
         }
 
@@ -141,9 +141,9 @@ class InvestmentReportGenerator(ReportGenerator):
             'action': record.action,
             'quantity': record.quantity,
             'price': record.price.amount,
-            'price_jpy': record.price_jpy.amount,
-            'fees_jpy': record.fees_jpy.amount,
-            'realized_gain_jpy': record.realized_gain_jpy.amount,
+            'price_jpy': int(record.price_jpy.amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+            'fees_jpy': int(record.fees_jpy.amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+            'realized_gain_jpy': int(record.realized_gain_jpy.amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
             'exchange_rate': record.exchange_rate
         }
 
@@ -165,8 +165,8 @@ class InvestmentReportGenerator(ReportGenerator):
             'final_premium': final_premium,
             'status': summary.status,
             'close_date': summary.close_date,
-            'final_premium_jpy': final_premium_jpy,
-            'fees_total_jpy': fees_total_jpy,
+            'final_premium_jpy': int(final_premium_jpy.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
+            'fees_total_jpy': int(fees_total_jpy.quantize(Decimal('1'), rounding=ROUND_HALF_UP)),
             'exchange_rate': record.exchange_rate
         }
 
@@ -261,10 +261,10 @@ class InvestmentReportGenerator(ReportGenerator):
         
         # JPY金額の計算
         exchange_rate = self._get_latest_exchange_rate()
-        dividend_jpy = income_summary['dividend_total'] * exchange_rate
-        interest_jpy = income_summary['interest_total'] * exchange_rate
-        tax_jpy = income_summary['tax_total'] * exchange_rate
-        net_total_jpy = net_total * exchange_rate
+        dividend_jpy = (income_summary['dividend_total'] * exchange_rate).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+        interest_jpy = (income_summary['interest_total'] * exchange_rate).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+        tax_jpy = (income_summary['tax_total'] * exchange_rate).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+        net_total_jpy = (net_total * exchange_rate).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
 
         summary_record = {
             'Account': 'ALL',
@@ -272,10 +272,10 @@ class InvestmentReportGenerator(ReportGenerator):
             'Interest': income_summary['interest_total'],
             'Tax': income_summary['tax_total'],
             'Net Total': net_total,
-            'Dividend_JPY': dividend_jpy,
-            'Interest_JPY': interest_jpy,
-            'Tax_JPY': tax_jpy,
-            'Net Total_JPY': net_total_jpy,
+            'Dividend_JPY': int(dividend_jpy),
+            'Interest_JPY': int(interest_jpy),
+            'Tax_JPY': int(tax_jpy),
+            'Net Total_JPY': int(net_total_jpy),
             'Exchange Rate': exchange_rate
         }
         self.context.writers['profit_loss_csv'].output([summary_record])
