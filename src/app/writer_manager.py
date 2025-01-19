@@ -32,7 +32,7 @@ class WriterManager:
                 OUTPUT_FILES['stock_trade_history'],
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
-                    'type', 'action', 'quantity', 'price', 'realized_gain',
+                    'action', 'quantity', 'price', 'realized_gain',
                     'price_jpy', 'realized_gain_jpy',  # JPY追加
                     'exchange_rate'
                 ]

@@ -121,7 +121,6 @@ class InvestmentReportGenerator(ReportGenerator):
             'account': record.account_id,
             'symbol': record.symbol,
             'description': record.description,
-            'type': 'Stock',
             'action': record.action,
             'quantity': record.quantity,
             'price': record.price.amount,
