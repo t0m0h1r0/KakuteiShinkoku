@@ -54,13 +54,5 @@ class WriterManager:
                     'final_premium_jpy', 'fees_total_jpy',  # JPY追加
                     'exchange_rate'
                 ]
-            ),
-            'profit_loss_csv': CSVWriter(
-                OUTPUT_FILES['profit_loss_summary'],
-                fieldnames=[
-                    'Account', 'Dividend', 'Interest', 'Tax', 'Net Total',
-                    'Dividend_JPY', 'Interest_JPY', 'Tax_JPY', 'Net Total_JPY',  # JPY追加
-                    'Exchange Rate'
-                ]
             )
         }

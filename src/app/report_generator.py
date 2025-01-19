@@ -240,60 +240,8 @@ class InvestmentReportGenerator(ReportGenerator):
                 }
             }
 
-            self._write_summary_to_csv(income_summary, trading_summary)
-            
-            self.context.display_outputs['summary_file'].output(total_summary)
             self.context.display_outputs['console'].output(total_summary)
             
         except Exception as e:
             self.logger.error(f"Error generating summary report: {e}")
             raise
-
-    def _write_summary_to_csv(self, income_summary: Dict, trading_summary: Dict) -> None:
-        """サマリーをCSVに出力"""
-        # USD金額の計算
-        net_total = (
-            income_summary['dividend_total'] +
-            income_summary['interest_total'] -
-            income_summary['tax_total']
-        )
-        
-        # JPY金額の計算
-        exchange_rate = self._get_latest_exchange_rate()
-        dividend_jpy = (income_summary['dividend_total'] * exchange_rate).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
-        interest_jpy = (income_summary['interest_total'] * exchange_rate).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
-        tax_jpy = (income_summary['tax_total'] * exchange_rate).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
-        net_total_jpy = (net_total * exchange_rate).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
-
-        summary_record = {
-            'Account': 'ALL',
-            'Dividend': income_summary['dividend_total'],
-            'Interest': income_summary['interest_total'],
-            'Tax': income_summary['tax_total'],
-            'Net Total': net_total,
-            'Dividend_JPY': int(dividend_jpy),
-            'Interest_JPY': int(interest_jpy),
-            'Tax_JPY': int(tax_jpy),
-            'Net Total_JPY': int(net_total_jpy),
-            'Exchange Rate': exchange_rate
-        }
-        self.context.writers['profit_loss_csv'].output([summary_record])
-
-    def _get_latest_exchange_rate(self) -> Decimal:
-        """最新の為替レートを取得"""
-        all_records = (
-            self.context.processing_results.get('dividend_records', []) +
-            self.context.processing_results.get('interest_records', []) +
-            self.context.processing_results.get('stock_records', []) +
-            self.context.processing_results.get('option_records', [])
-        )
-        
-        if not all_records:
-            return Decimal('150.0')  # デフォルトレート
-        
-        latest_record = max(
-            all_records,
-            key=lambda x: x.record_date if hasattr(x, 'record_date') else x.trade_date
-        )
-        
-        return latest_record.exchange_rate

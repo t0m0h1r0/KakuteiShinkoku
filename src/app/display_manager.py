@@ -17,11 +17,6 @@ class DisplayManager:
                 use_color=use_color,
                 formatter=text_formatter
             ),
-            'summary_file': create_output(
-                'file',
-                output_path=OUTPUT_FILES['profit_loss_summary'],
-                formatter=text_formatter
-            ),
             'log_file': create_output(
                 'log',
                 output_path=LOG_DIR / 'processing_summary.log',
