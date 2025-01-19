@@ -64,9 +64,9 @@ class ApplicationContext:
         self.dividend_processor = DividendProcessor(self.exchange_rate_provider)
         self.interest_processor = InterestProcessor(self.exchange_rate_provider)
         self.stock_processor = StockTradeProcessor(self.exchange_rate_provider)
-        self.option_processor = OptionTradeProcessor(self.exchange_rate_provider)
+        self.option_processor = OptionTradeProcessor(self.exchange_rate_provider, self.stock_processor)
         self.premium_processor = OptionPremiumProcessor(self.exchange_rate_provider)
-
+        
     def cleanup(self) -> None:
         """コンテキストのクリーンアップ"""
         CleanupHandler.cleanup_context(self)

@@ -1,18 +1,20 @@
 import re
 from decimal import Decimal
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 from ..core.transaction import Transaction
 from ..core.money import Money
 from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .trade_records import OptionTradeRecord
+from .stock_trade import StockTradeProcessor  # New import
 
 class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
-    """オプション取引の処理クラス"""
+    """オプション取引の処理クラス（権利行使連携対応）"""
     
-    def __init__(self, exchange_rate_provider: IExchangeRateProvider):
+    def __init__(self, exchange_rate_provider: IExchangeRateProvider, stock_processor: StockTradeProcessor):
         super().__init__(exchange_rate_provider)
+        self.stock_processor = stock_processor
     
     def process(self, transaction: Transaction) -> None:
         """オプション取引トランザクションを処理"""
@@ -22,6 +24,10 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
         option_info = self._parse_option_info(transaction.symbol)
         if not option_info:
             return
+
+        if transaction.action_type.upper() == 'ASSIGNED':
+            # 権利行使情報を株式取引プロセッサに連携
+            self._handle_assignment(transaction, option_info)
         
         trade_record = OptionTradeRecord(
             trade_date=transaction.transaction_date,
@@ -35,13 +41,25 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
             expiry_date=option_info['expiry_date'],
             strike_price=option_info['strike_price'],
             option_type=option_info['option_type'],
-            # ポジションタイプの判定を修正
             position_type=self._determine_position_type(transaction.action_type, option_info['option_type']),
             is_expired=transaction.action_type.upper() == 'EXPIRED',
             exchange_rate=self._get_exchange_rate(transaction.transaction_date)
         )
         
         self.records.append(trade_record)
+
+    def _handle_assignment(self, transaction: Transaction, option_info: Dict[str, Any]) -> None:
+        """権利行使を処理し、株式取引プロセッサに情報を連携"""
+        underlying_symbol = option_info['underlying']
+        quantity = abs(int(transaction.quantity or 0))
+        strike_price = option_info['strike_price']
+        
+        self.stock_processor.record_option_assignment(
+            symbol=underlying_symbol,
+            date=transaction.transaction_date,
+            quantity=quantity,
+            strike_price=strike_price
+        )
     
     def _is_option_trade(self, transaction: Transaction) -> bool:
         """オプション取引トランザクションかどうかを判定"""
@@ -61,35 +79,30 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
     def _parse_option_info(self, symbol: str) -> Optional[Dict]:
         """オプションシンボルを解析"""
         try:
-            parts = symbol.split()
-            return {
-                'base_symbol': parts[0],
-                'expiry_date': parts[1],
-                'strike_price': Decimal(parts[2]),
-                'option_type': parts[3]
-            }
-        except (IndexError, ValueError):
+            pattern = r'(\w+)\s+(\d{2}/\d{2}/\d{4})\s+(\d+\.\d+)\s+([CP])'
+            match = re.match(pattern, symbol)
+            if match:
+                underlying, expiry, strike, option_type = match.groups()
+                return {
+                    'underlying': underlying,
+                    'expiry_date': expiry,
+                    'strike_price': Decimal(strike),
+                    'option_type': option_type
+                }
+        except (ValueError, AttributeError):
             return None
-    
+
     def _determine_position_type(self, action: str, option_type: str) -> str:
         """オプションのポジションタイプを決定"""
         action = action.upper()
         
-        # Sell to Open はショートポジション
         if action == 'SELL TO OPEN':
             return 'Short'
-        
-        # Buy to Open はロングポジション
-        if action == 'BUY TO OPEN':
+        elif action == 'BUY TO OPEN':
             return 'Long'
-        
-        # Sell to Close はロングポジションのクローズ
-        if action == 'SELL TO CLOSE':
+        elif action == 'SELL TO CLOSE':
             return 'Long'
-        
-        # Buy to Close はショートポジションのクローズ
-        if action == 'BUY TO CLOSE':
+        elif action == 'BUY TO CLOSE':
             return 'Short'
         
-        # その他のアクションはデフォルトで 'Long'
-        return 'Long'
+        return 'Long'  # デフォルト値
