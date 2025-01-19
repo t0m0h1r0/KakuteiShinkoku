@@ -175,6 +175,9 @@ class InvestmentReportGenerator(ReportGenerator):
                 }
             }
 
+            # CSVへの出力
+            self._write_summary_to_csv(income_summary, trading_summary)
+
             # 各出力先に書き出し
             self.context.display_outputs['summary_file'].output(total_summary)
             self.context.display_outputs['console'].output(total_summary)
@@ -184,37 +187,15 @@ class InvestmentReportGenerator(ReportGenerator):
             raise
 
     def _calculate_dividend_summary(self, 
-                                  dividend_records: List, 
-                                  interest_records: List) -> Dict:
+                                    dividend_records: List, 
+                                    interest_records: List) -> Dict:
         """配当・利子収入のサマリー計算"""
-        # 利子の詳細カテゴリごとに集計
-        interest_breakdown = {
-            'cd_interest_total': Decimal('0'),
-            'bond_interest_total': Decimal('0'),
-            'bank_credit_interest_total': Decimal('0'),
-            'other_interest_total': Decimal('0')
-        }
-
-        for record in interest_records:
-            type_key = self._get_interest_total_key(record)
-            interest_breakdown[type_key] += record.gross_amount.amount
-
         summary = {
             'dividend_total': sum(r.gross_amount.amount for r in dividend_records),
-            'cd_interest_total': interest_breakdown['cd_interest_total'],
-            'bond_interest_total': interest_breakdown['bond_interest_total'],
-            'bank_credit_interest_total': interest_breakdown['bank_credit_interest_total'],
-            'other_interest_total': interest_breakdown['other_interest_total'],
+            'interest_total': sum(r.gross_amount.amount for r in interest_records),
             'tax_total': sum(r.tax_amount.amount for r in dividend_records + interest_records)
         }
         
-        summary['interest_total'] = sum([
-            summary['cd_interest_total'],
-            summary['bond_interest_total'],
-            summary['bank_credit_interest_total'],
-            summary['other_interest_total']
-        ])
-
         summary['net_total'] = (
             summary['dividend_total'] +
             summary['interest_total'] -
@@ -223,18 +204,32 @@ class InvestmentReportGenerator(ReportGenerator):
         
         return summary
 
-    def _get_interest_total_key(self, record: InterestRecord) -> str:
-        """利子の集計キーを取得"""
-        action_type = record.action_type.upper()
-
-        if action_type == 'CD INTEREST':
-            return 'cd_interest_total'
-        elif action_type == 'BOND INTEREST':
-            return 'bond_interest_total'
-        elif action_type == 'CREDIT INTEREST' or action_type == 'BANK INTEREST':
-            return 'bank_credit_interest_total'
-        else:
-            return 'other_interest_total'
+    def _prepare_log_content(self, 
+                        income_summary: Dict, 
+                        trading_summary: Dict, 
+                        total_summary: Dict) -> str:
+        """ログ内容の準備"""
+        lines = ["Investment Summary Report"]
+        lines.append("-" * 30)
+        
+        lines.append("\nIncome Summary:")
+        lines.append(f"Dividend Total: ${income_summary['dividend_total']:.2f}")
+        lines.append(f"Interest Total: ${income_summary['interest_total']:.2f}")
+        lines.append(f"Tax Total: ${income_summary['tax_total']:.2f}")
+        lines.append(f"Net Income: ${income_summary['net_total']:.2f}")
+        
+        lines.append("\nTrading Summary:")
+        lines.append(f"Stock Trading Gain: ${trading_summary['stock_gain']:.2f}")
+        lines.append(f"Option Trading Gain: ${trading_summary['option_gain']:.2f}")
+        lines.append(f"Option Premium Income: ${trading_summary['premium_income']:.2f}")
+        lines.append(f"Net Trading Gain: ${trading_summary['net_total']:.2f}")
+        
+        lines.append("\nTotal Summary:")
+        lines.append(f"Total Income: ${total_summary['total_income']:.2f}")
+        lines.append(f"Total Trading: ${total_summary['total_trading']:.2f}")
+        lines.append(f"Grand Total: ${total_summary['grand_total']:.2f}")
+        
+        return "\n".join(lines)
 
     def _calculate_trading_summary(self, 
                                   stock_records: List,
@@ -257,3 +252,18 @@ class InvestmentReportGenerator(ReportGenerator):
         )
         
         return summary
+        
+    def _write_summary_to_csv(self, income_summary: Dict, trading_summary: Dict) -> None:
+        """サマリーをCSVに出力"""
+        summary_record = {
+            'Account': 'ALL',
+            'Dividend': income_summary['dividend_total'],
+            'Interest': income_summary['interest_total'],
+            'Tax': income_summary['tax_total'],
+            'Net Total': (
+                income_summary['dividend_total'] +
+                income_summary['interest_total'] -
+                income_summary['tax_total']
+            )
+        }
+        self.context.writers['profit_loss_csv'].output([summary_record])

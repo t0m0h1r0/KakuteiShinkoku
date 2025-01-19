@@ -154,12 +154,6 @@ class ApplicationContext:
             option_records = self.processing_results.get('option_records', [])
             premium_records = self.processing_results.get('premium_records', [])
 
-            # デバッグ出力
-            print("\n--- 収入レコード詳細 ---")
-            print(f"配当レコード数: {len(dividend_records)}")
-            print(f"利子レコード数: {len(interest_records)}")
-            print("--- 収入レコード詳細 終了 ---\n")
-
             # サマリーデータの準備
             income_summary = self._calculate_income_summary(
                 dividend_records, 
@@ -216,16 +210,7 @@ class ApplicationContext:
             summary['cd_interest_total'] -
             summary['tax_total']
         )
-        
-        # デバッグ出力
-        print("\n--- 収入サマリー ---")
-        print(f"Dividend Total: ${summary['dividend_total']}")
-        print(f"Interest Total: ${summary['interest_total']}")
-        print(f"CD Interest Total: ${summary['cd_interest_total']}")
-        print(f"Tax Total: ${summary['tax_total']}")
-        print(f"Net Total: ${summary['net_total']}")
-        print("--- 収入サマリー 終了 ---\n")
-        
+                
         return summary
 
     def _calculate_trading_summary(self, 
