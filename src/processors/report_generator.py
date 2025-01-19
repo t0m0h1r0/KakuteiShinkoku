@@ -180,10 +180,14 @@ class InvestmentReportGenerator(ReportGenerator):
         # 株式取引の損益
         stock_gain = sum(r.realized_gain.amount for r in stock_records)
         
-        # オプション取引の損益（取引による損益）
-        option_gain = sum(r.realized_gain.amount for r in option_records)
+        # オプション取引の損益（CLOSEDポジションの損益）
+        option_gain = sum(
+            summary.net_premium 
+            for summary in self.context.premium_processor._transactions.values()
+            if summary.is_closed and summary.status == 'CLOSED'
+        )
         
-        # プレミアムの計算（確定損益）
+        # プレミアムの計算（期限切れによる確定損益）
         premium_gain = sum(
             summary.net_premium 
             for summary in self.context.premium_processor._transactions.values()
