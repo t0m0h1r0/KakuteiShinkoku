@@ -34,9 +34,6 @@ class InvestmentReportGenerator(ReportGenerator):
             option_records = data.get('option_records', [])
             premium_records = data.get('premium_records', [])
 
-            # プレミアムサマリーの取得
-            premium_summary = self.context.premium_processor.get_premium_summary()
-
             # 各種レポートの生成
             self._write_dividend_report(dividend_records)
             self._write_interest_report(interest_records)
@@ -44,7 +41,7 @@ class InvestmentReportGenerator(ReportGenerator):
             self._write_option_report(option_records)
             self._write_premium_report(premium_records)
             self._write_summary_report(dividend_records, interest_records, 
-                                     stock_records, option_records, premium_summary)
+                                     stock_records, option_records)
 
         except Exception as e:
             self.logger.error(f"Report generation error: {e}", exc_info=True)
@@ -77,6 +74,29 @@ class InvestmentReportGenerator(ReportGenerator):
         formatted_records = [self._format_premium_record(r) for r in premium_records]
         self.context.writers['option_premium_csv'].output(formatted_records)
 
+    def _format_premium_record(self, record: PremiumRecord) -> Dict:
+        """プレミアム記録のフォーマット"""
+        summary = self.context.premium_processor._transactions[record.symbol]
+        trading_gain = (summary.sell_to_close_amount - summary.buy_to_close_amount)
+        final_premium = (summary.sell_to_open_amount - summary.buy_to_open_amount +
+                        trading_gain - summary.fees)
+
+        return {
+            'symbol': record.symbol,
+            'expiry_date': record.expiry_date,
+            'strike_price': record.strike_price,
+            'option_type': record.option_type,
+            'sell_to_open_total': summary.sell_to_open_amount,
+            'buy_to_open_total': summary.buy_to_open_amount,
+            'buy_to_close_total': summary.buy_to_close_amount,
+            'sell_to_close_total': summary.sell_to_close_amount,
+            'fees_total': summary.fees,
+            'trading_gain': trading_gain,
+            'final_premium': final_premium,
+            'status': summary.status,
+            'close_date': summary.close_date
+        }
+
     def _format_dividend_record(self, record: DividendRecord) -> Dict:
         """配当記録のフォーマット"""
         return {
@@ -97,7 +117,7 @@ class InvestmentReportGenerator(ReportGenerator):
             'account': record.account_id,
             'symbol': record.symbol or '',
             'description': record.description,
-            'type': record.income_type,  # Changed from action_type
+            'type': record.income_type,
             'gross_amount': record.gross_amount.amount,
             'tax_amount': record.tax_amount.amount,
             'net_amount': record.gross_amount.amount - record.tax_amount.amount
@@ -135,18 +155,6 @@ class InvestmentReportGenerator(ReportGenerator):
             'is_expired': record.is_expired
         }
 
-    def _format_premium_record(self, record: PremiumRecord) -> Dict:
-        """プレミアム記録のフォーマット"""
-        return {
-            'date': record.trade_date,
-            'account': record.account_id,
-            'symbol': record.symbol,
-            'expiry_date': record.expiry_date,
-            'strike_price': record.strike_price,
-            'option_type': record.option_type,
-            'premium_amount': record.premium_amount.amount
-        }
-
     def _calculate_dividend_summary(self, 
                                     dividend_records: List, 
                                     interest_records: List) -> Dict:
@@ -167,29 +175,25 @@ class InvestmentReportGenerator(ReportGenerator):
 
     def _calculate_trading_summary(self, 
                                   stock_records: List,
-                                  option_records: List, 
-                                  premium_summary: Dict) -> Dict:
+                                  option_records: List) -> Dict:
         """取引損益のサマリー計算"""
         # 株式取引の損益
         stock_gain = sum(r.realized_gain.amount for r in stock_records)
         
-        # オプション取引の損益
+        # オプション取引の損益（取引による損益）
         option_gain = sum(r.realized_gain.amount for r in option_records)
         
-        # プレミアム収入の計算
-        total_premium = Decimal('0')
-        total_closing_cost = Decimal('0')
-        
-        for symbol, details in premium_summary.items():
-            total_premium += details['total_premium']
-            total_closing_cost += details['closing_cost']
-        
-        net_premium = total_premium - total_closing_cost
+        # プレミアムの計算（確定損益）
+        premium_gain = sum(
+            summary.net_premium 
+            for summary in self.context.premium_processor._transactions.values()
+            if summary.is_closed and summary.status == 'EXPIRED'
+        )
         
         summary = {
             'stock_gain': stock_gain,
             'option_gain': option_gain,
-            'premium_income': net_premium
+            'premium_income': premium_gain
         }
         
         summary['net_total'] = (
@@ -203,11 +207,10 @@ class InvestmentReportGenerator(ReportGenerator):
     def _write_summary_report(self, dividend_records: List, 
                              interest_records: List,
                              stock_records: List,
-                             option_records: List,
-                             premium_summary: Dict) -> None:
+                             option_records: List) -> None:
         """サマリーレポートの生成"""
         try:
-            # 配当・利子収入の集計
+            # 収入サマリーの計算
             income_summary = self._calculate_dividend_summary(
                 dividend_records, 
                 interest_records
@@ -215,7 +218,7 @@ class InvestmentReportGenerator(ReportGenerator):
             
             # 取引損益の集計
             trading_summary = self._calculate_trading_summary(
-                stock_records, option_records, premium_summary
+                stock_records, option_records
             )
             
             # 全体のサマリーを作成

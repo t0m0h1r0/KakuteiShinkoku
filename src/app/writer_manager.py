@@ -37,14 +37,17 @@ class WriterManager:
                     'date', 'account', 'symbol', 'expiry_date',
                     'strike_price', 'option_type', 'position_type',
                     'description', 'action', 'quantity', 'price', 
-                    'realized_gain', 'is_expired'  # realized_gain を追加
+                    'realized_gain', 'is_expired'
                 ]
             ),
             'option_premium_csv': CSVWriter(
                 OUTPUT_FILES['option_premium'],
                 fieldnames=[
-                    'date', 'account', 'symbol', 'expiry_date',
-                    'strike_price', 'option_type', 'premium_amount'
+                    'symbol', 'expiry_date', 'strike_price', 'option_type',
+                    'sell_to_open_total', 'buy_to_open_total',
+                    'buy_to_close_total', 'sell_to_close_total',
+                    'fees_total', 'trading_gain', 'final_premium',
+                    'status', 'close_date'
                 ]
             ),
             'profit_loss_csv': CSVWriter(
