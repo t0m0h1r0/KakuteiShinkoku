@@ -18,11 +18,11 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
         """オプション取引トランザクションを処理"""
         if not self._is_option_trade(transaction):
             return
-            
+        
         option_info = self._parse_option_info(transaction.symbol)
         if not option_info:
             return
-            
+        
         trade_record = OptionTradeRecord(
             trade_date=transaction.transaction_date,
             account_id=transaction.account_id,
@@ -35,7 +35,8 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
             expiry_date=option_info['expiry_date'],
             strike_price=option_info['strike_price'],
             option_type=option_info['option_type'],
-            position_type='Short' if 'SELL' in transaction.action_type.upper() else 'Long',
+            # ポジションタイプの判定を修正
+            position_type=self._determine_position_type(transaction.action_type, option_info['option_type']),
             is_expired=transaction.action_type.upper() == 'EXPIRED',
             exchange_rate=self._get_exchange_rate(transaction.transaction_date)
         )
@@ -44,7 +45,9 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
     
     def _is_option_trade(self, transaction: Transaction) -> bool:
         """オプション取引トランザクションかどうかを判定"""
-        option_actions = {'BUY', 'SELL', 'EXPIRED', 'ASSIGNED'}
+        option_actions = {'BUY', 'SELL', 'EXPIRED', 'ASSIGNED', 
+                          'BUY TO OPEN', 'SELL TO OPEN', 
+                          'BUY TO CLOSE', 'SELL TO CLOSE'}
         return (
             transaction.action_type.upper() in option_actions and
             self._is_option_symbol(transaction.symbol)
@@ -67,3 +70,26 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
             }
         except (IndexError, ValueError):
             return None
+    
+    def _determine_position_type(self, action: str, option_type: str) -> str:
+        """オプションのポジションタイプを決定"""
+        action = action.upper()
+        
+        # Sell to Open はショートポジション
+        if action == 'SELL TO OPEN':
+            return 'Short'
+        
+        # Buy to Open はロングポジション
+        if action == 'BUY TO OPEN':
+            return 'Long'
+        
+        # Sell to Close はロングポジションのクローズ
+        if action == 'SELL TO CLOSE':
+            return 'Long'
+        
+        # Buy to Close はショートポジションのクローズ
+        if action == 'BUY TO CLOSE':
+            return 'Short'
+        
+        # その他のアクションはデフォルトで 'Long'
+        return 'Long'
