@@ -18,7 +18,7 @@ class InterestRecord:
                  tax_amount: Money,
                  exchange_rate: Decimal,
                  is_matured: bool = False,
-                 action_type: str = ''):  # action_typeを追加
+                 action_type: str = ''):
         self.record_date = record_date
         self.account_id = account_id
         self.symbol = symbol
@@ -28,7 +28,11 @@ class InterestRecord:
         self.tax_amount = tax_amount
         self.exchange_rate = exchange_rate
         self.is_matured = is_matured
-        self.action_type = action_type  # action_typeを設定
+        self.action_type = action_type
+        # 日本円金額を追加
+        self.gross_amount_jpy = gross_amount.convert_to_jpy(exchange_rate)
+        self.tax_amount_jpy = tax_amount.convert_to_jpy(exchange_rate)
+        self.net_amount_jpy = self.gross_amount_jpy - self.tax_amount_jpy
 
 class InterestProcessor(BaseProcessor[InterestRecord]):
     def __init__(self, exchange_rate_provider: IExchangeRateProvider):
@@ -49,7 +53,7 @@ class InterestProcessor(BaseProcessor[InterestRecord]):
             'BANK INT', 
             'CREDIT INT',
             'SCHWAB1 INT',
-            'CREDIT INTEREST'  # 新たに追加
+            'CREDIT INTEREST'
         ]
         
         # キーワードのチェック（大文字・小文字を区別しない）
@@ -82,27 +86,23 @@ class InterestProcessor(BaseProcessor[InterestRecord]):
     def _process_interest(self, transaction: Transaction) -> None:
         """利子トランザクションを処理"""
         tax_amount = self._find_matching_tax(transaction)
+        exchange_rate = self._get_exchange_rate(transaction.transaction_date)
         
-        # income_typeの判定を修正
-        if 'CD INTEREST' in transaction.action_type.upper() or \
-        'CD MATURITY' in transaction.action_type.upper():
-            income_type = 'CD Interest'
-        elif 'BOND INTEREST' in transaction.action_type.upper():
-            income_type = 'Bond Interest'
-        else:
-            income_type = 'Interest'
-        
+        # 為替レート付きでMoneyオブジェクトを作成
+        gross_amount = self._create_money_with_rate(abs(transaction.amount), exchange_rate)
+        tax_money = self._create_money_with_rate(tax_amount, exchange_rate)
+
         interest_record = InterestRecord(
             record_date=transaction.transaction_date,
             account_id=transaction.account_id,
             symbol=transaction.symbol or '',
             description=transaction.description,
-            income_type=income_type,
-            gross_amount=Money(abs(transaction.amount)),
-            tax_amount=Money(tax_amount),
-            exchange_rate=self._get_exchange_rate(transaction.transaction_date),
+            income_type=self._determine_income_type(transaction),
+            gross_amount=gross_amount,
+            tax_amount=tax_money,
+            exchange_rate=exchange_rate,
             is_matured='MATURITY' in transaction.action_type.upper(),
-            action_type=transaction.action_type  # action_typeを追加
+            action_type=transaction.action_type
         )
         
         self.records.append(interest_record)
@@ -123,3 +123,12 @@ class InterestProcessor(BaseProcessor[InterestRecord]):
                 return Decimal(tax_record['amount'])
 
         return Decimal('0')
+
+    def _determine_income_type(self, transaction: Transaction) -> str:
+        """収入タイプを判定"""
+        if 'CD INTEREST' in transaction.action_type.upper() or \
+        'CD MATURITY' in transaction.action_type.upper():
+            return 'CD Interest'
+        elif 'BOND INTEREST' in transaction.action_type.upper():
+            return 'Bond Interest'
+        return 'Interest'

@@ -74,25 +74,11 @@ class InvestmentReportGenerator(ReportGenerator):
         formatted_records = [self._format_premium_record(r) for r in premium_records]
         self.context.writers['option_premium_csv'].output(formatted_records)
 
-    def _format_premium_record(self, record: PremiumRecord) -> Dict:
-        """プレミアム記録のフォーマット"""
-        summary = self.context.premium_processor._transactions[record.symbol]
-        final_premium = (summary.sell_to_open_amount - summary.buy_to_open_amount +
-                        (summary.sell_to_close_amount - summary.buy_to_close_amount) - 
-                        summary.fees)
-
-        return {
-            'account': record.account_id,
-            'symbol': record.symbol,
-            'description': record.description,
-            'fees_total': summary.fees,
-            'final_premium': final_premium,
-            'status': summary.status,
-            'close_date': summary.close_date
-        }
-
     def _format_dividend_record(self, record: DividendRecord) -> Dict:
         """配当記録のフォーマット"""
+        net_amount = record.gross_amount.amount - record.tax_amount.amount
+        net_amount_jpy = record.gross_amount_jpy.amount - record.tax_amount_jpy.amount
+        
         return {
             'date': record.record_date,
             'account': record.account_id,
@@ -101,11 +87,18 @@ class InvestmentReportGenerator(ReportGenerator):
             'type': record.income_type,
             'gross_amount': record.gross_amount.amount,
             'tax_amount': record.tax_amount.amount,
-            'net_amount': record.gross_amount.amount - record.tax_amount.amount
+            'net_amount': net_amount,
+            'gross_amount_jpy': record.gross_amount_jpy.amount,
+            'tax_amount_jpy': record.tax_amount_jpy.amount,
+            'net_amount_jpy': net_amount_jpy,
+            'exchange_rate': record.exchange_rate
         }
 
     def _format_interest_record(self, record: InterestRecord) -> Dict:
         """利子記録のフォーマット"""
+        net_amount = record.gross_amount.amount - record.tax_amount.amount
+        net_amount_jpy = record.gross_amount_jpy.amount - record.tax_amount_jpy.amount
+        
         return {
             'date': record.record_date,
             'account': record.account_id,
@@ -114,14 +107,15 @@ class InvestmentReportGenerator(ReportGenerator):
             'action': record.action_type,
             'gross_amount': record.gross_amount.amount,
             'tax_amount': record.tax_amount.amount,
-            'net_amount': record.gross_amount.amount - record.tax_amount.amount
+            'net_amount': net_amount,
+            'gross_amount_jpy': record.gross_amount_jpy.amount,
+            'tax_amount_jpy': record.tax_amount_jpy.amount,
+            'net_amount_jpy': net_amount_jpy,
+            'exchange_rate': record.exchange_rate
         }
 
     def _format_stock_record(self, record: StockTradeRecord) -> Dict:
         """株式取引記録のフォーマット"""
-        # priceの小数点以下の桁数を取得
-        price_decimal_places = len(str(record.price.amount).split('.')[1]) if '.' in str(record.price.amount) else 0
-        
         return {
             'date': record.trade_date,
             'account': record.account_id,
@@ -131,7 +125,10 @@ class InvestmentReportGenerator(ReportGenerator):
             'action': record.action,
             'quantity': record.quantity,
             'price': record.price.amount,
-            'realized_gain': round(record.realized_gain.amount, price_decimal_places)
+            'realized_gain': record.realized_gain.amount,
+            'price_jpy': record.price_jpy.amount,
+            'realized_gain_jpy': record.realized_gain_jpy.amount,
+            'exchange_rate': record.exchange_rate
         }
 
     def _format_option_record(self, record: OptionTradeRecord) -> Dict:
@@ -143,7 +140,34 @@ class InvestmentReportGenerator(ReportGenerator):
             'description': record.description,
             'action': record.action,
             'quantity': record.quantity,
-            'price': record.price.amount
+            'price': record.price.amount,
+            'price_jpy': record.price_jpy.amount,
+            'fees_jpy': record.fees_jpy.amount,
+            'realized_gain_jpy': record.realized_gain_jpy.amount,
+            'exchange_rate': record.exchange_rate
+        }
+
+    def _format_premium_record(self, record: PremiumRecord) -> Dict:
+        """プレミアム記録のフォーマット"""
+        summary = self.context.premium_processor._transactions[record.symbol]
+        final_premium = (summary.sell_to_open_amount - summary.buy_to_open_amount +
+                        (summary.sell_to_close_amount - summary.buy_to_close_amount) - 
+                        summary.fees)
+
+        final_premium_jpy = final_premium * record.exchange_rate
+        fees_total_jpy = summary.fees * record.exchange_rate
+
+        return {
+            'account': record.account_id,
+            'symbol': record.symbol,
+            'description': record.description,
+            'fees_total': summary.fees,
+            'final_premium': final_premium,
+            'status': summary.status,
+            'close_date': summary.close_date,
+            'final_premium_jpy': final_premium_jpy,
+            'fees_total_jpy': fees_total_jpy,
+            'exchange_rate': record.exchange_rate
         }
 
     def _calculate_dividend_summary(self, dividend_records: List, interest_records: List) -> Dict:
@@ -164,17 +188,14 @@ class InvestmentReportGenerator(ReportGenerator):
 
     def _calculate_trading_summary(self, stock_records: List, option_records: List) -> Dict:
         """取引損益のサマリー計算"""
-        # 株式取引の損益
         stock_gain = sum(r.realized_gain.amount for r in stock_records)
         
-        # オプション取引の損益（CLOSEDポジションの損益）
         option_gain = sum(
             summary.net_premium 
             for summary in self.context.premium_processor._transactions.values()
             if summary.is_closed and summary.status == 'CLOSED'
         )
         
-        # プレミアムの計算（期限切れによる確定損益）
         premium_gain = sum(
             summary.net_premium 
             for summary in self.context.premium_processor._transactions.values()
@@ -195,24 +216,18 @@ class InvestmentReportGenerator(ReportGenerator):
         
         return summary
         
-    def _write_summary_report(self, dividend_records: List, 
-                             interest_records: List,
-                             stock_records: List,
-                             option_records: List) -> None:
+    def _write_summary_report(self, dividend_records: List, interest_records: List,
+                             stock_records: List, option_records: List) -> None:
         """サマリーレポートの生成"""
         try:
-            # 収入サマリーの計算
             income_summary = self._calculate_dividend_summary(
-                dividend_records, 
-                interest_records
+                dividend_records, interest_records
             )
             
-            # 取引損益の集計
             trading_summary = self._calculate_trading_summary(
                 stock_records, option_records
             )
             
-            # 全体のサマリーを作成
             total_summary = {
                 'income': income_summary,
                 'trading': trading_summary,
@@ -226,10 +241,8 @@ class InvestmentReportGenerator(ReportGenerator):
                 }
             }
 
-            # CSVへの出力
             self._write_summary_to_csv(income_summary, trading_summary)
-
-            # 各出力先に書き出し
+            
             self.context.display_outputs['summary_file'].output(total_summary)
             self.context.display_outputs['console'].output(total_summary)
             
@@ -239,15 +252,49 @@ class InvestmentReportGenerator(ReportGenerator):
 
     def _write_summary_to_csv(self, income_summary: Dict, trading_summary: Dict) -> None:
         """サマリーをCSVに出力"""
+        # USD金額の計算
+        net_total = (
+            income_summary['dividend_total'] +
+            income_summary['interest_total'] -
+            income_summary['tax_total']
+        )
+        
+        # JPY金額の計算
+        exchange_rate = self._get_latest_exchange_rate()
+        dividend_jpy = income_summary['dividend_total'] * exchange_rate
+        interest_jpy = income_summary['interest_total'] * exchange_rate
+        tax_jpy = income_summary['tax_total'] * exchange_rate
+        net_total_jpy = net_total * exchange_rate
+
         summary_record = {
             'Account': 'ALL',
             'Dividend': income_summary['dividend_total'],
             'Interest': income_summary['interest_total'],
             'Tax': income_summary['tax_total'],
-            'Net Total': (
-                income_summary['dividend_total'] +
-                income_summary['interest_total'] -
-                income_summary['tax_total']
-            )
+            'Net Total': net_total,
+            'Dividend_JPY': dividend_jpy,
+            'Interest_JPY': interest_jpy,
+            'Tax_JPY': tax_jpy,
+            'Net Total_JPY': net_total_jpy,
+            'Exchange Rate': exchange_rate
         }
         self.context.writers['profit_loss_csv'].output([summary_record])
+
+    def _get_latest_exchange_rate(self) -> Decimal:
+        """最新の為替レートを取得"""
+        all_records = (
+            self.context.processing_results.get('dividend_records', []) +
+            self.context.processing_results.get('interest_records', []) +
+            self.context.processing_results.get('stock_records', []) +
+            self.context.processing_results.get('option_records', [])
+        )
+        
+        if not all_records:
+            return Decimal('150.0')  # デフォルトレート
+        
+        latest_record = max(
+            all_records,
+            key=lambda x: x.record_date if hasattr(x, 'record_date') else x.trade_date
+        )
+        
+        return latest_record.exchange_rate

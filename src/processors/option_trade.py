@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import date
 
 from ..core.transaction import Transaction
-from ..core.money import Money
+from ..core.money import Money, Currency
 from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .trade_records import OptionTradeRecord, StockTradeRecord
@@ -21,6 +21,7 @@ class OptionLot:
     open_date: date
     fees: Decimal
     position_type: str  # 'Long' or 'Short'
+    exchange_rate: Decimal  # 為替レートを追加
 
 class OptionPosition:
     """オプションポジション管理クラス"""
@@ -32,8 +33,9 @@ class OptionPosition:
         """ロットを追加"""
         self.lots.append(lot)
     
-    def close_position(self, quantity: int, price: Decimal, fees: Decimal, 
-                      is_buy_to_close: bool, trade_date: date) -> Decimal:
+    def close_position(self, quantity: int, price: Decimal, fees: Decimal,
+                      is_buy_to_close: bool, trade_date: date,
+                      exchange_rate: Decimal) -> Decimal:  # 為替レートを追加
         """ポジションをクローズし損益を計算（FIFO）"""
         # 対応するオープンポジションが存在しない場合
         if not self.lots:
@@ -43,7 +45,8 @@ class OptionPosition:
                 'price': price,
                 'fees': fees,
                 'is_buy_to_close': is_buy_to_close,
-                'date': trade_date
+                'date': trade_date,
+                'exchange_rate': exchange_rate  # 為替レートを追加
             })
             return Decimal('0')  # 損益は後で計算
         
@@ -117,7 +120,8 @@ class OptionPosition:
                 realized_gains.append({
                     'date': max(trade['date'], matching_trade['date']),
                     'gain': realized_gain,
-                    'quantity': quantity
+                    'quantity': quantity,
+                    'exchange_rate': trade['exchange_rate']  # 為替レートを追加
                 })
                 
                 # 使用した数量を更新
@@ -156,6 +160,7 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
         position = self._positions[transaction.symbol]
         realized_gain = Decimal('0')
         position_type = self._determine_position_type(action, option_info['option_type'])
+        exchange_rate = self._get_exchange_rate(transaction.transaction_date)
 
         quantity = abs(int(transaction.quantity or 0))
         price = Decimal(str(transaction.price or 0))
@@ -169,7 +174,8 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
                 price=price,
                 open_date=transaction.transaction_date,
                 fees=fees,
-                position_type=position_type
+                position_type=position_type,
+                exchange_rate=exchange_rate  # 為替レートを追加
             )
             position.add_lot(lot)
         elif action in ['BUY TO CLOSE', 'SELL TO CLOSE']:
@@ -177,7 +183,7 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
             is_buy_to_close = action == 'BUY TO CLOSE'
             realized_gain = position.close_position(
                 quantity, price, fees, is_buy_to_close, 
-                transaction.transaction_date
+                transaction.transaction_date, exchange_rate
             )
             
             # 逆順取引のマッチングと損益計算
@@ -193,6 +199,11 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
             # 期限切れの場合、現在の損益を確定
             position.lots = []
 
+        # 為替レート付きでMoneyオブジェクトを作成
+        price_money = self._create_money_with_rate(price, exchange_rate)
+        fees_money = self._create_money_with_rate(fees, exchange_rate)
+        realized_gain_money = self._create_money_with_rate(realized_gain, exchange_rate)
+
         trade_record = OptionTradeRecord(
             trade_date=transaction.transaction_date,
             account_id=transaction.account_id,
@@ -200,21 +211,24 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
             description=transaction.description,
             action=action,
             quantity=quantity,
-            price=Money(price),
-            fees=Money(fees),
+            price=price_money,
+            fees=fees_money,
             expiry_date=option_info['expiry_date'],
             strike_price=option_info['strike_price'],
             option_type=option_info['option_type'],
             position_type=position_type,
             is_expired=action == 'EXPIRED',
-            exchange_rate=self._get_exchange_rate(transaction.transaction_date),
-            realized_gain=Money(realized_gain)
+            exchange_rate=exchange_rate,
+            realized_gain=realized_gain_money,
+            price_jpy=price_money.convert_to_jpy(exchange_rate),
+            fees_jpy=fees_money.convert_to_jpy(exchange_rate),
+            realized_gain_jpy=realized_gain_money.convert_to_jpy(exchange_rate)
         )
         
         self.records.append(trade_record)
 
+    # 以下のメソッドは変更なし
     def _handle_assignment(self, transaction: Transaction, option_info: Dict[str, Any]) -> None:
-        """権利行使を処理し、株式取引プロセッサに情報を連携"""
         underlying_symbol = option_info['underlying']
         quantity = abs(int(transaction.quantity or 0))
         strike_price = option_info['strike_price']
@@ -227,7 +241,6 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
         )
     
     def _is_option_trade(self, transaction: Transaction) -> bool:
-        """オプション取引トランザクションかどうかを判定"""
         option_actions = {'BUY', 'SELL', 'EXPIRED', 'ASSIGNED', 
                           'BUY TO OPEN', 'SELL TO OPEN', 
                           'BUY TO CLOSE', 'SELL TO CLOSE'}
@@ -237,12 +250,10 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
         )
     
     def _is_option_symbol(self, symbol: str) -> bool:
-        """オプションシンボルかどうかを判定"""
         option_pattern = r'\d{2}/\d{2}/\d{4}\s+\d+\.\d+\s+[CP]'
         return bool(re.search(option_pattern, symbol))
     
     def _parse_option_info(self, symbol: str) -> Optional[Dict]:
-        """オプションシンボルを解析"""
         try:
             pattern = r'(\w+)\s+(\d{2}/\d{2}/\d{4})\s+(\d+\.\d+)\s+([CP])'
             match = re.match(pattern, symbol)
@@ -258,7 +269,6 @@ class OptionTradeProcessor(BaseProcessor[OptionTradeRecord]):
             return None
             
     def _determine_position_type(self, action: str, option_type: str) -> str:
-        """オプションのポジションタイプを決定"""
         action = action.upper()
         
         if action == 'SELL TO OPEN':

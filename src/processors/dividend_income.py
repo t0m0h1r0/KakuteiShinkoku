@@ -27,6 +27,10 @@ class DividendRecord:
         self.tax_amount = tax_amount
         self.exchange_rate = exchange_rate
         self.is_reinvested = is_reinvested
+        # 日本円金額を追加
+        self.gross_amount_jpy = gross_amount.convert_to_jpy(exchange_rate)
+        self.tax_amount_jpy = tax_amount.convert_to_jpy(exchange_rate)
+        self.net_amount_jpy = self.gross_amount_jpy - self.tax_amount_jpy
 
 class DividendProcessor(BaseProcessor[DividendRecord]):
     def __init__(self, exchange_rate_provider: IExchangeRateProvider):
@@ -63,16 +67,21 @@ class DividendProcessor(BaseProcessor[DividendRecord]):
     def _process_dividend(self, transaction: Transaction) -> None:
         """配当トランザクションを処理"""
         tax_amount = self._find_matching_tax(transaction)
+        exchange_rate = self._get_exchange_rate(transaction.transaction_date)
+        
+        # 為替レート付きでMoneyオブジェクトを作成
+        gross_amount = self._create_money_with_rate(transaction.amount, exchange_rate)
+        tax_money = self._create_money_with_rate(tax_amount, exchange_rate)
         
         dividend_record = DividendRecord(
             record_date=transaction.transaction_date,
             account_id=transaction.account_id,
             symbol=transaction.symbol,
             description=transaction.description,
-            income_type='Dividend',  # 固定値
-            gross_amount=Money(transaction.amount),
-            tax_amount=Money(tax_amount),
-            exchange_rate=self._get_exchange_rate(transaction.transaction_date),
+            income_type='Dividend',
+            gross_amount=gross_amount,
+            tax_amount=tax_money,
+            exchange_rate=exchange_rate,
             is_reinvested='REINVEST' in transaction.action_type.upper()
         )
         

@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import date
 
 from ..core.transaction import Transaction
-from ..core.money import Money
+from ..core.money import Money, Currency
 from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .trade_records import PremiumRecord
@@ -24,17 +24,17 @@ class OptionTransactionSummary:
     is_closed: bool = False
     close_date: Optional[date] = None
     status: str = 'OPEN'
+    # 日本円での金額を追加
+    net_premium_jpy: Decimal = Decimal('0')
+    exchange_rate: Optional[Decimal] = None
 
 class OptionPremiumProcessor(BaseProcessor[PremiumRecord]):
-    """オプションプレミアム処理クラス（改訂版）"""
+    """オプションプレミアム処理クラス"""
     
     def __init__(self, exchange_rate_provider: IExchangeRateProvider):
         super().__init__(exchange_rate_provider)
-        # キーはシンボル、値はOptionTransactionSummary
         self._transactions: Dict[str, OptionTransactionSummary] = defaultdict(OptionTransactionSummary)
-        # プレミアム記録用（シンボル単位）
         self._premium_records: Dict[str, Optional[PremiumRecord]] = {}
-        # 権利行使記録用
         self._assignments: Dict[str, List[Dict]] = defaultdict(list)
 
     def get_assignments(self) -> Dict[str, List[Dict]]:
@@ -54,8 +54,10 @@ class OptionPremiumProcessor(BaseProcessor[PremiumRecord]):
         amount = abs(transaction.amount or Decimal('0'))
         fees = abs(transaction.fees or Decimal('0'))
         quantity = abs(int(transaction.quantity or 0))
+        exchange_rate = self._get_exchange_rate(transaction.transaction_date)
 
         summary = self._transactions[transaction.symbol]
+        summary.exchange_rate = exchange_rate  # 為替レートを保存
         
         # アクションに応じた処理
         if action == 'SELL TO OPEN':
@@ -90,8 +92,9 @@ class OptionPremiumProcessor(BaseProcessor[PremiumRecord]):
             summary.close_date = transaction.transaction_date
             self._calculate_net_premium(transaction.symbol, summary)
 
-        # プレミアムレコードの更新
+        # プレミアムレコードの更新または作成
         if transaction.symbol not in self._premium_records:
+            premium_amount = self._create_money_with_rate(Decimal('0'), exchange_rate)
             self._premium_records[transaction.symbol] = PremiumRecord(
                 trade_date=transaction.transaction_date,
                 account_id=transaction.account_id,
@@ -99,9 +102,9 @@ class OptionPremiumProcessor(BaseProcessor[PremiumRecord]):
                 expiry_date=option_info['expiry_date'],
                 strike_price=option_info['strike_price'],
                 option_type=option_info['option_type'],
-                premium_amount=Money(Decimal('0')),
-                exchange_rate=self._get_exchange_rate(transaction.transaction_date),
-                description=transaction.description  # 元のトランザクションの説明文をそのまま使用
+                premium_amount=premium_amount,
+                exchange_rate=exchange_rate,
+                description=transaction.description
             )
 
     def _handle_expiration(self, transaction: Transaction, option_info: Dict, summary: OptionTransactionSummary) -> None:
@@ -124,7 +127,8 @@ class OptionPremiumProcessor(BaseProcessor[PremiumRecord]):
                 'date': transaction.transaction_date,
                 'quantity': abs(int(transaction.quantity or 0)),
                 'strike_price': option_info['strike_price'],
-                'net_premium': summary.net_premium
+                'net_premium': summary.net_premium,
+                'net_premium_jpy': summary.net_premium_jpy  # 日本円でのプレミアムを追加
             }
             
             base_symbol = option_info['underlying']
@@ -135,7 +139,7 @@ class OptionPremiumProcessor(BaseProcessor[PremiumRecord]):
             summary.close_date = transaction.transaction_date
 
     def _calculate_net_premium(self, symbol: str, summary: OptionTransactionSummary) -> None:
-        """ネットプレミアムの計算"""
+        """ネットプレミアムの計算（USD と JPY）"""
         # 取引による損益
         trading_gain = summary.sell_to_close_amount - summary.buy_to_close_amount
         
@@ -145,12 +149,19 @@ class OptionPremiumProcessor(BaseProcessor[PremiumRecord]):
         
         summary.net_premium = premium
 
+        # 日本円でのプレミアム計算
+        if summary.exchange_rate:
+            summary.net_premium_jpy = premium * summary.exchange_rate
+
         if summary.is_closed and summary.status == 'OPEN':
             summary.status = 'CLOSED'
 
         # プレミアムレコードの更新
         if symbol in self._premium_records:
-            self._premium_records[symbol].premium_amount = Money(premium)
+            premium_money = self._create_money_with_rate(premium, summary.exchange_rate)
+            self._premium_records[symbol].premium_amount = premium_money
+            if summary.exchange_rate:
+                self._premium_records[symbol].premium_amount_jpy = premium_money.convert_to_jpy(summary.exchange_rate)
 
     def _is_option_transaction(self, transaction: Transaction) -> bool:
         """オプション取引かどうかを判定"""
@@ -172,7 +183,6 @@ class OptionPremiumProcessor(BaseProcessor[PremiumRecord]):
     def _parse_option_info(self, symbol: str) -> Optional[Dict]:
         """オプションシンボルを解析"""
         try:
-            # Example: "U 03/17/2023 30.00 P"
             pattern = r'(\w+)\s+(\d{2}/\d{2}/\d{4})\s+(\d+\.\d+)\s+([CP])'
             match = re.match(pattern, symbol)
             if match:

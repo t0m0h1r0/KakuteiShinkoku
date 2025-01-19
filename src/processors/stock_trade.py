@@ -6,7 +6,7 @@ from datetime import date
 from collections import defaultdict
 
 from ..core.transaction import Transaction
-from ..core.money import Money
+from ..core.money import Money, Currency
 from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .trade_records import StockTradeRecord
@@ -105,6 +105,7 @@ class StockTradeProcessor(BaseProcessor[StockTradeRecord]):
         quantity = Decimal(str(transaction.quantity or 0))
         price = Decimal(str(transaction.price or 0))
         fees = Decimal(str(transaction.fees or 0))
+        exchange_rate = self._get_exchange_rate(transaction.transaction_date)
         
         # オプション権利行使の影響を確認
         if action == 'BUY' and symbol in self._assignments:
@@ -127,6 +128,11 @@ class StockTradeProcessor(BaseProcessor[StockTradeRecord]):
             # 売り取引
             realized_gain = position.sell_shares(quantity, price, fees)
     
+        # 為替レート付きでMoneyオブジェクトを作成
+        price_money = self._create_money_with_rate(price, exchange_rate)
+        fees_money = self._create_money_with_rate(fees, exchange_rate)
+        realized_gain_money = self._create_money_with_rate(realized_gain, exchange_rate)
+
         trade_record = StockTradeRecord(
             trade_date=transaction.transaction_date,
             account_id=transaction.account_id,
@@ -134,10 +140,13 @@ class StockTradeProcessor(BaseProcessor[StockTradeRecord]):
             description=transaction.description,
             action=transaction.action_type,
             quantity=quantity,
-            price=Money(price),
-            fees=Money(fees),
-            realized_gain=Money(realized_gain),
-            exchange_rate=self._get_exchange_rate(transaction.transaction_date)
+            price=price_money,
+            fees=fees_money,
+            realized_gain=realized_gain_money,
+            exchange_rate=exchange_rate,
+            price_jpy=price_money.convert_to_jpy(exchange_rate),
+            fees_jpy=fees_money.convert_to_jpy(exchange_rate),
+            realized_gain_jpy=realized_gain_money.convert_to_jpy(exchange_rate)
         )
     
         self.records.append(trade_record)

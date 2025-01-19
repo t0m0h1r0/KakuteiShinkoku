@@ -14,42 +14,53 @@ class WriterManager:
                 OUTPUT_FILES['dividend_history'],
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
-                    'type', 'gross_amount', 'tax_amount', 'net_amount'
+                    'type', 'gross_amount', 'tax_amount', 'net_amount',
+                    'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',  # JPY追加
+                    'exchange_rate'
                 ]
             ),
             'interest_csv': CSVWriter(
                 OUTPUT_FILES['interest_history'],
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
-                    'action', 'gross_amount', 'tax_amount', 'net_amount'
+                    'action', 'gross_amount', 'tax_amount', 'net_amount',
+                    'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',  # JPY追加
+                    'exchange_rate'
                 ]
             ),
             'stock_trade_csv': CSVWriter(
                 OUTPUT_FILES['stock_trade_history'],
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
-                    'type', 'action', 'quantity', 'price', 'realized_gain'
+                    'type', 'action', 'quantity', 'price', 'realized_gain',
+                    'price_jpy', 'realized_gain_jpy',  # JPY追加
+                    'exchange_rate'
                 ]
             ),
             'option_trade_csv': CSVWriter(
                 OUTPUT_FILES['option_trade_history'],
                 fieldnames=[
                     'date', 'account', 'symbol', 
-                    'description', 'action', 'quantity', 'price'
+                    'description', 'action', 'quantity', 'price',
+                    'price_jpy', 'fees_jpy', 'realized_gain_jpy',  # JPY追加
+                    'exchange_rate'
                 ]
             ),
             'option_premium_csv': CSVWriter(
                 OUTPUT_FILES['option_premium'],
                 fieldnames=[
                     'account', 'symbol', 'description', 
-                    'fees_total', 'final_premium', 
-                    'status', 'close_date'
+                    'fees_total', 'final_premium', 'status', 'close_date',
+                    'final_premium_jpy', 'fees_total_jpy',  # JPY追加
+                    'exchange_rate'
                 ]
             ),
             'profit_loss_csv': CSVWriter(
                 OUTPUT_FILES['profit_loss_summary'],
                 fieldnames=[
-                    'Account', 'Dividend', 'Interest', 'Tax', 'Net Total'
+                    'Account', 'Dividend', 'Interest', 'Tax', 'Net Total',
+                    'Dividend_JPY', 'Interest_JPY', 'Tax_JPY', 'Net Total_JPY',  # JPY追加
+                    'Exchange Rate'
                 ]
             )
         }

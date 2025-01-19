@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from decimal import Decimal
 from datetime import date
+from typing import Optional
 
 from ..core.money import Money
 
@@ -17,6 +18,19 @@ class StockTradeRecord:
     fees: Money
     realized_gain: Money
     exchange_rate: Decimal
+    # 日本円での金額を追加
+    price_jpy: Optional[Money] = None
+    fees_jpy: Optional[Money] = None
+    realized_gain_jpy: Optional[Money] = None
+
+    def __post_init__(self):
+        """JPY金額の設定"""
+        if self.exchange_rate and not self.price_jpy:
+            self.price_jpy = self.price.convert_to_jpy(self.exchange_rate)
+        if self.exchange_rate and not self.fees_jpy:
+            self.fees_jpy = self.fees.convert_to_jpy(self.exchange_rate)
+        if self.exchange_rate and not self.realized_gain_jpy:
+            self.realized_gain_jpy = self.realized_gain.convert_to_jpy(self.exchange_rate)
 
 @dataclass
 class OptionTradeRecord:
@@ -35,7 +49,20 @@ class OptionTradeRecord:
     position_type: str
     is_expired: bool
     exchange_rate: Decimal
-    realized_gain: Money = Money(Decimal('0'))  # 追加
+    realized_gain: Money = Money(Decimal('0'))
+    # 日本円での金額を追加
+    price_jpy: Optional[Money] = None
+    fees_jpy: Optional[Money] = None
+    realized_gain_jpy: Optional[Money] = None
+
+    def __post_init__(self):
+        """JPY金額の設定"""
+        if self.exchange_rate and not self.price_jpy:
+            self.price_jpy = self.price.convert_to_jpy(self.exchange_rate)
+        if self.exchange_rate and not self.fees_jpy:
+            self.fees_jpy = self.fees.convert_to_jpy(self.exchange_rate)
+        if self.exchange_rate and not self.realized_gain_jpy:
+            self.realized_gain_jpy = self.realized_gain.convert_to_jpy(self.exchange_rate)
 
 @dataclass
 class PremiumRecord:
@@ -48,4 +75,11 @@ class PremiumRecord:
     option_type: str
     premium_amount: Money
     exchange_rate: Decimal
-    description: str = ''  # デフォルト値として空文字を追加
+    description: str = ''
+    # 日本円での金額を追加
+    premium_amount_jpy: Optional[Money] = None
+
+    def __post_init__(self):
+        """JPY金額の設定"""
+        if self.exchange_rate and not self.premium_amount_jpy:
+            self.premium_amount_jpy = self.premium_amount.convert_to_jpy(self.exchange_rate)

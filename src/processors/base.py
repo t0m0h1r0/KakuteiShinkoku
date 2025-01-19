@@ -2,9 +2,11 @@ from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List
 from datetime import date
 from decimal import Decimal
+import logging
 
 from ..core.transaction import Transaction
 from ..core.interfaces import IExchangeRateProvider
+from ..core.money import Money, Currency
 
 T = TypeVar('T')
 
@@ -14,6 +16,7 @@ class BaseProcessor(ABC, Generic[T]):
     def __init__(self, exchange_rate_provider: IExchangeRateProvider):
         self.exchange_rate_provider = exchange_rate_provider
         self.records: List[T] = []
+        self.logger = logging.getLogger(self.__class__.__name__)
     
     @abstractmethod
     def process(self, transaction: Transaction) -> None:
@@ -36,3 +39,13 @@ class BaseProcessor(ABC, Generic[T]):
     def _get_exchange_rate(self, target_date: date) -> Decimal:
         """指定日の為替レートを取得"""
         return self.exchange_rate_provider.get_rate(target_date)
+    
+    def _convert_money_to_jpy(self, usd_money: Money, rate: Decimal) -> Money:
+        """USD金額を日本円に変換"""
+        if usd_money.currency == Currency.JPY:
+            return usd_money
+        return usd_money.convert_to_jpy(rate)
+
+    def _create_money_with_rate(self, amount: Decimal, rate: Decimal) -> Money:
+        """為替レート付きでMoneyオブジェクトを作成"""
+        return Money(amount=amount, currency=Currency.USD, jpy_rate=rate)
