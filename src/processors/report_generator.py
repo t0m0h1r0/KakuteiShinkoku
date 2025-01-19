@@ -34,6 +34,9 @@ class InvestmentReportGenerator(ReportGenerator):
             option_records = data.get('option_records', [])
             premium_records = data.get('premium_records', [])
 
+            # プレミアムサマリーの取得
+            premium_summary = self.context.premium_processor.get_premium_summary()
+
             # 各種レポートの生成
             self._write_dividend_report(dividend_records)
             self._write_interest_report(interest_records)
@@ -41,7 +44,7 @@ class InvestmentReportGenerator(ReportGenerator):
             self._write_option_report(option_records)
             self._write_premium_report(premium_records)
             self._write_summary_report(dividend_records, interest_records, 
-                                     stock_records, option_records, premium_records)
+                                     stock_records, option_records, premium_summary)
 
         except Exception as e:
             self.logger.error(f"Report generation error: {e}", exc_info=True)
@@ -143,49 +146,6 @@ class InvestmentReportGenerator(ReportGenerator):
             'premium_amount': record.premium_amount.amount
         }
 
-    def _write_summary_report(self, dividend_records: List, 
-                             interest_records: List,
-                             stock_records: List,
-                             option_records: List,
-                             premium_records: List) -> None:
-        """サマリーレポートの生成"""
-        try:
-            # 配当・利子収入の集計
-            income_summary = self._calculate_dividend_summary(
-                dividend_records, 
-                interest_records
-            )
-            
-            # 取引損益の集計
-            trading_summary = self._calculate_trading_summary(
-                stock_records, option_records, premium_records
-            )
-            
-            # 全体のサマリーを作成
-            total_summary = {
-                'income': income_summary,
-                'trading': trading_summary,
-                'total': {
-                    'total_income': income_summary['net_total'],
-                    'total_trading': trading_summary['net_total'],
-                    'grand_total': (
-                        income_summary['net_total'] + 
-                        trading_summary['net_total']
-                    )
-                }
-            }
-
-            # CSVへの出力
-            self._write_summary_to_csv(income_summary, trading_summary)
-
-            # 各出力先に書き出し
-            self.context.display_outputs['summary_file'].output(total_summary)
-            self.context.display_outputs['console'].output(total_summary)
-            
-        except Exception as e:
-            self.logger.error(f"Error generating summary report: {e}")
-            raise
-
     def _calculate_dividend_summary(self, 
                                     dividend_records: List, 
                                     interest_records: List) -> Dict:
@@ -204,45 +164,28 @@ class InvestmentReportGenerator(ReportGenerator):
         
         return summary
 
-    def _prepare_log_content(self, 
-                        income_summary: Dict, 
-                        trading_summary: Dict, 
-                        total_summary: Dict) -> str:
-        """ログ内容の準備"""
-        lines = ["Investment Summary Report"]
-        lines.append("-" * 30)
-        
-        lines.append("\nIncome Summary:")
-        lines.append(f"Dividend Total: ${income_summary['dividend_total']:.2f}")
-        lines.append(f"Interest Total: ${income_summary['interest_total']:.2f}")
-        lines.append(f"Tax Total: ${income_summary['tax_total']:.2f}")
-        lines.append(f"Net Income: ${income_summary['net_total']:.2f}")
-        
-        lines.append("\nTrading Summary:")
-        lines.append(f"Stock Trading Gain: ${trading_summary['stock_gain']:.2f}")
-        lines.append(f"Option Trading Gain: ${trading_summary['option_gain']:.2f}")
-        lines.append(f"Option Premium Income: ${trading_summary['premium_income']:.2f}")
-        lines.append(f"Net Trading Gain: ${trading_summary['net_total']:.2f}")
-        
-        lines.append("\nTotal Summary:")
-        lines.append(f"Total Income: ${total_summary['total_income']:.2f}")
-        lines.append(f"Total Trading: ${total_summary['total_trading']:.2f}")
-        lines.append(f"Grand Total: ${total_summary['grand_total']:.2f}")
-        
-        return "\n".join(lines)
-
     def _calculate_trading_summary(self, 
                                   stock_records: List,
                                   option_records: List, 
-                                  premium_records: List) -> Dict:
+                                  premium_summary: Dict) -> Dict:
         """取引損益のサマリー計算"""
+        # 株式取引の損益
+        stock_gain = sum(r.realized_gain.amount for r in stock_records if hasattr(r, 'realized_gain'))
+        
+        # オプション取引の集計
+        total_premium = Decimal('0')
+        total_closing_cost = Decimal('0')
+        
+        for symbol, details in premium_summary.items():
+            total_premium += details['total_premium']
+            total_closing_cost += details['closing_cost']
+        
+        net_premium = total_premium - total_closing_cost
+        
         summary = {
-            'stock_gain': sum(r.realized_gain.amount for r in stock_records),
-            'option_gain': sum(r.price.amount 
-                             for r in option_records 
-                             if r.action == 'SELL'),
-            'premium_income': sum(r.premium_amount.amount 
-                                for r in premium_records)
+            'stock_gain': stock_gain,
+            'option_gain': Decimal('0'),  # オプション取引損益は別途計算
+            'premium_income': net_premium
         }
         
         summary['net_total'] = (
@@ -253,6 +196,44 @@ class InvestmentReportGenerator(ReportGenerator):
         
         return summary
         
+    def _write_summary_report(self, dividend_records: List, 
+                             interest_records: List,
+                             stock_records: List,
+                             option_records: List,
+                             premium_summary: Dict) -> None:
+        """サマリーレポートの生成"""
+        try:
+            # 収入サマリーの計算
+            income_summary = self._calculate_dividend_summary(dividend_records, interest_records)
+            
+            # 取引損益の計算
+            trading_summary = self._calculate_trading_summary(stock_records, option_records, premium_summary)
+            
+            # 総合サマリーの作成
+            total_summary = {
+                'income': income_summary,
+                'trading': trading_summary,
+                'total': {
+                    'total_income': income_summary['net_total'],
+                    'total_trading': trading_summary['net_total'],
+                    'grand_total': (
+                        income_summary['net_total'] + 
+                        trading_summary['net_total']
+                    )
+                }
+            }
+
+            # 結果をファイルに出力
+            self._write_summary_to_csv(income_summary, trading_summary)
+
+            # 各出力先に書き出し
+            self.context.display_outputs['summary_file'].output(total_summary)
+            self.context.display_outputs['console'].output(total_summary)
+            
+        except Exception as e:
+            self.logger.error(f"Error generating summary report: {e}")
+            raise
+
     def _write_summary_to_csv(self, income_summary: Dict, trading_summary: Dict) -> None:
         """サマリーをCSVに出力"""
         summary_record = {
