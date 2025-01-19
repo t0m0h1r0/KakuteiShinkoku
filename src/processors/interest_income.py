@@ -36,10 +36,6 @@ class InterestProcessor(BaseProcessor[InterestRecord]):
         self._tax_records: Dict[str, List[dict]] = {}
     
     def process(self, transaction: Transaction) -> None:
-        """トランザクションを処理"""
-        # デバッグ用のログ出力
-        print(f"処理中のトランザクション: Date: {transaction.transaction_date}, Action: {transaction.action_type}, Amount: {transaction.amount}")
-        
         if self._is_interest_transaction(transaction):
             self._process_interest(transaction)
         elif self._is_tax_transaction(transaction):
@@ -65,14 +61,6 @@ class InterestProcessor(BaseProcessor[InterestRecord]):
         
         # 金額が0でない場合のみ利子として扱う
         is_interest = is_interest and abs(transaction.amount) > Decimal('0')
-        
-        # デバッグ出力
-        if is_interest:
-            print(f"利子トランザクション検出: "
-                f"Date: {transaction.transaction_date}, "
-                f"Action: {transaction.action_type}, "
-                f"Description: {transaction.description}, "
-                f"Amount: {transaction.amount}")
         
         return is_interest
 
