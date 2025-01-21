@@ -14,6 +14,7 @@ class DividendTradeRecord:
     account_id: str
     symbol: str
     description: str
+    action_type: str    # 追加：アクションタイプ
     income_type: str
     
     # 金額情報

@@ -49,6 +49,7 @@ class DividendProcessor(BaseProcessor):
             symbol=transaction.symbol or '',
             description=transaction.description,
             income_type='Dividend',
+            action_type=transaction.action_type,
             gross_amount=gross_amount,
             tax_amount=tax_money,
             exchange_rate=exchange_rate

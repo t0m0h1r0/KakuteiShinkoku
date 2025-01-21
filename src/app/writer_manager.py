@@ -14,7 +14,7 @@ class WriterManager:
                 OUTPUT_FILES['dividend_history'],
                 fieldnames=[
                     'date', 'account', 'symbol', 'description',
-                    'type', 'gross_amount', 'tax_amount', 'net_amount',
+                    'action', 'gross_amount', 'tax_amount', 'net_amount',
                     'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',
                     'exchange_rate'
                 ]

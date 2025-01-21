@@ -17,7 +17,7 @@ class DividendReportGenerator(BaseReportGenerator):
                 'account': record.account_id,
                 'symbol': record.symbol,
                 'description': record.description,
-                'type': record.income_type,
+                'action': record.action_type,
                 'gross_amount': record.gross_amount.amount,
                 'tax_amount': record.tax_amount.amount,
                 'net_amount': record.gross_amount.amount - record.tax_amount.amount,
