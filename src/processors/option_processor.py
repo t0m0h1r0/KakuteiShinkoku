@@ -14,6 +14,8 @@ from .option_position import OptionContract, OptionPosition, ClosedTrade, Expire
 class OptionProcessor(BaseProcessor):
     """オプション取引処理クラス"""
     
+    SHARES_PER_CONTRACT = 100  # オプション1枚あたりの株数
+    
     def __init__(self, exchange_rate_provider: IExchangeRateProvider):
         super().__init__(exchange_rate_provider)
         self._positions: Dict[str, OptionPosition] = defaultdict(OptionPosition)
@@ -33,25 +35,43 @@ class OptionProcessor(BaseProcessor):
         symbol = transaction.symbol
         exchange_rate = self._get_exchange_rate(transaction.transaction_date)
 
-        # 基本的な取引情報の作成
+        # 取引情報の作成
         quantity = abs(int(transaction.quantity or 0))
-        price = Decimal(str(transaction.price or 0))
+        per_share_price = Decimal(str(transaction.price or 0))
         fees = Decimal(str(transaction.fees or 0))
 
+        # オプション価格の計算（1株あたりの価格 * 100株/枚 * 枚数）
+        total_price = per_share_price * self.SHARES_PER_CONTRACT * quantity
+
+        # 実際の取引額からの検証（手数料を考慮）
+        expected_amount = abs(transaction.amount or 0)
+        if action in ['BUY_TO_OPEN', 'BUY_TO_CLOSE']:
+            # 買いの場合: amount = price + fees
+            actual_amount = total_price + fees
+        else:
+            # 売りの場合: amount = price - fees
+            actual_amount = total_price - fees
+
+        if abs(expected_amount - actual_amount) > Decimal('0.01'):
+            self.logger.warning(
+                f"Price calculation mismatch for {symbol}: "
+                f"Expected {expected_amount}, got {actual_amount}"
+            )
+
         # 金額オブジェクトの作成
-        price_money = self._create_money_with_rate(price, exchange_rate)
+        price_money = self._create_money_with_rate(total_price, exchange_rate)
         fees_money = self._create_money_with_rate(fees, exchange_rate)
 
         # アクションに応じた処理
         if action in ['BUY_TO_OPEN', 'SELL_TO_OPEN']:
             trading_pnl, premium_pnl = self._handle_open_position(
                 symbol, transaction.transaction_date, option_info,
-                quantity, price, fees, action == 'BUY_TO_OPEN'
+                quantity, total_price, fees, action == 'BUY_TO_OPEN'
             )
         elif action in ['BUY_TO_CLOSE', 'SELL_TO_CLOSE']:
             trading_pnl, premium_pnl = self._handle_close_position(
                 symbol, transaction.transaction_date, option_info,
-                quantity, price, fees, action == 'BUY_TO_CLOSE'
+                quantity, total_price, fees, action == 'BUY_TO_CLOSE'
             )
         elif action == 'EXPIRED':
             trading_pnl, premium_pnl = self._handle_expiration(
@@ -103,7 +123,7 @@ class OptionProcessor(BaseProcessor):
             normalized_action in option_actions and
             self._is_option_symbol(transaction.symbol)
         )
-    
+
     def _normalize_action(self, action: str) -> str:
         """アクションタイプを正規化"""
         # スペースを除去し、大文字に変換
