@@ -56,7 +56,7 @@ class OptionProcessor(BaseProcessor):
         fees_money = self._create_money_with_rate(fees, exchange_rate)
 
         # アクションに応じた処理
-        trading_pnl, premium_pnl, actual_delivery_pnl, contract = self._process_option_action(
+        trading_pnl, premium_pnl, actual_delivery, contract = self._process_option_action(
             symbol, 
             transaction.transaction_date, 
             option_info,
@@ -73,7 +73,7 @@ class OptionProcessor(BaseProcessor):
         # 金額オブジェクトの作成
         trading_pnl_money = self._create_money_with_rate(trading_pnl, exchange_rate)
         premium_pnl_money = self._create_money_with_rate(premium_pnl, exchange_rate)
-        actual_delivery_pnl_money = self._create_money_with_rate(actual_delivery_pnl, exchange_rate)
+        actual_delivery_money = self._create_money_with_rate(actual_delivery, exchange_rate)
 
         trade_record = OptionTradeRecord(
             trade_date=transaction.transaction_date,
@@ -91,7 +91,7 @@ class OptionProcessor(BaseProcessor):
             underlying=option_info['underlying'],
             trading_pnl=trading_pnl_money,
             premium_pnl=premium_pnl_money,
-            actual_delivery_pnl=actual_delivery_pnl_money,
+            actual_delivery=actual_delivery_money,
             position_type=self._determine_position_type(action),
             is_closed=is_closed,
             is_expired=(action == 'EXPIRED'),
@@ -124,7 +124,7 @@ class OptionProcessor(BaseProcessor):
         )
 
         # 現引・現渡し損益の初期化
-        actual_delivery_pnl = Decimal('0')
+        actual_delivery = Decimal('0')
         trading_pnl = Decimal('0')
 
         if action in ['BUY_TO_OPEN', 'SELL_TO_OPEN']:
@@ -155,7 +155,7 @@ class OptionProcessor(BaseProcessor):
             current_market_price = total_price / (self.SHARES_PER_CONTRACT * quantity)
             
             # 現引・現渡しの価値を計算（現在の市場価値 - ストライク価格）
-            actual_delivery_pnl = (
+            actual_delivery = (
                 current_market_price - option_info['strike_price']
             ) * quantity * self.SHARES_PER_CONTRACT
             
@@ -165,7 +165,7 @@ class OptionProcessor(BaseProcessor):
                 'current_market_price': current_market_price,
                 'total_price': total_price,
                 'quantity': quantity,
-                'actual_delivery_pnl': actual_delivery_pnl,
+                'actual_delivery': actual_delivery,
                 'underlying': option_info['underlying']
             }
             
@@ -177,7 +177,7 @@ class OptionProcessor(BaseProcessor):
                 assignment_details
             )
             
-            return trading_pnl, Decimal('0'), actual_delivery_pnl, contract
+            return trading_pnl, Decimal('0'), actual_delivery, contract
         
         return Decimal('0'), Decimal('0'), Decimal('0'), None
 
@@ -201,7 +201,7 @@ class OptionProcessor(BaseProcessor):
                 remaining_quantity=trade_record.quantity,
                 trading_pnl=trade_record.trading_pnl,
                 premium_pnl=trade_record.premium_pnl,
-                actual_delivery_pnl=trade_record.actual_delivery_pnl,
+                actual_delivery=trade_record.actual_delivery,
                 total_fees=trade_record.fees,
                 exchange_rate=trade_record.exchange_rate
             )
@@ -226,7 +226,7 @@ class OptionProcessor(BaseProcessor):
             # 損益の累積
             summary.trading_pnl += trade_record.trading_pnl
             summary.premium_pnl += trade_record.premium_pnl
-            summary.actual_delivery_pnl += trade_record.actual_delivery_pnl
+            summary.actual_delivery += trade_record.actual_delivery
             summary.total_fees += trade_record.fees
 
     def _is_option_transaction(self, transaction: Transaction) -> bool:

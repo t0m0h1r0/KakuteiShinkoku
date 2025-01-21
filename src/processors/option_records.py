@@ -31,7 +31,7 @@ class OptionTradeRecord:
     # 損益情報
     trading_pnl: Money
     premium_pnl: Money
-    actual_delivery_pnl: Money  # 現引・現渡し損益
+    actual_delivery: Money  # 現引・現渡し損益
     position_type: str
     is_closed: bool
     is_expired: bool
@@ -42,7 +42,7 @@ class OptionTradeRecord:
     fees_jpy: Optional[Money] = None
     trading_pnl_jpy: Optional[Money] = None
     premium_pnl_jpy: Optional[Money] = None
-    actual_delivery_pnl_jpy: Optional[Money] = None  # 現引・現渡し損益（JPY）
+    actual_delivery_jpy: Optional[Money] = None  # 現引・現渡し損益（JPY）
     
     def __post_init__(self):
         """JPY金額の設定"""
@@ -60,8 +60,8 @@ class OptionTradeRecord:
                 self.trading_pnl_jpy = self.trading_pnl.convert_to_jpy(self.exchange_rate)
             if not self.premium_pnl_jpy:
                 self.premium_pnl_jpy = self.premium_pnl.convert_to_jpy(self.exchange_rate)
-            if not self.actual_delivery_pnl_jpy:
-                self.actual_delivery_pnl_jpy = self.actual_delivery_pnl.convert_to_jpy(self.exchange_rate)
+            if not self.actual_delivery_jpy:
+                self.actual_delivery_jpy = self.actual_delivery.convert_to_jpy(self.exchange_rate)
 
 @dataclass
 class OptionSummaryRecord:
@@ -85,14 +85,14 @@ class OptionSummaryRecord:
     # 損益情報
     trading_pnl: Money
     premium_pnl: Money
-    actual_delivery_pnl: Money  # 現引・現渡し損益
+    actual_delivery: Money  # 現引・現渡し損益
     total_fees: Money
     exchange_rate: Decimal
     
     # 日本円換算額
     trading_pnl_jpy: Optional[Money] = None
     premium_pnl_jpy: Optional[Money] = None
-    actual_delivery_pnl_jpy: Optional[Money] = None  # 現引・現渡し損益（JPY）
+    actual_delivery_jpy: Optional[Money] = None  # 現引・現渡し損益（JPY）
     total_fees_jpy: Optional[Money] = None
     
     def __post_init__(self):
@@ -109,7 +109,7 @@ class OptionSummaryRecord:
                 self.trading_pnl_jpy = self.trading_pnl.convert_to_jpy(self.exchange_rate)
             if not self.premium_pnl_jpy:
                 self.premium_pnl_jpy = self.premium_pnl.convert_to_jpy(self.exchange_rate)
-            if not self.actual_delivery_pnl_jpy:
-                self.actual_delivery_pnl_jpy = self.actual_delivery_pnl.convert_to_jpy(self.exchange_rate)
+            if not self.actual_delivery_jpy:
+                self.actual_delivery_jpy = self.actual_delivery.convert_to_jpy(self.exchange_rate)
             if not self.total_fees_jpy:
                 self.total_fees_jpy = self.total_fees.convert_to_jpy(self.exchange_rate)

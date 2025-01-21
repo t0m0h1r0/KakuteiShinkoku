@@ -53,7 +53,7 @@ class ReportCalculator:
         
         option_trading_gain = sum(r.trading_pnl.amount for r in option_records)
         option_premium_gain = sum(r.premium_pnl.amount for r in option_records)
-        option_actual_delivery_gain = sum(r.actual_delivery_pnl.amount for r in option_records)
+        option_actual_delivery_gain = sum(r.actual_delivery.amount for r in option_records)
         
         summary = {
             'stock_gain': stock_gain,
@@ -155,8 +155,8 @@ class ReportCalculator:
             total_trading_jpy += record.trading_pnl_jpy.amount
             total_premium_usd += record.premium_pnl.amount
             total_premium_jpy += record.premium_pnl_jpy.amount
-            total_actual_delivery_usd += record.actual_delivery_pnl.amount
-            total_actual_delivery_jpy += record.actual_delivery_pnl_jpy.amount
+            total_actual_delivery_usd += record.actual_delivery.amount
+            total_actual_delivery_jpy += record.actual_delivery_jpy.amount
             total_fees_usd += record.fees.amount
             total_fees_jpy += record.fees_jpy.amount
             exchange_rate_sum += record.exchange_rate
