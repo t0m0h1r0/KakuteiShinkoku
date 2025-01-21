@@ -256,7 +256,9 @@ class OptionProcessor(BaseProcessor):
     def _update_summary_record(self, symbol: str,
                              trade_record: OptionTradeRecord,
                              option_info: Dict) -> None:
-        """サマリー記録の更新"""
+        """サマリーレコードを更新"""
+        position = self._positions[symbol]
+
         if symbol not in self._summary_records:
             self._summary_records[symbol] = OptionSummaryRecord(
                 account_id=trade_record.account_id,
@@ -276,20 +278,25 @@ class OptionProcessor(BaseProcessor):
                 total_fees=trade_record.fees,
                 exchange_rate=trade_record.exchange_rate
             )
-        else:
-            summary = self._summary_records[symbol]
-            if trade_record.is_closed:
-                summary.status = 'Closed'
-                summary.close_date = trade_record.trade_date
-            elif trade_record.is_expired:
+        
+        summary = self._summary_records[symbol]
+        summary.remaining_quantity = position.get_remaining_quantity()
+        summary.trading_pnl += trade_record.trading_pnl
+        summary.premium_pnl += trade_record.premium_pnl
+        summary.total_fees += trade_record.fees
+
+        # ステータスの判定
+        if summary.remaining_quantity <= 0:
+            # すべてのポジションが終了
+            if trade_record.is_expired:
                 summary.status = 'Expired'
-                summary.close_date = trade_record.trade_date
             elif trade_record.is_assigned:
                 summary.status = 'Assigned'
-                summary.close_date = trade_record.trade_date
+            else:
+                summary.status = 'Closed'
             
-            position = self._positions[symbol]
-            summary.remaining_quantity = position.get_remaining_quantity()
-            summary.trading_pnl += trade_record.trading_pnl
-            summary.premium_pnl += trade_record.premium_pnl
-            summary.total_fees += trade_record.fees
+            # 最終的に終了した日付を記録
+            summary.close_date = trade_record.trade_date
+        else:
+            # まだオープンなポジションがある
+            summary.status = 'Open'
