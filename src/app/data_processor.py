@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Dict, Any
 import logging
+import traceback
 from abc import ABC, abstractmethod
 
 from ..core.transaction import Transaction
@@ -39,42 +40,53 @@ class InvestmentDataProcessor(DataProcessor):
             return self.process_data(all_transactions)
 
         except Exception as e:
-            self.logger.error(f"Processing error: {e}", exc_info=True)
+            self.logger.error(f"Processing error: {e}\n{traceback.format_exc()}")
             return False
 
     def process_data(self, transactions: List[Transaction]) -> bool:
         """トランザクションデータの処理"""
         try:
             # トランザクションを日付順にソート
+            self.logger.debug("Sorting transactions by date...")
             sorted_transactions = sorted(transactions, key=lambda x: x.transaction_date)
             
             # 各プロセッサで処理
+            self.logger.debug("Processing dividend records...")
             dividend_records = self.context.dividend_processor.process_all(sorted_transactions)
+            
+            self.logger.debug("Processing interest records...")
             interest_records = self.context.interest_processor.process_all(sorted_transactions)
+            
+            self.logger.debug("Processing stock records...")
             stock_records = self.context.stock_processor.process_all(sorted_transactions)
+            
+            self.logger.debug("Processing option records...")
             option_records = self.context.option_processor.process_all(sorted_transactions)
-            premium_records = self.context.premium_processor.process_all(sorted_transactions)
 
             # 結果をコンテキストに保存
+            self.logger.debug("Saving results to context...")
             self.context.processing_results = {
                 'dividend_records': dividend_records,
                 'interest_records': interest_records,
                 'stock_records': stock_records,
-                'option_records': option_records,
-                'premium_records': premium_records
+                'option_records': option_records
             }
 
             return True
 
         except Exception as e:
-            self.logger.error(f"Data processing error: {e}")
+            self.logger.error(f"Data processing error: {e}\n{traceback.format_exc()}")
             return False
 
     def _load_transactions(self, json_files: List[Path]) -> List[Transaction]:
         """トランザクションの読み込み"""
         all_transactions = []
         for file in json_files:
-            self.logger.info(f"Processing file: {file}")
-            transactions = self.context.transaction_loader.load(file)
-            all_transactions.extend(transactions)
+            try:
+                self.logger.info(f"Processing file: {file}")
+                transactions = self.context.transaction_loader.load(file)
+                all_transactions.extend(transactions)
+                self.logger.debug(f"Successfully loaded {len(transactions)} transactions from {file}")
+            except Exception as e:
+                self.logger.error(f"Error loading file {file}: {e}\n{traceback.format_exc()}")
         return all_transactions

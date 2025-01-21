@@ -23,36 +23,57 @@ def parse_arguments():
         default=DATA_DIR,
         help='Directory containing input files'
     )
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug mode'
+    )
     return parser.parse_args()
 
-def setup_logging():
+def setup_logging(debug_mode: bool = False):
     """ログ設定"""
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
     return logger
 
 def main():
     """メインエントリーポイント"""
     start_time = datetime.now()
     args = parse_arguments()
-    logger = setup_logging()
+    logger = setup_logging(args.debug)
 
     try:
+        logger.info("Starting investment data processing...")
+        
         # アプリケーションコンテキストの初期化
+        logger.debug("Initializing application context...")
         context = ApplicationContext(use_color_output=not args.no_color)
         logger.info(f"Starting processing at {start_time}")
 
         # データ処理
+        logger.debug("Creating data processor...")
         processor = InvestmentDataProcessor(context)
+        
+        logger.info(f"Processing files from directory: {args.data_dir}")
         if not processor.process_files(args.data_dir):
             logger.error("Data processing failed")
             return 1
+        
+        logger.info("Data processing completed successfully")
 
         # レポート生成
+        logger.debug("Creating report generator...")
         generator = InvestmentReportGenerator(context)
+        
+        logger.info("Generating reports...")
         generator.generate_report(context.processing_results)
 
         # 結果の表示
+        logger.debug("Displaying results...")
         context.display_results()
 
         # 実行時間の計算と表示
@@ -64,7 +85,7 @@ def main():
 
     except KeyboardInterrupt:
         logger.warning("Processing interrupted by user")
-        return 130  # 標準的なキーボード割り込み終了コード
+        return 130
 
     except Exception as e:
         logger.exception(f"Unexpected error occurred: {e}")
@@ -73,6 +94,7 @@ def main():
     finally:
         # コンテキストのクリーンアップ
         if 'context' in locals():
+            logger.debug("Cleaning up context...")
             context.cleanup()
 
 if __name__ == "__main__":

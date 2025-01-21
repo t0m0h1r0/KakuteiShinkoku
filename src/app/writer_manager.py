@@ -40,35 +40,38 @@ class WriterManager:
             'option_trade_csv': CSVWriter(
                 OUTPUT_FILES['option_trade_history'],
                 fieldnames=[
-                    'date', 'account', 'symbol', 
-                    'description', 'action', 'quantity', 'price',
-                    'price_jpy', 'fees_jpy', 'trading_gains_jpy', 
-                    'premium_gains_jpy', 'exchange_rate'
+                    'date', 'account', 'symbol', 'description',
+                    'action', 'quantity', 'option_type', 'strike_price',
+                    'expiry_date', 'underlying',
+                    'price', 'fees', 'trading_pnl', 'premium_pnl',
+                    'price_jpy', 'fees_jpy', 'trading_pnl_jpy', 'premium_pnl_jpy',
+                    'exchange_rate', 'position_type', 'is_closed', 'is_expired'
                 ]
             ),
-            'option_premium_csv': CSVWriter(
-                OUTPUT_FILES['option_premium'],
+            'option_summary_csv': CSVWriter(
+                OUTPUT_FILES['option_summary'],
                 fieldnames=[
-                    'account',
-                    'symbol',
-                    'description',
-                    'fees_total',
-                    'premium_income',          # プレミアム収入
-                    'trading_gains',           # 譲渡損益
-                    'status',
-                    'close_date',
-                    'premium_income_jpy',      # プレミアム収入（JPY）
-                    'trading_gains_jpy',       # 譲渡損益（JPY）
-                    'fees_total_jpy',
+                    'account', 'symbol', 'description', 'underlying',
+                    'option_type', 'strike_price', 'expiry_date',
+                    'open_date', 'close_date', 'status',
+                    'initial_quantity', 'remaining_quantity',
+                    'trading_pnl', 'premium_pnl', 'total_fees',
+                    'trading_pnl_jpy', 'premium_pnl_jpy', 'total_fees_jpy',
                     'exchange_rate'
                 ]
             ),
-            'final_summary': CSVWriter(
+            'final_summary_csv': CSVWriter(
                 OUTPUT_FILES['final_summary'],
                 fieldnames=[
-                    'item',      # 項目名 (配当、利子など)
-                    'usd',       # USD金額
-                    'jpy'        # JPY金額
+                    'category',             # 取引カテゴリ（配当、利子、株式、オプションなど）
+                    'subcategory',          # サブカテゴリ（オプションの場合：譲渡益、プレミアムなど）
+                    'gross_amount_usd',     # 総額（USD）
+                    'tax_amount_usd',       # 税額（USD）
+                    'net_amount_usd',       # 純額（USD）
+                    'gross_amount_jpy',     # 総額（JPY）
+                    'tax_amount_jpy',       # 税額（JPY）
+                    'net_amount_jpy',       # 純額（JPY）
+                    'average_exchange_rate' # 平均為替レート
                 ]
             )
         }
