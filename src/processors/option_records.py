@@ -23,32 +23,36 @@ class OptionTradeRecord:
     exchange_rate: Decimal
     
     # オプション情報
-    option_type: str  # 'Call' or 'Put'
+    option_type: str     # 'Call' or 'Put'
     strike_price: Decimal
     expiry_date: date
     underlying: str
     
     # 損益情報
-    trading_pnl: Money
-    premium_pnl: Money
-    actual_delivery: Money  # 現引・現渡し損益
-    position_type: str
-    is_closed: bool
-    is_expired: bool
-    is_assigned: bool
+    trading_pnl: Money    # 反対売買による損益
+    premium_pnl: Money    # プレミアム損益（期限切れ時）
+    actual_delivery: Money # 権利行使/割当による現物取引の損益
+    position_type: str    # 'Long' or 'Short'
+    is_closed: bool       # 決済完了フラグ
+    is_expired: bool      # 期限切れフラグ
+    is_assigned: bool     # 権利行使フラグ
     
     # 日本円換算額
     price_jpy: Optional[Money] = None
     fees_jpy: Optional[Money] = None
     trading_pnl_jpy: Optional[Money] = None
     premium_pnl_jpy: Optional[Money] = None
-    actual_delivery_jpy: Optional[Money] = None  # 現引・現渡し損益（JPY）
+    actual_delivery_jpy: Optional[Money] = None
     
     def __post_init__(self):
         """JPY金額の設定"""
         # quantityが整数で渡された場合の対応
         if isinstance(self.quantity, int):
             self.quantity = Decimal(str(self.quantity))
+            
+        # strike_priceが数値型で渡された場合の対応
+        if isinstance(self.strike_price, (int, float)):
+            self.strike_price = Decimal(str(self.strike_price))
             
         # 為替レートの設定
         if self.exchange_rate:
@@ -78,31 +82,33 @@ class OptionSummaryRecord:
     # 取引情報
     open_date: date
     close_date: Optional[date]
-    status: str  # 'Open', 'Closed', 'Expired', 'Assigned'
+    status: str   # 'Open', 'Closed', 'Expired', 'Assigned'
     initial_quantity: Decimal
     remaining_quantity: Decimal
     
-    # 損益情報
-    trading_pnl: Money
-    premium_pnl: Money
-    actual_delivery: Money  # 現引・現渡し損益
-    total_fees: Money
+    # 累計損益情報
+    trading_pnl: Money      # 反対売買による累計損益
+    premium_pnl: Money      # プレミアムの累計損益
+    actual_delivery: Money  # 権利行使による累計損益
+    total_fees: Money       # 累計手数料
     exchange_rate: Decimal
     
     # 日本円換算額
     trading_pnl_jpy: Optional[Money] = None
     premium_pnl_jpy: Optional[Money] = None
-    actual_delivery_jpy: Optional[Money] = None  # 現引・現渡し損益（JPY）
+    actual_delivery_jpy: Optional[Money] = None
     total_fees_jpy: Optional[Money] = None
     
     def __post_init__(self):
         """JPY金額の設定"""
-        # quantityが整数で渡された場合の対応
+        # 数値型の変換
         if isinstance(self.initial_quantity, int):
             self.initial_quantity = Decimal(str(self.initial_quantity))
         if isinstance(self.remaining_quantity, int):
             self.remaining_quantity = Decimal(str(self.remaining_quantity))
-
+        if isinstance(self.strike_price, (int, float)):
+            self.strike_price = Decimal(str(self.strike_price))
+            
         # 為替レートの設定
         if self.exchange_rate:
             if not self.trading_pnl_jpy:
