@@ -23,32 +23,91 @@ class OptionProcessor(BaseProcessor):
         self._positions: Dict[str, OptionPosition] = defaultdict(OptionPosition)
         self._trade_records: List[OptionTradeRecord] = []
         self._summary_records: Dict[str, OptionSummaryRecord] = {}
-        self._pending_transactions: Dict[str, List[Transaction]] = defaultdict(list)
+        
+        # 同日取引の追跡用
+        self._daily_transactions: Dict[str, Dict[date, List[Transaction]]] = defaultdict(lambda: defaultdict(list))
+        # 取引の追跡情報
+        self._transaction_tracking: Dict[str, Dict] = defaultdict(lambda: {
+            'open_quantity': Decimal('0'),
+            'close_quantity': Decimal('0'),
+            'max_status': 'Open'
+        })
+        print("-------------------------------------------------")
+        print(self._transaction_tracking['U 06/23/2023 32.00 C'])
+        print("-------------------------------------------------")
+
 
     def process(self, transaction: Transaction) -> None:
-        """取引の処理"""
+        """単一のトランザクションを処理する基本メソッド"""
+        # オプション取引でない場合はスキップ
         if not self._is_option_transaction(transaction):
             return
 
-        symbol = transaction.symbol
-        action = self._normalize_action(transaction.action_type)
-        
-        # 同一銘柄の未処理トランザクションがある場合は処理
-        if symbol in self._pending_transactions:
-            self._process_pending_transactions(symbol)
-
-        # 新規取引がCLOSEで、同一銘柄のOPENが後に控えている可能性がある場合
-        if action.endswith('CLOSE'):
-            next_transactions = self._find_same_day_opens(transaction)
-            if next_transactions:
-                # CLOSEを保留にして、先にOPENを処理
-                self._pending_transactions[symbol].append(transaction)
-                for tx in next_transactions:
-                    self._process_transaction(tx)
-                return
-
-        # 通常の処理
+        # トランザクションを実際に処理
         self._process_transaction(transaction)
+
+    def process_all(self, transactions: List[Transaction]) -> List[OptionTradeRecord]:
+        """すべてのトランザクションを処理"""
+        # 同日取引を追跡するための事前処理
+        self._track_daily_transactions(transactions)
+        
+        # トランザクションの追跡情報をリセット
+        self._transaction_tracking.clear()
+        
+        # 各シンボルの同日取引を処理
+        for symbol, daily_symbol_txs in self._daily_transactions.items():
+            # 日付順にソートして処理
+            sorted_dates = sorted(daily_symbol_txs.keys())
+            for transaction_date in sorted_dates:
+                transactions_on_date = daily_symbol_txs[transaction_date]
+                
+                # 同日取引の処理
+                self._process_daily_transactions(symbol, transactions_on_date)
+
+        for k in self._trade_records:
+            if k.symbol == "U 06/23/2023 32.00 C":
+                print(k,"\n")
+        return self._trade_records
+
+    def _track_daily_transactions(self, transactions: List[Transaction]) -> None:
+        """同日取引を追跡"""
+        for transaction in transactions:
+            if self._is_option_transaction(transaction):
+                symbol = transaction.symbol
+                self._daily_transactions[symbol][transaction.transaction_date].append(transaction)
+
+    def _process_daily_transactions(self, symbol: str, transactions: List[Transaction]) -> None:
+        """同日の取引を処理"""
+        # 取引をアクションでソート（Open → Closeの順、かつ数量の多い順）
+        sorted_transactions = sorted(
+            transactions, 
+            key=lambda tx: (
+                0 if self._normalize_action(tx.action_type).endswith('OPEN') else 1,
+                -abs(Decimal(str(tx.quantity or 0)))
+            )
+        )
+        
+        # 取引追跡情報をリセット
+        tracking = self._transaction_tracking[symbol]
+        tracking['open_quantity'] = Decimal('0')
+        tracking['close_quantity'] = Decimal('0')
+        
+        # トランザクションの処理
+        for transaction in sorted_transactions:
+            action = self._normalize_action(transaction.action_type)
+            quantity = abs(Decimal(str(transaction.quantity or 0)))
+            
+            if action.endswith('OPEN'):
+                tracking['open_quantity'] += quantity
+            elif action.endswith('CLOSE'):
+                tracking['close_quantity'] += quantity
+            
+            # トランザクションの処理
+            self.process(transaction)
+        
+        # ステータスの更新：完全に決済されたかを正確に判定
+        tracking['max_status'] = ('Closed' if tracking['close_quantity'] >= tracking['open_quantity'] 
+                                  and tracking['open_quantity'] > 0 else 'Open')
 
     def _process_transaction(self, transaction: Transaction) -> None:
         """トランザクションの実際の処理"""
@@ -147,62 +206,6 @@ class OptionProcessor(BaseProcessor):
         self._trade_records.append(trade_record)
         self._update_summary_record(symbol, trade_record, option_info)
 
-    def _find_same_day_opens(self, transaction: Transaction) -> List[Transaction]:
-        """同日のOPEN取引を検索"""
-        opens = []
-        target_date = transaction.transaction_date
-        target_symbol = transaction.symbol
-        
-        for future_tx in self._future_transactions(transaction):
-            if (future_tx.transaction_date == target_date and 
-                future_tx.symbol == target_symbol and
-                self._normalize_action(future_tx.action_type).endswith('OPEN')):
-                opens.append(future_tx)
-        
-        return opens
-
-    def _future_transactions(self, current_transaction: Transaction) -> List[Transaction]:
-        """現在の取引以降のトランザクションを取得"""
-        found_current = False
-        future_txs = []
-        
-        for tx in self.transactions:
-            if tx == current_transaction:
-                found_current = True
-                continue
-            
-            if found_current:
-                future_txs.append(tx)
-                
-        return future_txs
-
-    def _process_pending_transactions(self, symbol: str) -> None:
-        """保留中のトランザクションを処理"""
-        if symbol in self._pending_transactions:
-            pending = self._pending_transactions[symbol]
-            self._pending_transactions[symbol] = []
-            
-            for tx in pending:
-                self._process_transaction(tx)
-
-    def get_records(self) -> List[OptionTradeRecord]:
-        """取引記録の取得"""
-        return sorted(self._trade_records, key=lambda x: x.trade_date)
-
-    def get_summary_records(self) -> List[OptionSummaryRecord]:
-        """サマリー記録の取得"""
-        return sorted(
-            self._summary_records.values(),
-            key=lambda x: (x.underlying, x.expiry_date, x.strike_price)
-        )
-
-    def process_all(self, transactions: List[Transaction]) -> List[OptionTradeRecord]:
-        """すべてのトランザクションを処理"""
-        self.transactions = transactions  # 後で同日取引を検索するために保持
-        result = super().process_all(transactions)
-        self.transactions = None  # クリーンアップ
-        return result
-
     def _is_option_transaction(self, transaction: Transaction) -> bool:
         """オプション取引かどうかを判定"""
         normalized_action = self._normalize_action(transaction.action_type)
@@ -216,18 +219,18 @@ class OptionProcessor(BaseProcessor):
             self._is_option_symbol(transaction.symbol)
         )
 
-    def _normalize_action(self, action: str) -> str:
-        """アクションタイプを正規化"""
-        action = action.upper().replace(' TO ', '_TO_')
-        action = action.replace(' ', '')
-        return action
-
     def _is_option_symbol(self, symbol: str) -> bool:
         """オプションシンボルかどうかを判定"""
         if not symbol:
             return False
         option_pattern = r'\d{2}/\d{2}/\d{4}\s+\d+\.\d+\s+[CP]'
         return bool(re.search(option_pattern, symbol))
+
+    def _normalize_action(self, action: str) -> str:
+        """アクションタイプを正規化"""
+        action = action.upper().replace(' TO ', '_TO_')
+        action = action.replace(' ', '')
+        return action
 
     def _parse_option_info(self, symbol: str) -> Optional[Dict]:
         """オプションシンボルを解析"""
@@ -252,6 +255,23 @@ class OptionProcessor(BaseProcessor):
         if action in ['BUY_TO_OPEN', 'SELL_TO_CLOSE']:
             return 'Long'
         return 'Short'
+
+    def get_records(self) -> List[OptionTradeRecord]:
+        """取引記録の取得"""
+        return sorted(self._trade_records, key=lambda x: x.trade_date)
+
+    def get_summary_records(self) -> List[OptionSummaryRecord]:
+        """サマリー記録の取得"""
+        # 既存のサマリーレコードが存在するものだけを返す
+        summary_records = [
+            record for record in self._summary_records.values()
+            if record is not None  # nullチェック
+        ]
+        
+        return sorted(
+            summary_records,
+            key=lambda x: (x.underlying or '', x.expiry_date or datetime.min.date(), x.strike_price or 0)
+        )
 
     def _update_summary_record(self, symbol: str,
                              trade_record: OptionTradeRecord,
@@ -280,23 +300,30 @@ class OptionProcessor(BaseProcessor):
             )
         
         summary = self._summary_records[symbol]
+        
+        # トランザクション追跡情報を取得
+        tracking = self._transaction_tracking[symbol]
+        
+        # 残存数量の更新
         summary.remaining_quantity = position.get_remaining_quantity()
+
+        # PNLと手数料の累積
         summary.trading_pnl += trade_record.trading_pnl
         summary.premium_pnl += trade_record.premium_pnl
         summary.total_fees += trade_record.fees
 
         # ステータスの判定
-        if summary.remaining_quantity <= 0:
-            # すべてのポジションが終了
-            if trade_record.is_expired:
-                summary.status = 'Expired'
-            elif trade_record.is_assigned:
-                summary.status = 'Assigned'
-            else:
-                summary.status = 'Closed'
-            
-            # 最終的に終了した日付を記録
+        if trade_record.is_expired:
+            summary.status = 'Expired'
             summary.close_date = trade_record.trade_date
+
+        elif trade_record.is_assigned:
+            summary.status = 'Assigned'
+            summary.close_date = trade_record.trade_date
+
+        elif summary.remaining_quantity <= 0:
+            summary.status = 'Closed'
+            summary.close_date = trade_record.trade_date
+
         else:
-            # まだオープンなポジションがある
             summary.status = 'Open'
