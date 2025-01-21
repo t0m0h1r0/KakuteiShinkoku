@@ -11,7 +11,7 @@ from ..config.settings import (
 from ..exchange.rate_provider import RateProvider
 from ..core.transaction_loader import JSONTransactionLoader
 from ..processors.dividend_processor import DividendProcessor
-from ..processors.interest_income import InterestProcessor
+from ..processors.interest_processor import InterestProcessor
 from ..processors.stock_trade import StockTradeProcessor
 from ..processors.option_processor import OptionProcessor
 
