@@ -8,7 +8,7 @@ from ..config.settings import (
     DATA_DIR, OUTPUT_DIR, LOG_DIR,
     EXCHANGE_RATE_FILE, LOGGING_CONFIG, OUTPUT_FILES
 )
-from ..exchange.factories import create_rate_provider
+from ..exchange.rate_provider import RateProvider
 from ..core.transaction_loader import JSONTransactionLoader
 from ..processors.dividend_income import DividendProcessor
 from ..processors.interest_income import InterestProcessor
@@ -36,7 +36,7 @@ class ApplicationContext:
             
             # 為替レートプロバイダーの初期化
             self.logger.debug("Initializing exchange rate provider...")
-            self.exchange_rate_provider = create_rate_provider(EXCHANGE_RATE_FILE, use_cache=True)
+            self.exchange_rate_provider = RateProvider()
             
             # トランザクションローダーの初期化
             self.logger.debug("Initializing transaction loader...")
@@ -86,10 +86,6 @@ class ApplicationContext:
         # 出力ディレクトリの作成
         for output_path in OUTPUT_FILES.values():
             output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if not EXCHANGE_RATE_FILE.exists():
-            self.logger.error(f"Exchange rate file not found: {EXCHANGE_RATE_FILE}")
-            raise FileNotFoundError(f"Exchange rate file not found: {EXCHANGE_RATE_FILE}")
 
     def _initialize_processors(self):
         """各種プロセッサーの初期化"""
