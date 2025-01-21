@@ -23,13 +23,13 @@ class DividendProcessor(BaseProcessor):
 
     def process(self, transaction: Transaction) -> None:
         """トランザクションの処理"""
-        # 配当トランザクションかどうかを判定
-        if not self._is_dividend_transaction(transaction):
-            return
-
-        # 税金トランザクションの処理
+        # 税金トランザクションの処理（先に判定）
         if self._is_tax_transaction(transaction):
             self._process_tax(transaction)
+            return
+
+        # 配当トランザクションかどうかを判定
+        if not self._is_dividend_transaction(transaction):
             return
 
         # 配当トランザクションの処理
@@ -62,27 +62,24 @@ class DividendProcessor(BaseProcessor):
 
     def _is_dividend_transaction(self, transaction: Transaction) -> bool:
         """配当トランザクションかどうかを判定"""
-        dividend_keywords = [
+        dividend_actions = {
             'DIVIDEND', 
-            'CASH DIVIDEND', 
-            'DIV', 
-            'DIVIDEND PAYMENT',
-            'REINVEST DIVIDEND'
-        ]
+            'CASH DIVIDEND',
+            'REINVEST DIVIDEND',
+            'PR YR CASH DIV'
+        }
         
-        # キーワードチェック
-        is_dividend = any(
-            keyword in transaction.action_type.upper() or 
-            keyword in transaction.description.upper() 
-            for keyword in dividend_keywords
-        )
-        
-        # 金額が0でない場合のみ配当として扱う
-        return is_dividend and abs(transaction.amount) > Decimal('0')
+        # アクションタイプをチェック
+        return (transaction.action_type.upper() in dividend_actions and 
+                abs(transaction.amount) > Decimal('0'))
 
     def _is_tax_transaction(self, transaction: Transaction) -> bool:
         """税金トランザクションかどうかを判定"""
-        return 'TAX' in transaction.action_type.upper()
+        tax_actions = {
+            'NRA TAX ADJ',
+            'PR YR NRA TAX'
+        }
+        return transaction.action_type.upper() in tax_actions
 
     def _process_tax(self, transaction: Transaction) -> None:
         """税金トランザクションを処理"""
@@ -108,7 +105,7 @@ class DividendProcessor(BaseProcessor):
         for tax_record in tax_records:
             if abs((tax_record['date'] - transaction_date).days) <= 7:
                 return Decimal(tax_record['amount'])
-
+                
         return Decimal('0')
 
     def _update_summary_record(self, dividend_record: DividendTradeRecord) -> None:
