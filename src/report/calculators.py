@@ -53,17 +53,20 @@ class ReportCalculator:
         
         option_trading_gain = sum(r.trading_pnl.amount for r in option_records)
         option_premium_gain = sum(r.premium_pnl.amount for r in option_records)
+        option_actual_delivery_gain = sum(r.actual_delivery_pnl.amount for r in option_records)
         
         summary = {
             'stock_gain': stock_gain,
             'option_gain': option_trading_gain,
-            'premium_income': option_premium_gain
+            'premium_income': option_premium_gain,
+            'actual_delivery_gain': option_actual_delivery_gain
         }
         
         summary['net_total'] = (
             summary['stock_gain'] +
             summary['option_gain'] +
-            summary['premium_income']
+            summary['premium_income'] +
+            summary['actual_delivery_gain']
         )
         
         return summary
@@ -139,6 +142,8 @@ class ReportCalculator:
         total_trading_jpy = Decimal('0')
         total_premium_usd = Decimal('0')
         total_premium_jpy = Decimal('0')
+        total_actual_delivery_usd = Decimal('0')
+        total_actual_delivery_jpy = Decimal('0')
         total_fees_usd = Decimal('0')
         total_fees_jpy = Decimal('0')
         
@@ -150,6 +155,8 @@ class ReportCalculator:
             total_trading_jpy += record.trading_pnl_jpy.amount
             total_premium_usd += record.premium_pnl.amount
             total_premium_jpy += record.premium_pnl_jpy.amount
+            total_actual_delivery_usd += record.actual_delivery_pnl.amount
+            total_actual_delivery_jpy += record.actual_delivery_pnl_jpy.amount
             total_fees_usd += record.fees.amount
             total_fees_jpy += record.fees_jpy.amount
             exchange_rate_sum += record.exchange_rate
@@ -160,6 +167,8 @@ class ReportCalculator:
             'total_trading_pnl_jpy': total_trading_jpy,
             'total_premium_pnl_usd': total_premium_usd,
             'total_premium_pnl_jpy': total_premium_jpy,
+            'total_actual_delivery_usd': total_actual_delivery_usd,
+            'total_actual_delivery_jpy': total_actual_delivery_jpy,
             'total_fees_usd': total_fees_usd,
             'total_fees_jpy': total_fees_jpy,
             'weighted_exchange_rate': exchange_rate_sum / count if count > 0 else Decimal('150.0')

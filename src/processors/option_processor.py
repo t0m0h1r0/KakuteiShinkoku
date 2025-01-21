@@ -9,7 +9,7 @@ from ..core.money import Money, Currency
 from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .option_records import OptionTradeRecord, OptionSummaryRecord
-from .option_position import OptionContract, OptionPosition, ClosedTrade, ExpiredOption
+from .option_position import OptionPosition, OptionContract
 
 class OptionProcessor(BaseProcessor):
     """オプション取引処理クラス"""
@@ -21,6 +21,7 @@ class OptionProcessor(BaseProcessor):
         self._positions: Dict[str, OptionPosition] = defaultdict(OptionPosition)
         self._trade_records: List[OptionTradeRecord] = []
         self._summary_records: Dict[str, OptionSummaryRecord] = {}
+        self._assignments: Dict[str, List[Dict]] = defaultdict(list)
 
     def process(self, transaction: Transaction) -> None:
         """取引の処理"""
@@ -36,7 +37,7 @@ class OptionProcessor(BaseProcessor):
         exchange_rate = self._get_exchange_rate(transaction.transaction_date)
 
         # 取引情報の作成
-        quantity = abs(int(transaction.quantity or 0))
+        quantity = abs(Decimal(str(transaction.quantity or 0)))
         per_share_price = Decimal(str(transaction.price or 0))
         fees = Decimal(str(transaction.fees or 0))
 
@@ -55,34 +56,24 @@ class OptionProcessor(BaseProcessor):
         fees_money = self._create_money_with_rate(fees, exchange_rate)
 
         # アクションに応じた処理
-        if action in ['BUY_TO_OPEN', 'SELL_TO_OPEN']:
-            trading_pnl, premium_pnl = self._handle_open_position(
-                symbol, transaction.transaction_date, option_info,
-                quantity, total_price, fees, action == 'BUY_TO_OPEN'
-            )
-        elif action in ['BUY_TO_CLOSE', 'SELL_TO_CLOSE']:
-            trading_pnl, premium_pnl = self._handle_close_position(
-                symbol, transaction.transaction_date, option_info,
-                quantity, total_price, fees, action == 'BUY_TO_CLOSE'
-            )
-        elif action == 'EXPIRED':
-            trading_pnl, premium_pnl = self._handle_expiration(
-                symbol, transaction.transaction_date, option_info
-            )
-        elif action == 'ASSIGNED':
-            trading_pnl, premium_pnl = self._handle_assignment(
-                symbol, transaction.transaction_date, option_info,
-                quantity, total_price, fees
-            )
-        else:
-            return
+        trading_pnl, premium_pnl, actual_delivery_pnl, contract = self._process_option_action(
+            symbol, 
+            transaction.transaction_date, 
+            option_info,
+            quantity, 
+            total_price, 
+            fees, 
+            action, 
+            per_share_price
+        )
 
         position = self._positions[symbol]
         is_closed = not position.get_position_summary()['has_position']
 
-        # 取引記録の作成
+        # 金額オブジェクトの作成
         trading_pnl_money = self._create_money_with_rate(trading_pnl, exchange_rate)
         premium_pnl_money = self._create_money_with_rate(premium_pnl, exchange_rate)
+        actual_delivery_pnl_money = self._create_money_with_rate(actual_delivery_pnl, exchange_rate)
 
         trade_record = OptionTradeRecord(
             trade_date=transaction.transaction_date,
@@ -100,6 +91,7 @@ class OptionProcessor(BaseProcessor):
             underlying=option_info['underlying'],
             trading_pnl=trading_pnl_money,
             premium_pnl=premium_pnl_money,
+            actual_delivery_pnl=actual_delivery_pnl_money,
             position_type=self._determine_position_type(action),
             is_closed=is_closed,
             is_expired=(action == 'EXPIRED'),
@@ -108,6 +100,134 @@ class OptionProcessor(BaseProcessor):
         
         self._trade_records.append(trade_record)
         self._update_summary_record(symbol, trade_record, option_info)
+
+    def _process_option_action(self, 
+                               symbol: str, 
+                               trade_date: date, 
+                               option_info: Dict, 
+                               quantity: Decimal, 
+                               total_price: Decimal, 
+                               fees: Decimal, 
+                               action: str, 
+                               per_share_price: Decimal) -> Tuple[Decimal, Decimal, Decimal, Optional[OptionContract]]:
+        """オプションアクションの処理"""
+        position = self._positions[symbol]
+        
+        # オプション契約の作成
+        contract = OptionContract(
+            trade_date=trade_date,
+            quantity=quantity,
+            open_price=per_share_price,
+            fees=fees,
+            position_type='Long' if action in ['BUY_TO_OPEN', 'BUY_TO_CLOSE'] else 'Short',
+            option_type=option_info['option_type']
+        )
+
+        # 現引・現渡し損益の初期化
+        actual_delivery_pnl = Decimal('0')
+        trading_pnl = Decimal('0')
+
+        if action in ['BUY_TO_OPEN', 'SELL_TO_OPEN']:
+            position.add_contract(contract)
+            return Decimal('0'), Decimal('0'), Decimal('0'), contract
+        
+        elif action in ['BUY_TO_CLOSE', 'SELL_TO_CLOSE']:
+            # 決済処理
+            position.close_position(
+                trade_date, 
+                quantity, 
+                total_price / (self.SHARES_PER_CONTRACT * quantity), 
+                fees, 
+                action == 'BUY_TO_CLOSE'
+            )
+            pnl = position.calculate_total_pnl()
+            return pnl['trading_pnl'], Decimal('0'), Decimal('0'), contract
+        
+        elif action == 'EXPIRED':
+            # 期限切れ処理
+            position.handle_expiration(trade_date)
+            pnl = position.calculate_total_pnl()
+            return Decimal('0'), pnl['premium_pnl'], Decimal('0'), contract
+        
+        elif action == 'ASSIGNED':
+            # 権利行使時の損益計算
+            # 現在の市場価値と行使価格の差額を計算
+            current_market_price = total_price / (self.SHARES_PER_CONTRACT * quantity)
+            
+            # 現引・現渡しの価値を計算（現在の市場価値 - ストライク価格）
+            actual_delivery_pnl = (
+                current_market_price - option_info['strike_price']
+            ) * quantity * self.SHARES_PER_CONTRACT
+            
+            # 権利行使の詳細情報を記録
+            assignment_details = {
+                'strike_price': option_info['strike_price'],
+                'current_market_price': current_market_price,
+                'total_price': total_price,
+                'quantity': quantity,
+                'actual_delivery_pnl': actual_delivery_pnl,
+                'underlying': option_info['underlying']
+            }
+            
+            # 権利行使の処理
+            position.handle_assignment(
+                contract, 
+                trade_date, 
+                option_info['strike_price'], 
+                assignment_details
+            )
+            
+            return trading_pnl, Decimal('0'), actual_delivery_pnl, contract
+        
+        return Decimal('0'), Decimal('0'), Decimal('0'), None
+
+    def _update_summary_record(self, symbol: str,
+                             trade_record: OptionTradeRecord,
+                             option_info: Dict) -> None:
+        """サマリー記録の更新"""
+        if symbol not in self._summary_records:
+            self._summary_records[symbol] = OptionSummaryRecord(
+                account_id=trade_record.account_id,
+                symbol=symbol,
+                description=trade_record.description,
+                underlying=option_info['underlying'],
+                option_type=option_info['option_type'],
+                strike_price=option_info['strike_price'],
+                expiry_date=option_info['expiry_date'],
+                open_date=trade_record.trade_date,
+                close_date=None,
+                status='Open',
+                initial_quantity=trade_record.quantity,
+                remaining_quantity=trade_record.quantity,
+                trading_pnl=trade_record.trading_pnl,
+                premium_pnl=trade_record.premium_pnl,
+                actual_delivery_pnl=trade_record.actual_delivery_pnl,
+                total_fees=trade_record.fees,
+                exchange_rate=trade_record.exchange_rate
+            )
+        else:
+            summary = self._summary_records[symbol]
+            if trade_record.is_closed:
+                summary.status = 'Closed'
+                summary.close_date = trade_record.trade_date
+            elif trade_record.is_expired:
+                summary.status = 'Expired'
+                summary.close_date = trade_record.trade_date
+            elif trade_record.is_assigned:
+                summary.status = 'Assigned'
+                summary.close_date = trade_record.trade_date
+            
+            # 残高数量の更新
+            summary.remaining_quantity = (
+                self._positions[symbol].get_position_summary()['long_quantity'] -
+                self._positions[symbol].get_position_summary()['short_quantity']
+            )
+            
+            # 損益の累積
+            summary.trading_pnl += trade_record.trading_pnl
+            summary.premium_pnl += trade_record.premium_pnl
+            summary.actual_delivery_pnl += trade_record.actual_delivery_pnl
+            summary.total_fees += trade_record.fees
 
     def _is_option_transaction(self, transaction: Transaction) -> bool:
         """オプション取引かどうかを判定"""
@@ -135,64 +255,6 @@ class OptionProcessor(BaseProcessor):
         option_pattern = r'\d{2}/\d{2}/\d{4}\s+\d+\.\d+\s+[CP]'
         return bool(re.search(option_pattern, symbol))
 
-    def _handle_open_position(self, symbol: str, trade_date: date,
-                            option_info: Dict, quantity: int,
-                            price: Decimal, fees: Decimal,
-                            is_buy: bool) -> Tuple[Decimal, Decimal]:
-        """オープンポジションの処理"""
-        position = self._positions[symbol]
-        contract = OptionContract(
-            trade_date=trade_date,
-            quantity=quantity,
-            open_price=price,
-            fees=fees,
-            position_type='Long' if is_buy else 'Short'
-        )
-        position.add_contract(contract)
-        return Decimal('0'), Decimal('0')  # 新規ポジションは損益なし
-
-    def _handle_close_position(self, symbol: str, trade_date: date,
-                             option_info: Dict, quantity: int,
-                             price: Decimal, fees: Decimal,
-                             is_buy: bool) -> Tuple[Decimal, Decimal]:
-        """クローズポジションの処理"""
-        position = self._positions[symbol]
-        position.close_position(
-            trade_date, quantity, price, fees, is_buy,
-            is_assigned=False
-        )
-        pnl = position.calculate_total_pnl()
-        return pnl['trading_pnl'], Decimal('0')  # 決済時は譲渡損益のみ
-
-    def _handle_expiration(self, symbol: str, expire_date: date,
-                         option_info: Dict) -> Tuple[Decimal, Decimal]:
-        """満期時の処理"""
-        position = self._positions[symbol]
-        position.handle_expiration(expire_date)
-        pnl = position.calculate_total_pnl()
-        return Decimal('0'), pnl['premium_pnl']  # 満期時はプレミアム損益のみ
-
-    def _handle_assignment(self, symbol: str, assignment_date: date,
-                         option_info: Dict, quantity: int,
-                         price: Decimal, fees: Decimal) -> Tuple[Decimal, Decimal]:
-        """権利行使の処理"""
-        position = self._positions[symbol]
-        
-        # アサインはショートポジションに対して発生
-        # ショートプットの場合は、ストライク価格で買い取り義務が発生
-        # ショートコールの場合は、ストライク価格で売り渡し義務が発生
-        position.close_position(
-            assignment_date, 
-            quantity, 
-            price,
-            fees, 
-            is_buy=True,  # アサインは常にショートポジションのクローズ
-            is_assigned=True
-        )
-
-        pnl = position.calculate_total_pnl()
-        return pnl['trading_pnl'], Decimal('0')  # アサイン時は譲渡損益のみ
-
     def _parse_option_info(self, symbol: str) -> Optional[Dict]:
         """オプションシンボルを解析"""
         try:
@@ -204,7 +266,7 @@ class OptionProcessor(BaseProcessor):
                     'underlying': underlying,
                     'expiry_date': datetime.strptime(expiry, '%m/%d/%Y').date(),
                     'strike_price': Decimal(strike),
-                    'option_type': option_type
+                    'option_type': 'Call' if option_type == 'C' else 'Put'
                 }
         except (ValueError, AttributeError):
             return None
@@ -215,49 +277,6 @@ class OptionProcessor(BaseProcessor):
         if action in ['BUY_TO_OPEN', 'SELL_TO_CLOSE']:
             return 'Long'
         return 'Short'
-
-    def _update_summary_record(self, symbol: str,
-                             trade_record: OptionTradeRecord,
-                             option_info: Dict) -> None:
-        """サマリー記録の更新"""
-        if symbol not in self._summary_records:
-            self._summary_records[symbol] = OptionSummaryRecord(
-                account_id=trade_record.account_id,
-                symbol=symbol,
-                description=trade_record.description,
-                underlying=option_info['underlying'],
-                option_type=option_info['option_type'],
-                strike_price=option_info['strike_price'],
-                expiry_date=option_info['expiry_date'],
-                open_date=trade_record.trade_date,
-                close_date=None,
-                status='Open',
-                initial_quantity=trade_record.quantity,
-                remaining_quantity=trade_record.quantity,
-                trading_pnl=trade_record.trading_pnl,
-                premium_pnl=trade_record.premium_pnl,
-                total_fees=trade_record.fees,
-                exchange_rate=trade_record.exchange_rate
-            )
-        else:
-            summary = self._summary_records[symbol]
-            if trade_record.is_closed:
-                summary.status = 'Closed'
-                summary.close_date = trade_record.trade_date
-            elif trade_record.is_expired:
-                summary.status = 'Expired'
-                summary.close_date = trade_record.trade_date
-            elif trade_record.is_assigned:
-                summary.status = 'Assigned'
-                summary.close_date = trade_record.trade_date
-            
-            summary.remaining_quantity = (
-                self._positions[symbol].get_position_summary()['long_quantity'] -
-                self._positions[symbol].get_position_summary()['short_quantity']
-            )
-            summary.trading_pnl += trade_record.trading_pnl
-            summary.premium_pnl += trade_record.premium_pnl
-            summary.total_fees += trade_record.fees
 
     def get_records(self) -> List[OptionTradeRecord]:
         """取引記録の取得"""

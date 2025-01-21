@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import date
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 SHARES_PER_CONTRACT = 100  # オプション1枚あたりの株数
 
@@ -9,10 +9,11 @@ SHARES_PER_CONTRACT = 100  # オプション1枚あたりの株数
 class OptionContract:
     """オプション契約情報"""
     trade_date: date
-    quantity: Decimal  # intからDecimalに変更
+    quantity: Decimal
     open_price: Decimal
     fees: Decimal
     position_type: str  # 'Long' or 'Short'
+    option_type: str   # 'Call' or 'Put'
 
     def __post_init__(self):
         """データ型の変換"""
@@ -22,6 +23,14 @@ class OptionContract:
             self.open_price = Decimal(str(self.open_price))
         if isinstance(self.fees, (int, float)):
             self.fees = Decimal(str(self.fees))
+
+@dataclass
+class AssignedOption:
+    """権利行使オプション情報"""
+    contract: OptionContract
+    assignment_date: date
+    assignment_price: Decimal
+    underlying_transaction_details: Dict[str, Any]
 
 @dataclass
 class ClosedTrade:
@@ -36,21 +45,7 @@ class ClosedTrade:
     position_type: str
     realized_gain: Decimal
     is_assigned: bool = False
-
-    def __post_init__(self):
-        """データ型の変換"""
-        if isinstance(self.quantity, int):
-            self.quantity = Decimal(str(self.quantity))
-        if isinstance(self.open_price, (int, float)):
-            self.open_price = Decimal(str(self.open_price))
-        if isinstance(self.close_price, (int, float)):
-            self.close_price = Decimal(str(self.close_price))
-        if isinstance(self.open_fees, (int, float)):
-            self.open_fees = Decimal(str(self.open_fees))
-        if isinstance(self.close_fees, (int, float)):
-            self.close_fees = Decimal(str(self.close_fees))
-        if isinstance(self.realized_gain, (int, float)):
-            self.realized_gain = Decimal(str(self.realized_gain))
+    assignment_details: Optional[Dict[str, Any]] = None
 
 @dataclass
 class ExpiredOption:
@@ -62,15 +57,6 @@ class ExpiredOption:
     fees: Decimal
     position_type: str
 
-    def __post_init__(self):
-        """データ型の変換"""
-        if isinstance(self.quantity, int):
-            self.quantity = Decimal(str(self.quantity))
-        if isinstance(self.premium, (int, float)):
-            self.premium = Decimal(str(self.premium))
-        if isinstance(self.fees, (int, float)):
-            self.fees = Decimal(str(self.fees))
-
 class OptionPosition:
     """オプションポジション管理クラス"""
     def __init__(self):
@@ -78,6 +64,7 @@ class OptionPosition:
         self.short_contracts: List[OptionContract] = []
         self.closed_trades: List[ClosedTrade] = []
         self.expired_options: List[ExpiredOption] = []
+        self.assigned_options: List[AssignedOption] = []
         
     def add_contract(self, contract: OptionContract) -> None:
         """契約を追加"""
@@ -88,15 +75,13 @@ class OptionPosition:
 
     def close_position(self, trade_date: date, quantity: Decimal,
                       price: Decimal, fees: Decimal, is_buy: bool,
-                      is_assigned: bool = False) -> None:
+                      is_assigned: bool = False,
+                      assignment_details: Optional[Dict[str, Any]] = None) -> None:
         """ポジションをクローズ"""
         # 整数型をDecimal型に変換
-        if isinstance(quantity, int):
-            quantity = Decimal(str(quantity))
-        if isinstance(price, (int, float)):
-            price = Decimal(str(price))
-        if isinstance(fees, (int, float)):
-            fees = Decimal(str(fees))
+        quantity = Decimal(str(quantity)) if isinstance(quantity, int) else quantity
+        price = Decimal(str(price)) if isinstance(price, (int, float)) else price
+        fees = Decimal(str(fees)) if isinstance(fees, (int, float)) else fees
 
         # is_buyがTrueの場合は空売りの決済（short_contractsを使用）
         # is_buyがFalseの場合は買い建ての決済（long_contractsを使用）
@@ -129,7 +114,8 @@ class OptionPosition:
                     close_fees,
                     close_quantity
                 ),
-                is_assigned=is_assigned
+                is_assigned=is_assigned,
+                assignment_details=assignment_details
             ))
             
             # 残数量を更新
@@ -140,6 +126,40 @@ class OptionPosition:
                 contract.fees = contract.fees * (contract.quantity / (contract.quantity + close_quantity))
             
             remaining_quantity -= close_quantity
+
+    def handle_assignment(self, contract: OptionContract, 
+                          assignment_date: date, 
+                          assignment_price: Decimal,
+                          underlying_transaction_details: Dict[str, Any]) -> None:
+        """オプション権利行使の処理"""
+        # ショートポジションの場合のみ権利行使を処理
+        if contract.position_type != 'Short':
+            return
+
+        # 権利行使オブジェクトを作成
+        assigned_option = AssignedOption(
+            contract=contract,
+            assignment_date=assignment_date,
+            assignment_price=assignment_price,
+            underlying_transaction_details=underlying_transaction_details
+        )
+        
+        # 権利行使オプションリストに追加
+        self.assigned_options.append(assigned_option)
+        
+        # ポジションをクローズ（権利行使として）
+        self.close_position(
+            trade_date=assignment_date, 
+            quantity=contract.quantity, 
+            price=assignment_price, 
+            fees=Decimal('0'),  # 権利行使時の手数料を0として扱う
+            is_buy=True,  # ショートポジションの権利行使は買い取りとして扱う
+            is_assigned=True,
+            assignment_details={
+                'assignment_price': assignment_price,
+                'underlying_transaction': underlying_transaction_details
+            }
+        )
 
     def handle_expiration(self, expire_date: date) -> None:
         """期限満了処理"""
@@ -193,6 +213,23 @@ class OptionPosition:
             'premium_pnl': premium_pnl.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
             'total_pnl': (trading_pnl + premium_pnl).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         }
+
+    def get_assigned_details(self) -> List[Dict[str, Any]]:
+        """権利行使の詳細を取得"""
+        return [
+            {
+                'contract': {
+                    'trade_date': opt.contract.trade_date,
+                    'quantity': opt.contract.quantity,
+                    'open_price': opt.contract.open_price,
+                    'option_type': opt.contract.option_type
+                },
+                'assignment_date': opt.assignment_date,
+                'assignment_price': opt.assignment_price,
+                'underlying_transaction': opt.underlying_transaction_details
+            }
+            for opt in self.assigned_options
+        ]
 
     @staticmethod
     def _calculate_realized_gain(position_type: str, open_price: Decimal,
