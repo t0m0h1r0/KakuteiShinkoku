@@ -29,7 +29,7 @@ class OptionProcessor(BaseProcessor):
         if not option_info:
             return
 
-        action = transaction.action_type.upper()
+        action = self._normalize_action(transaction.action_type)
         symbol = transaction.symbol
         exchange_rate = self._get_exchange_rate(transaction.transaction_date)
 
@@ -91,6 +91,32 @@ class OptionProcessor(BaseProcessor):
         self._trade_records.append(trade_record)
         self._update_summary_record(symbol, trade_record, option_info)
 
+    def _is_option_transaction(self, transaction: Transaction) -> bool:
+        """オプション取引かどうかを判定"""
+        normalized_action = self._normalize_action(transaction.action_type)
+        option_actions = {
+            'BUY_TO_OPEN', 'SELL_TO_OPEN',
+            'BUY_TO_CLOSE', 'SELL_TO_CLOSE',
+            'EXPIRED', 'ASSIGNED'
+        }
+        return (
+            normalized_action in option_actions and
+            self._is_option_symbol(transaction.symbol)
+        )
+    
+    def _normalize_action(self, action: str) -> str:
+        """アクションタイプを正規化"""
+        # スペースを除去し、大文字に変換
+        normalized = action.upper().replace(' TO ', '_TO_')
+        # その他の空白を削除
+        normalized = normalized.replace(' ', '')
+        return normalized
+
+    def _is_option_symbol(self, symbol: str) -> bool:
+        """オプションシンボルかどうかを判定"""
+        option_pattern = r'\d{2}/\d{2}/\d{4}\s+\d+\.\d+\s+[CP]'
+        return bool(re.search(option_pattern, symbol))
+
     def _handle_open_position(self, symbol: str, trade_date: date,
                             option_info: Dict, quantity: int,
                             price: Decimal, fees: Decimal,
@@ -124,6 +150,29 @@ class OptionProcessor(BaseProcessor):
         position.handle_expiration(expire_date)
         pnl = position.calculate_total_pnl()
         return Decimal('0'), pnl['premium_pnl']  # 満期時はプレミアム損益のみ
+
+    def _parse_option_info(self, symbol: str) -> Optional[Dict]:
+        """オプションシンボルを解析"""
+        try:
+            pattern = r'(\w+)\s+(\d{2}/\d{2}/\d{4})\s+(\d+\.\d+)\s+([CP])'
+            match = re.match(pattern, symbol)
+            if match:
+                underlying, expiry, strike, option_type = match.groups()
+                return {
+                    'underlying': underlying,
+                    'expiry_date': datetime.strptime(expiry, '%m/%d/%Y').date(),
+                    'strike_price': Decimal(strike),
+                    'option_type': option_type
+                }
+        except (ValueError, AttributeError):
+            return None
+        return None
+
+    def _determine_position_type(self, action: str) -> str:
+        """ポジションタイプを判定"""
+        if action in ['BUY_TO_OPEN', 'SELL_TO_CLOSE']:
+            return 'Long'
+        return 'Short'
 
     def _update_summary_record(self, symbol: str,
                              trade_record: OptionTradeRecord,
@@ -175,43 +224,3 @@ class OptionProcessor(BaseProcessor):
             self._summary_records.values(),
             key=lambda x: (x.underlying, x.expiry_date, x.strike_price)
         )
-
-    def _is_option_transaction(self, transaction: Transaction) -> bool:
-        """オプション取引かどうかを判定"""
-        option_actions = {
-            'BUY_TO_OPEN', 'SELL_TO_OPEN',
-            'BUY_TO_CLOSE', 'SELL_TO_CLOSE',
-            'EXPIRED', 'ASSIGNED'
-        }
-        return (
-            transaction.action_type.upper() in option_actions and
-            self._is_option_symbol(transaction.symbol)
-        )
-
-    def _is_option_symbol(self, symbol: str) -> bool:
-        """オプションシンボルかどうかを判定"""
-        option_pattern = r'\d{2}/\d{2}/\d{4}\s+\d+\.\d+\s+[CP]'
-        return bool(re.search(option_pattern, symbol))
-
-    def _parse_option_info(self, symbol: str) -> Optional[Dict]:
-        """オプションシンボルを解析"""
-        try:
-            pattern = r'(\w+)\s+(\d{2}/\d{2}/\d{4})\s+(\d+\.\d+)\s+([CP])'
-            match = re.match(pattern, symbol)
-            if match:
-                underlying, expiry, strike, option_type = match.groups()
-                return {
-                    'underlying': underlying,
-                    'expiry_date': datetime.strptime(expiry, '%m/%d/%Y').date(),
-                    'strike_price': Decimal(strike),
-                    'option_type': option_type
-                }
-        except (ValueError, AttributeError):
-            return None
-        return None
-
-    def _determine_position_type(self, action: str) -> str:
-        """ポジションタイプを判定"""
-        if action in ['BUY_TO_OPEN', 'SELL_TO_CLOSE']:
-            return 'Long'
-        return 'Short'
