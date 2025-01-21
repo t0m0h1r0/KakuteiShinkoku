@@ -32,10 +32,6 @@ class OptionProcessor(BaseProcessor):
             'close_quantity': Decimal('0'),
             'max_status': 'Open'
         })
-        print("-------------------------------------------------")
-        print(self._transaction_tracking['U 06/23/2023 32.00 C'])
-        print("-------------------------------------------------")
-
 
     def process(self, transaction: Transaction) -> None:
         """単一のトランザクションを処理する基本メソッド"""
@@ -64,9 +60,6 @@ class OptionProcessor(BaseProcessor):
                 # 同日取引の処理
                 self._process_daily_transactions(symbol, transactions_on_date)
 
-        for k in self._trade_records:
-            if k.symbol == "U 06/23/2023 32.00 C":
-                print(k,"\n")
         return self._trade_records
 
     def _track_daily_transactions(self, transactions: List[Transaction]) -> None:
