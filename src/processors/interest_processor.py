@@ -49,7 +49,7 @@ class InterestProcessor(BaseProcessor):
             description=transaction.description,
             income_type=self._determine_income_type(transaction),
             action_type=transaction.action_type,
-            is_matured='MATURITY' in transaction.action_type.upper(),
+            is_matured='MATURED' in transaction.description.upper(),
             gross_amount=gross_amount,
             tax_amount=tax_money,
             exchange_rate=exchange_rate
@@ -63,21 +63,16 @@ class InterestProcessor(BaseProcessor):
 
     def _is_interest_transaction(self, transaction: Transaction) -> bool:
         """利子トランザクションかどうかを判定"""
-        interest_keywords = [
-            'INTEREST', 'BANK INTEREST', 'CREDIT INTEREST', 
-            'CD INTEREST', 'CD MATURITY', 
-            'BANK INT', 
-            'CREDIT INT',
-            'SCHWAB1 INT',
-            'CREDIT INTEREST'
-        ]
+        interest_actions = {
+            'CREDIT INTEREST',
+            'BANK INTEREST',
+            'BOND INTEREST',
+            'CD INTEREST',
+            'PR YR BANK INT',
+        }
         
-        # キーワードチェック
-        is_interest = any(
-            keyword in transaction.action_type.upper() or 
-            keyword in transaction.description.upper() 
-            for keyword in interest_keywords
-        )
+        # アクションタイプをチェック
+        is_interest = transaction.action_type.upper() in interest_actions
         
         # 金額が0でない場合のみ利子として扱う
         return is_interest and abs(transaction.amount) > Decimal('0')
@@ -115,12 +110,17 @@ class InterestProcessor(BaseProcessor):
 
     def _determine_income_type(self, transaction: Transaction) -> str:
         """収入タイプを判定"""
-        if 'CD INTEREST' in transaction.action_type.upper() or \
-           'CD MATURITY' in transaction.action_type.upper():
+        action = transaction.action_type.upper()
+        
+        if action == 'CD INTEREST':
             return 'CD Interest'
-        elif 'BOND INTEREST' in transaction.action_type.upper():
+        elif action == 'BOND INTEREST':
             return 'Bond Interest'
-        return 'Interest'
+        elif action == 'BANK INTEREST':
+            return 'Bank Interest'
+        elif action == 'CREDIT INTEREST':
+            return 'Credit Interest'
+        return 'Other Interest'
 
     def _update_summary_record(self, interest_record: InterestTradeRecord) -> None:
         """サマリーレコードを更新"""
