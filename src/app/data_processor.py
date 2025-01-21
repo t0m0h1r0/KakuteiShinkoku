@@ -1,23 +1,18 @@
-from pathlib import Path
 from typing import List, Dict, Any
 import logging
 import traceback
-from abc import ABC, abstractmethod
+from pathlib import Path
 
 from ..core.transaction import Transaction
 from ..app.application_context import ApplicationContext
+from ..report.manager import InvestmentReportManager
 
-class DataProcessor(ABC):
+class DataProcessor:
     """データ処理の基本クラス"""
     
     def __init__(self, context: ApplicationContext):
         self.context = context
         self.logger = logging.getLogger(self.__class__.__name__)
-
-    @abstractmethod
-    def process_data(self, data: Any) -> Dict:
-        """データ処理の抽象メソッド"""
-        pass
 
 class InvestmentDataProcessor(DataProcessor):
     """投資データ処理クラス"""
@@ -69,8 +64,13 @@ class InvestmentDataProcessor(DataProcessor):
                 'dividend_records': dividend_records,
                 'interest_records': interest_records,
                 'stock_records': stock_records,
-                'option_records': option_records
+                'option_records': option_records,
+                'option_processor': self.context.option_processor  # オプションプロセッサも追加
             }
+
+            # レポート生成
+            report_manager = InvestmentReportManager(self.context.writers)
+            report_manager.generate_reports(self.context.processing_results)
 
             return True
 

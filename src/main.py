@@ -7,7 +7,7 @@ from datetime import datetime
 from .config.settings import DATA_DIR
 from .app.application_context import ApplicationContext
 from .app.data_processor import InvestmentDataProcessor
-from .app.report_generator import InvestmentReportGenerator
+from .report.manager import InvestmentReportManager  # 変更点
 
 def parse_arguments():
     """コマンドライン引数のパース"""
@@ -64,17 +64,6 @@ def main():
             return 1
         
         logger.info("Data processing completed successfully")
-
-        # レポート生成
-        logger.debug("Creating report generator...")
-        generator = InvestmentReportGenerator(context)
-        
-        logger.info("Generating reports...")
-        generator.generate_report(context.processing_results)
-
-        # 結果の表示
-        logger.debug("Displaying results...")
-        context.display_results()
 
         # 実行時間の計算と表示
         end_time = datetime.now()
