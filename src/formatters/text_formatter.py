@@ -22,6 +22,12 @@ class TextFormatter(BaseFormatter):
             self.logger.error(f"Error formatting data: {e}")
             return str(data)
 
+    def _format_money(self, amount: Decimal, is_jpy: bool = False) -> str:
+        """金額のフォーマット処理"""
+        if is_jpy:
+            return f"¥{int(amount):,}"
+        return f"${amount:,.2f}"
+
     def _format_record_list(self, records: List) -> str:
         """記録リストのフォーマット"""
         if not records:
@@ -31,107 +37,99 @@ class TextFormatter(BaseFormatter):
         dividend_records = [r for r in records if self._is_dividend_record(r)]
         interest_records = [r for r in records if self._is_interest_record(r)]
         
-        # 結果を格納するリスト
         lines = []
         
-        # 配当のフォーマット
         if dividend_records:
             lines.extend(self._format_dividend_records(dividend_records))
         
-        # 利子のフォーマット
         if interest_records:
-            if lines:  # 配当の出力がある場合は空行を追加
+            if lines:
                 lines.append("")
             lines.extend(self._format_interest_records(interest_records))
         
         return "\n".join(lines)
 
-    def _is_dividend_record(self, record: Any) -> bool:
-        """配当レコードかどうかを判定"""
-        return hasattr(record, 'income_type') and record.income_type == 'Dividend'
-
-    def _is_interest_record(self, record: Any) -> bool:
-        """利子レコードかどうかを判定"""
-        return hasattr(record, 'income_type') and record.income_type != 'Dividend'
-
     def _format_dividend_records(self, records: List) -> List[str]:
         """配当記録のフォーマット"""
         accounts = defaultdict(lambda: {
-            'amount': Decimal('0'),
-            'tax': Decimal('0')
+            'amount_usd': Decimal('0'),
+            'tax_usd': Decimal('0'),
+            'amount_jpy': Decimal('0'),
+            'tax_jpy': Decimal('0')
         })
         
-        # アカウントごとに集計
         for record in records:
-            accounts[record.account_id]['amount'] += record.gross_amount.amount
-            accounts[record.account_id]['tax'] += record.tax_amount.amount
+            acc = accounts[record.account_id]
+            acc['amount_usd'] += record.gross_amount.amount
+            acc['tax_usd'] += record.tax_amount.amount
+            acc['amount_jpy'] += record.gross_amount_jpy.amount
+            acc['tax_jpy'] += record.tax_amount_jpy.amount
 
-        # 結果の出力
-        lines = ["Dividend Income:"]
+        lines = ["配当収入:"]
         for account_id, summary in accounts.items():
-            lines.append(f"\nAccount: {account_id}")
-            lines.append(f"Dividend Total: ${summary['amount']:.2f}")
-            lines.append(f"Tax Total: ${summary['tax']:.2f}")
-            net_total = summary['amount'] - summary['tax']
-            lines.append(f"Net Total: ${net_total:.2f}")
-
-        # 複数アカウントの場合は合計を表示
-        if len(accounts) > 1:
-            total_amount = sum(summary['amount'] for summary in accounts.values())
-            total_tax = sum(summary['tax'] for summary in accounts.values())
-            net_grand_total = total_amount - total_tax
+            net_usd = summary['amount_usd'] - summary['tax_usd']
+            net_jpy = summary['amount_jpy'] - summary['tax_jpy']
             
-            lines.append("\nDividend Total Summary:")
-            lines.append(f"Total Dividend: ${total_amount:.2f}")
-            lines.append(f"Total Tax: ${total_tax:.2f}")
-            lines.append(f"Net Total: ${net_grand_total:.2f}")
+            lines.append(f"\nアカウント: {account_id}")
+            lines.append(f"配当総額: {self._format_money(summary['amount_usd'])} ({self._format_money(summary['amount_jpy'], True)})")
+            lines.append(f"税額合計: {self._format_money(summary['tax_usd'])} ({self._format_money(summary['tax_jpy'], True)})")
+            lines.append(f"受取配当金: {self._format_money(net_usd)} ({self._format_money(net_jpy, True)})")
+
+        if len(accounts) > 1:
+            total_amount_usd = sum(s['amount_usd'] for s in accounts.values())
+            total_tax_usd = sum(s['tax_usd'] for s in accounts.values())
+            total_amount_jpy = sum(s['amount_jpy'] for s in accounts.values())
+            total_tax_jpy = sum(s['tax_jpy'] for s in accounts.values())
+            net_total_usd = total_amount_usd - total_tax_usd
+            net_total_jpy = total_amount_jpy - total_tax_jpy
+            
+            lines.append("\n配当総合計:")
+            lines.append(f"配当総額: {self._format_money(total_amount_usd)} ({self._format_money(total_amount_jpy, True)})")
+            lines.append(f"税額合計: {self._format_money(total_tax_usd)} ({self._format_money(total_tax_jpy, True)})")
+            lines.append(f"受取配当金: {self._format_money(net_total_usd)} ({self._format_money(net_total_jpy, True)})")
 
         return lines
 
     def _format_interest_records(self, records: List) -> List[str]:
         """利子記録のフォーマット"""
         accounts = defaultdict(lambda: {
-            'amount': Decimal('0'),
-            'tax': Decimal('0')
+            'amount_usd': Decimal('0'),
+            'tax_usd': Decimal('0'),
+            'amount_jpy': Decimal('0'),
+            'tax_jpy': Decimal('0')
         })
         
-        # アカウントごとに集計
         for record in records:
-            accounts[record.account_id]['amount'] += record.gross_amount.amount
-            accounts[record.account_id]['tax'] += record.tax_amount.amount
+            acc = accounts[record.account_id]
+            acc['amount_usd'] += record.gross_amount.amount
+            acc['tax_usd'] += record.tax_amount.amount
+            acc['amount_jpy'] += record.gross_amount_jpy.amount
+            acc['tax_jpy'] += record.tax_amount_jpy.amount
 
-        # 結果の出力
-        lines = ["Interest Income:"]
+        lines = ["利子収入:"]
         for account_id, summary in accounts.items():
-            lines.append(f"\nAccount: {account_id}")
-            lines.append(f"Interest Total: ${summary['amount']:.2f}")
-            lines.append(f"Tax Total: ${summary['tax']:.2f}")
-            net_total = summary['amount'] - summary['tax']
-            lines.append(f"Net Total: ${net_total:.2f}")
-
-        # 複数アカウントの場合は合計を表示
-        if len(accounts) > 1:
-            total_amount = sum(summary['amount'] for summary in accounts.values())
-            total_tax = sum(summary['tax'] for summary in accounts.values())
-            net_grand_total = total_amount - total_tax
+            net_usd = summary['amount_usd'] - summary['tax_usd']
+            net_jpy = summary['amount_jpy'] - summary['tax_jpy']
             
-            lines.append("\nInterest Total Summary:")
-            lines.append(f"Total Interest: ${total_amount:.2f}")
-            lines.append(f"Total Tax: ${total_tax:.2f}")
-            lines.append(f"Net Total: ${net_grand_total:.2f}")
+            lines.append(f"\nアカウント: {account_id}")
+            lines.append(f"利子総額: {self._format_money(summary['amount_usd'])} ({self._format_money(summary['amount_jpy'], True)})")
+            lines.append(f"税額合計: {self._format_money(summary['tax_usd'])} ({self._format_money(summary['tax_jpy'], True)})")
+            lines.append(f"受取利子: {self._format_money(net_usd)} ({self._format_money(net_jpy, True)})")
+
+        if len(accounts) > 1:
+            total_amount_usd = sum(s['amount_usd'] for s in accounts.values())
+            total_tax_usd = sum(s['tax_usd'] for s in accounts.values())
+            total_amount_jpy = sum(s['amount_jpy'] for s in accounts.values())
+            total_tax_jpy = sum(s['tax_jpy'] for s in accounts.values())
+            net_total_usd = total_amount_usd - total_tax_usd
+            net_total_jpy = total_amount_jpy - total_tax_jpy
+            
+            lines.append("\n利子総合計:")
+            lines.append(f"利子総額: {self._format_money(total_amount_usd)} ({self._format_money(total_amount_jpy, True)})")
+            lines.append(f"税額合計: {self._format_money(total_tax_usd)} ({self._format_money(total_tax_jpy, True)})")
+            lines.append(f"受取利子: {self._format_money(net_total_usd)} ({self._format_money(net_total_jpy, True)})")
 
         return lines
-
-    def _is_summary_data(self, data: Dict) -> bool:
-        """サマリーデータかどうかを判定"""
-        return ('income' in data and 'trading' in data and 'total' in data) or \
-               ('accounts' in data and 'total' in data)
-
-    def _format_summary_data(self, data: Dict) -> str:
-        """サマリーデータのフォーマット"""
-        if 'income' in data:
-            return self._format_full_summary(data)
-        return self._format_account_summary(data)
 
     def _format_full_summary(self, data: Dict) -> str:
         """総合サマリーのフォーマット"""
@@ -139,28 +137,28 @@ class TextFormatter(BaseFormatter):
         trading = data['trading']
         total = data['total']
         
-        lines = ["Investment Summary Report"]
-        lines.append("-" * 30)
+        lines = ["投資サマリーレポート"]
+        lines.append("-" * 40)
         
         # 収入サマリー
-        lines.append("\nIncome Summary:")
-        lines.append(f"Dividend Total: ${income['dividend_total']:.2f}")
-        lines.append(f"Interest Total: ${income['interest_total']:.2f}")
-        lines.append(f"Tax Total: ${income['tax_total']:.2f}")
-        lines.append(f"Net Income: ${income['net_total']:.2f}")
+        lines.append("\n収入サマリー:")
+        lines.append(f"配当総額: {self._format_money(income['dividend_total_usd'])} ({self._format_money(income['dividend_total_jpy'], True)})")
+        lines.append(f"利子総額: {self._format_money(income['interest_total_usd'])} ({self._format_money(income['interest_total_jpy'], True)})")
+        lines.append(f"税金合計: {self._format_money(income['tax_total_usd'])} ({self._format_money(income['tax_total_jpy'], True)})")
+        lines.append(f"純収入: {self._format_money(income['net_total_usd'])} ({self._format_money(income['net_total_jpy'], True)})")
         
         # 取引サマリー
-        lines.append("\nTrading Summary:")
-        lines.append(f"Stock Trading Gain: ${trading['stock_gain']:.2f}")
-        lines.append(f"Option Trading Gain: ${trading['option_gain']:.2f}")
-        lines.append(f"Option Premium Income: ${trading['premium_income']:.2f}")
-        lines.append(f"Net Trading Gain: ${trading['net_total']:.2f}")
+        lines.append("\n取引サマリー:")
+        lines.append(f"株式取引損益: {self._format_money(trading['stock_gain_usd'])} ({self._format_money(trading['stock_gain_jpy'], True)})")
+        lines.append(f"オプション取引損益: {self._format_money(trading['option_gain_usd'])} ({self._format_money(trading['option_gain_jpy'], True)})")
+        lines.append(f"オプションプレミアム収入: {self._format_money(trading['premium_income_usd'])} ({self._format_money(trading['premium_income_jpy'], True)})")
+        lines.append(f"純取引損益: {self._format_money(trading['net_total_usd'])} ({self._format_money(trading['net_total_jpy'], True)})")
         
         # 総合計
-        lines.append("\nTotal Summary:")
-        lines.append(f"Total Income: ${total['total_income']:.2f}")
-        lines.append(f"Total Trading: ${total['total_trading']:.2f}")
-        lines.append(f"Grand Total: ${total['grand_total']:.2f}")
+        lines.append("\n総合計:")
+        lines.append(f"総収入: {self._format_money(total['total_income_usd'])} ({self._format_money(total['total_income_jpy'], True)})")
+        lines.append(f"総取引損益: {self._format_money(total['total_trading_usd'])} ({self._format_money(total['total_trading_jpy'], True)})")
+        lines.append(f"最終合計: {self._format_money(total['grand_total_usd'])} ({self._format_money(total['grand_total_jpy'], True)})")
         
         return "\n".join(lines)
 
@@ -169,23 +167,23 @@ class TextFormatter(BaseFormatter):
         lines = []
         
         for account_id, summary in data['accounts'].items():
-            lines.append(f"\nAccount: {account_id}")
+            lines.append(f"\nアカウント: {account_id}")
             
-            # 配当情報の表示
-            if 'dividend' in summary and summary['dividend'] > 0:
-                lines.append(f"Dividend Total: ${summary['dividend']:.2f}")
+            if 'dividend' in summary and summary['dividend_usd'] > 0:
+                lines.append(f"配当総額: {self._format_money(summary['dividend_usd'])} ({self._format_money(summary['dividend_jpy'], True)})")
             
-            # 利子情報の表示
-            if 'interest' in summary and summary['interest'] > 0:
-                lines.append(f"Interest Total: ${summary['interest']:.2f}")
+            if 'interest' in summary and summary['interest_usd'] > 0:
+                lines.append(f"利子総額: {self._format_money(summary['interest_usd'])} ({self._format_money(summary['interest_jpy'], True)})")
             
-            # 税金情報の表示
-            if 'tax' in summary and summary['tax'] > 0:
-                lines.append(f"Tax Total: ${summary['tax']:.2f}")
+            if 'tax' in summary and summary['tax_usd'] > 0:
+                lines.append(f"税金合計: {self._format_money(summary['tax_usd'])} ({self._format_money(summary['tax_jpy'], True)})")
             
-            net_total = summary.get('dividend', Decimal('0')) + \
-                       summary.get('interest', Decimal('0')) - \
-                       summary.get('tax', Decimal('0'))
-            lines.append(f"Net Total: ${net_total:.2f}")
+            net_total_usd = summary.get('dividend_usd', Decimal('0')) + \
+                           summary.get('interest_usd', Decimal('0')) - \
+                           summary.get('tax_usd', Decimal('0'))
+            net_total_jpy = summary.get('dividend_jpy', Decimal('0')) + \
+                           summary.get('interest_jpy', Decimal('0')) - \
+                           summary.get('tax_jpy', Decimal('0'))
+            lines.append(f"純収入: {self._format_money(net_total_usd)} ({self._format_money(net_total_jpy, True)})")
         
         return "\n".join(lines)
