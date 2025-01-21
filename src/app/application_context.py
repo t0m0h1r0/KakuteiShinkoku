@@ -12,7 +12,7 @@ from ..exchange.rate_provider import RateProvider
 from ..core.transaction_loader import JSONTransactionLoader
 from ..processors.dividend_processor import DividendProcessor
 from ..processors.interest_processor import InterestProcessor
-from ..processors.stock_trade import StockTradeProcessor
+from ..processors.stock_processor import StockProcessor
 from ..processors.option_processor import OptionProcessor
 
 from .display_manager import DisplayManager
@@ -97,7 +97,7 @@ class ApplicationContext:
             self.interest_processor = InterestProcessor(self.exchange_rate_provider)
             
             self.logger.debug("Initializing stock processor...")
-            self.stock_processor = StockTradeProcessor(self.exchange_rate_provider)
+            self.stock_processor = StockProcessor(self.exchange_rate_provider)
             
             self.logger.debug("Initializing option processor...")
             self.option_processor = OptionProcessor(self.exchange_rate_provider)
