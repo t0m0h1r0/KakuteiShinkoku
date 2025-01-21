@@ -73,7 +73,6 @@ class OptionProcessor(BaseProcessor):
         total_price = Decimal('0')
         trading_pnl = Decimal('0')
         premium_pnl = Decimal('0')
-        actual_delivery = Decimal('0')
 
         # アクションに応じた処理
         if action in ['BUY_TO_OPEN', 'SELL_TO_OPEN']:
@@ -111,35 +110,16 @@ class OptionProcessor(BaseProcessor):
             else:
                 total_price = per_share_price * self.SHARES_PER_CONTRACT * quantity
 
-        elif action == 'EXPIRED':
+        elif action in ['EXPIRED', 'ASSIGNED']:
             # 期限切れ処理
             pnl = position.handle_expiration(transaction.transaction_date)
             premium_pnl = pnl['premium_pnl']
-
-        elif action == 'ASSIGNED':
-            # 権利行使処理
-            pnl = position.handle_assignment(
-                transaction.transaction_date,
-                quantity,
-                option_info['strike_price'],
-                per_share_price,
-                fees,
-                option_info['option_type']
-            )
-            actual_delivery = pnl['actual_delivery']
-            
-            # 権利行使価格の設定
-            if option_info['option_type'] == 'Call':
-                total_price = -option_info['strike_price'] * self.SHARES_PER_CONTRACT * quantity
-            else:  # Put
-                total_price = option_info['strike_price'] * self.SHARES_PER_CONTRACT * quantity
 
         # 金額オブジェクトの作成
         price_money = self._create_money_with_rate(total_price, exchange_rate)
         fees_money = self._create_money_with_rate(fees, exchange_rate)
         trading_pnl_money = self._create_money_with_rate(trading_pnl, exchange_rate)
         premium_pnl_money = self._create_money_with_rate(premium_pnl, exchange_rate)
-        actual_delivery_money = self._create_money_with_rate(actual_delivery, exchange_rate)
 
         # 取引記録の作成
         trade_record = OptionTradeRecord(
@@ -158,7 +138,6 @@ class OptionProcessor(BaseProcessor):
             underlying=option_info['underlying'],
             trading_pnl=trading_pnl_money,
             premium_pnl=premium_pnl_money,
-            actual_delivery=actual_delivery_money,
             position_type=self._determine_position_type(action),
             is_closed=not position.has_open_position(),
             is_expired=(action == 'EXPIRED'),
@@ -294,7 +273,6 @@ class OptionProcessor(BaseProcessor):
                 remaining_quantity=trade_record.quantity,
                 trading_pnl=trade_record.trading_pnl,
                 premium_pnl=trade_record.premium_pnl,
-                actual_delivery=trade_record.actual_delivery,
                 total_fees=trade_record.fees,
                 exchange_rate=trade_record.exchange_rate
             )
@@ -314,5 +292,4 @@ class OptionProcessor(BaseProcessor):
             summary.remaining_quantity = position.get_remaining_quantity()
             summary.trading_pnl += trade_record.trading_pnl
             summary.premium_pnl += trade_record.premium_pnl
-            summary.actual_delivery += trade_record.actual_delivery
             summary.total_fees += trade_record.fees

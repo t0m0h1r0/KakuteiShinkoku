@@ -101,12 +101,10 @@ class OptionTradeReportGenerator(BaseReportGenerator):
                 'fees': float(record.fees.amount),
                 'trading_pnl': float(record.trading_pnl.amount),
                 'premium_pnl': float(record.premium_pnl.amount),
-                'actual_delivery': float(record.actual_delivery.amount),
                 'price_jpy': int(record.price_jpy.amount),
                 'fees_jpy': int(record.fees_jpy.amount),
                 'trading_pnl_jpy': int(record.trading_pnl_jpy.amount),
                 'premium_pnl_jpy': int(record.premium_pnl_jpy.amount),
-                'actual_delivery_jpy': int(record.actual_delivery_jpy.amount),
                 'exchange_rate': float(record.exchange_rate),
                 'position_type': record.position_type,
                 'is_closed': record.is_closed,
@@ -139,11 +137,9 @@ class OptionSummaryReportGenerator(BaseReportGenerator):
                 'remaining_quantity': int(record.remaining_quantity),
                 'trading_pnl': float(record.trading_pnl.amount),
                 'premium_pnl': float(record.premium_pnl.amount),
-                'actual_delivery': float(record.actual_delivery.amount),
                 'total_fees': float(record.total_fees.amount),
                 'trading_pnl_jpy': int(record.trading_pnl_jpy.amount),
                 'premium_pnl_jpy': int(record.premium_pnl_jpy.amount),
-                'actual_delivery_jpy': int(record.actual_delivery_jpy.amount),
                 'total_fees_jpy': int(record.total_fees_jpy.amount),
                 'exchange_rate': float(record.exchange_rate)
             }
@@ -243,19 +239,6 @@ class FinalSummaryReportGenerator(BaseReportGenerator):
             'gross_amount_jpy': option_summary['total_premium_pnl_jpy'],
             'tax_amount_jpy': option_summary['total_fees_jpy'],
             'net_amount_jpy': option_summary['total_premium_pnl_jpy'] - option_summary['total_fees_jpy'],
-            'average_exchange_rate': option_summary['weighted_exchange_rate']
-        })
-
-        # オプション取引 (現引・現渡し)
-        summary_records.append({
-            'category': 'Option Trading',
-            'subcategory': 'Actual Delivery',
-            'gross_amount_usd': option_summary['total_actual_delivery_usd'],
-            'tax_amount_usd': Decimal('0'),
-            'net_amount_usd': option_summary['total_actual_delivery_usd'],
-            'gross_amount_jpy': option_summary['total_actual_delivery_jpy'],
-            'tax_amount_jpy': Decimal('0'),
-            'net_amount_jpy': option_summary['total_actual_delivery_jpy'],
             'average_exchange_rate': option_summary['weighted_exchange_rate']
         })
 

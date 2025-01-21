@@ -3,11 +3,11 @@ import logging
 
 from .interfaces import ReportWriterInterface
 from .generators import (
-    DividendReportGenerator, 
-    InterestReportGenerator, 
-    StockTradeReportGenerator, 
-    OptionTradeReportGenerator, 
-    OptionSummaryReportGenerator, 
+    DividendReportGenerator,
+    InterestReportGenerator,
+    StockTradeReportGenerator,
+    OptionTradeReportGenerator,
+    OptionSummaryReportGenerator,
     FinalSummaryReportGenerator
 )
 from .calculators import ReportCalculator
@@ -16,22 +16,11 @@ class InvestmentReportManager:
     """投資レポート管理クラス"""
     
     def __init__(self, writers: Dict[str, ReportWriterInterface]):
-        """
-        レポート書き出しライターを注入
-        
-        Args:
-            writers (Dict[str, ReportWriterInterface]): 各レポート種別のライター
-        """
         self.writers = writers
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def generate_reports(self, data: Dict[str, Any]) -> None:
-        """
-        全レポートを生成し書き出す
-        
-        Args:
-            data (Dict[str, Any]): 処理対象のデータ
-        """
+        """レポートの生成と出力"""
         try:
             # 各レポートジェネレータを定義
             report_generators = {
@@ -58,12 +47,7 @@ class InvestmentReportManager:
             raise
 
     def _output_console_summary(self, data: Dict[str, Any]) -> None:
-        """
-        コンソールに概要サマリーを出力
-        
-        Args:
-            data (Dict[str, Any]): 処理対象のデータ
-        """
+        """コンソールに概要サマリーを出力"""
         try:
             # 各収入・取引の集計
             dividend_records = data.get('dividend_records', [])
@@ -76,21 +60,35 @@ class InvestmentReportManager:
                 dividend_records, interest_records
             )
             
-            # 取引サマリーの計算
-            trading_summary = ReportCalculator.calculate_trading_summary(
-                stock_records, option_records
-            )
+            # 各種取引のサマリー計算
+            stock_summary = ReportCalculator.calculate_stock_summary_details(stock_records)
+            option_summary = ReportCalculator.calculate_option_summary_details(option_records)
             
             # 総合計の計算
             total_summary = {
                 'income': income_summary,
-                'trading': trading_summary,
+                'trading': {
+                    'stock_gain': stock_summary['total_usd'],
+                    'option_gain': option_summary['total_trading_pnl_usd'],
+                    'premium_income': option_summary['total_premium_pnl_usd'],
+                    'net_total': (
+                        stock_summary['total_usd'] +
+                        option_summary['total_trading_pnl_usd'] +
+                        option_summary['total_premium_pnl_usd']
+                    )
+                },
                 'total': {
                     'total_income': income_summary['net_total'],
-                    'total_trading': trading_summary['net_total'],
+                    'total_trading': (
+                        stock_summary['total_usd'] +
+                        option_summary['total_trading_pnl_usd'] +
+                        option_summary['total_premium_pnl_usd']
+                    ),
                     'grand_total': (
-                        income_summary['net_total'] + 
-                        trading_summary['net_total']
+                        income_summary['net_total'] +
+                        stock_summary['total_usd'] +
+                        option_summary['total_trading_pnl_usd'] +
+                        option_summary['total_premium_pnl_usd']
                     )
                 }
             }
@@ -100,3 +98,4 @@ class InvestmentReportManager:
             
         except Exception as e:
             self.logger.error(f"コンソール概要出力中にエラーが発生: {e}")
+            raise

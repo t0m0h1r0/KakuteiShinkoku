@@ -44,9 +44,9 @@ class WriterManager:
                     'action', 'quantity', 'option_type', 'strike_price',
                     'expiry_date', 'underlying',
                     'price', 'fees', 
-                    'trading_pnl', 'premium_pnl', 'actual_delivery',
+                    'trading_pnl', 'premium_pnl',
                     'price_jpy', 'fees_jpy', 
-                    'trading_pnl_jpy', 'premium_pnl_jpy', 'actual_delivery_jpy',
+                    'trading_pnl_jpy', 'premium_pnl_jpy',
                     'exchange_rate', 'position_type', 
                     'is_closed', 'is_expired', 'is_assigned'
                 ]
@@ -58,8 +58,8 @@ class WriterManager:
                     'option_type', 'strike_price', 'expiry_date',
                     'open_date', 'close_date', 'status',
                     'initial_quantity', 'remaining_quantity',
-                    'trading_pnl', 'premium_pnl', 'actual_delivery', 'total_fees',
-                    'trading_pnl_jpy', 'premium_pnl_jpy', 'actual_delivery_jpy', 'total_fees_jpy',
+                    'trading_pnl', 'premium_pnl', 'total_fees',
+                    'trading_pnl_jpy', 'premium_pnl_jpy', 'total_fees_jpy',
                     'exchange_rate'
                 ]
             ),

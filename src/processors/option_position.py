@@ -156,39 +156,6 @@ class OptionPosition:
             'premium_pnl': premium_pnl.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         }
 
-    def handle_assignment(self,
-                        assign_date: date,
-                        quantity: Decimal,
-                        strike_price: Decimal,
-                        market_price: Decimal,
-                        fees: Decimal,
-                        option_type: str) -> Dict[str, Decimal]:
-        """権利行使/割当の処理"""
-        actual_delivery = Decimal('0')
-        
-        # 権利行使による損益計算
-        if option_type == 'Call':
-            if self.short_contracts:  # 売り建て
-                actual_delivery = (strike_price - market_price) * quantity * self.SHARES_PER_CONTRACT
-            else:  # 買い建て
-                actual_delivery = (market_price - strike_price) * quantity * self.SHARES_PER_CONTRACT
-        else:  # Put
-            if self.short_contracts:  # 売り建て
-                actual_delivery = (market_price - strike_price) * quantity * self.SHARES_PER_CONTRACT
-            else:  # 買い建て
-                actual_delivery = (strike_price - market_price) * quantity * self.SHARES_PER_CONTRACT
-        
-        # 手数料を考慮
-        actual_delivery -= fees
-        
-        # ポジションをクリア
-        self.long_contracts.clear()
-        self.short_contracts.clear()
-        
-        return {
-            'actual_delivery': actual_delivery.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        }
-
     def has_open_position(self) -> bool:
         """オープンポジションの有無を確認"""
         return bool(self.long_contracts or self.short_contracts)
