@@ -1,9 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from datetime import date
 from typing import Optional
 
-from ..core.money import Money
+from ..core.money import Money, Currency
+from ..config.settings import DEFAULT_EXCHANGE_RATE
 
 @dataclass
 class OptionTradeRecord:
@@ -16,7 +17,7 @@ class OptionTradeRecord:
     
     # 取引情報
     action: str
-    quantity: Decimal  # intからDecimalに変更
+    quantity: Decimal
     price: Money
     fees: Money
     exchange_rate: Decimal
@@ -33,6 +34,7 @@ class OptionTradeRecord:
     position_type: str
     is_closed: bool
     is_expired: bool
+    is_assigned: bool
     
     # 日本円換算額
     price_jpy: Optional[Money] = None
@@ -72,9 +74,9 @@ class OptionSummaryRecord:
     # 取引情報
     open_date: date
     close_date: Optional[date]
-    status: str  # 'Open', 'Closed', 'Expired'
-    initial_quantity: Decimal  # intからDecimalに変更
-    remaining_quantity: Decimal  # intからDecimalに変更
+    status: str  # 'Open', 'Closed', 'Expired', 'Assigned'
+    initial_quantity: Decimal
+    remaining_quantity: Decimal
     
     # 損益情報
     trading_pnl: Money

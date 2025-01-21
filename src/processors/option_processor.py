@@ -41,22 +41,14 @@ class OptionProcessor(BaseProcessor):
         fees = Decimal(str(transaction.fees or 0))
 
         # オプション価格の計算（1株あたりの価格 * 100株/枚 * 枚数）
-        total_price = per_share_price * self.SHARES_PER_CONTRACT * quantity
-
-        # 実際の取引額からの検証（手数料を考慮）
-        expected_amount = abs(transaction.amount or 0)
-        if action in ['BUY_TO_OPEN', 'BUY_TO_CLOSE']:
-            # 買いの場合: amount = price + fees
-            actual_amount = total_price + fees
+        if per_share_price > 0:
+            total_price = per_share_price * self.SHARES_PER_CONTRACT * quantity
         else:
-            # 売りの場合: amount = price - fees
-            actual_amount = total_price - fees
+            total_price = Decimal('0')
 
-        if abs(expected_amount - actual_amount) > Decimal('0.01'):
-            self.logger.warning(
-                f"Price calculation mismatch for {symbol}: "
-                f"Expected {expected_amount}, got {actual_amount}"
-            )
+        # アサインされた場合、ストライク価格を使用
+        if action == 'ASSIGNED':
+            total_price = option_info['strike_price'] * self.SHARES_PER_CONTRACT * quantity
 
         # 金額オブジェクトの作成
         price_money = self._create_money_with_rate(total_price, exchange_rate)
@@ -76,6 +68,11 @@ class OptionProcessor(BaseProcessor):
         elif action == 'EXPIRED':
             trading_pnl, premium_pnl = self._handle_expiration(
                 symbol, transaction.transaction_date, option_info
+            )
+        elif action == 'ASSIGNED':
+            trading_pnl, premium_pnl = self._handle_assignment(
+                symbol, transaction.transaction_date, option_info,
+                quantity, total_price, fees
             )
         else:
             return
@@ -105,7 +102,8 @@ class OptionProcessor(BaseProcessor):
             premium_pnl=premium_pnl_money,
             position_type=self._determine_position_type(action),
             is_closed=is_closed,
-            is_expired=(action == 'EXPIRED')
+            is_expired=(action == 'EXPIRED'),
+            is_assigned=(action == 'ASSIGNED')
         )
         
         self._trade_records.append(trade_record)
@@ -159,7 +157,10 @@ class OptionProcessor(BaseProcessor):
                              is_buy: bool) -> Tuple[Decimal, Decimal]:
         """クローズポジションの処理"""
         position = self._positions[symbol]
-        position.close_position(trade_date, quantity, price, fees, is_buy)
+        position.close_position(
+            trade_date, quantity, price, fees, is_buy,
+            is_assigned=False
+        )
         pnl = position.calculate_total_pnl()
         return pnl['trading_pnl'], Decimal('0')  # 決済時は譲渡損益のみ
 
@@ -170,6 +171,27 @@ class OptionProcessor(BaseProcessor):
         position.handle_expiration(expire_date)
         pnl = position.calculate_total_pnl()
         return Decimal('0'), pnl['premium_pnl']  # 満期時はプレミアム損益のみ
+
+    def _handle_assignment(self, symbol: str, assignment_date: date,
+                         option_info: Dict, quantity: int,
+                         price: Decimal, fees: Decimal) -> Tuple[Decimal, Decimal]:
+        """権利行使の処理"""
+        position = self._positions[symbol]
+        
+        # アサインはショートポジションに対して発生
+        # ショートプットの場合は、ストライク価格で買い取り義務が発生
+        # ショートコールの場合は、ストライク価格で売り渡し義務が発生
+        position.close_position(
+            assignment_date, 
+            quantity, 
+            price,
+            fees, 
+            is_buy=True,  # アサインは常にショートポジションのクローズ
+            is_assigned=True
+        )
+
+        pnl = position.calculate_total_pnl()
+        return pnl['trading_pnl'], Decimal('0')  # アサイン時は譲渡損益のみ
 
     def _parse_option_info(self, symbol: str) -> Optional[Dict]:
         """オプションシンボルを解析"""
@@ -224,6 +246,9 @@ class OptionProcessor(BaseProcessor):
                 summary.close_date = trade_record.trade_date
             elif trade_record.is_expired:
                 summary.status = 'Expired'
+                summary.close_date = trade_record.trade_date
+            elif trade_record.is_assigned:
+                summary.status = 'Assigned'
                 summary.close_date = trade_record.trade_date
             
             summary.remaining_quantity = (
