@@ -14,13 +14,24 @@ class RateProvider:
     _initialized = False
     _rate_file = None
 
-    def __new__(cls, rate_file: Optional[Union[str, Path]] = None):
+    def __new__(cls, 
+                rate_file: Optional[Union[str, Path]] = None,
+                base_currency: Optional[Currency] = Currency.USD,
+                target_currency: Optional[Currency] = Currency.JPY):
         if cls._instance is None:
             cls._instance = super(RateProvider, cls).__new__(cls)
         
         if not cls._initialized or (rate_file and str(rate_file) != cls._rate_file):
             if rate_file is None:
                 rate_file = EXCHANGE_RATE_FILE if not cls._rate_file else cls._rate_file
+            
+            # 通貨ペアの設定
+            if base_currency and target_currency:
+                cls._instance._base_currency = base_currency
+                cls._instance._target_currency = target_currency
+            else:
+                cls._instance._base_currency = Currency.USD
+                cls._instance._target_currency = Currency.JPY
             
             cls._instance._initialize(rate_file)
         
@@ -75,38 +86,35 @@ class RateProvider:
         """為替レートCSVの読み込み"""
         try:
             with open(rate_file, 'r', encoding='utf-8') as csvfile:
-                
                 reader = csv.DictReader(line.replace(' ', '') for line in csvfile)
-
                 
-                for base_curr in Currency.supported_currencies():
-                    if base_curr not in self._rates:
-                        self._rates[base_curr] = {}
-                    
-                    for target_curr in Currency.supported_currencies():
-                        if base_curr == target_curr:
-                            continue
-                        
-                        # USD/JPYレートのみ対応
-                        if base_curr != Currency.USD or target_curr != Currency.JPY:
-                            continue
-                        
-                        # Close価格を為替レートとして使用
-                        rates = []
-                        for row in reader:
-                            try:
-                                rate_date = datetime.strptime(row['Date'], '%m/%d/%y').date()  # 変更
-                                rate = ExchangeRate(
-                                    base_currency=base_curr,
-                                    target_currency=target_curr,
-                                    rate=Decimal(row['Close']),
-                                    date=rate_date
-                                )
-                                rates.append(rate)
-                            except Exception as e:
-                                print(f"Warning: Could not parse rate for {row.get('Date', 'unknown date')}: {e}")
-                        
-                        self._rates[base_curr][target_curr] = rates
+                # USD/JPYレートのみ対応
+                base_curr = self._base_currency
+                target_curr = self._target_currency
+                
+                if base_curr not in self._rates:
+                    self._rates[base_curr] = {}
+                
+                if target_curr not in self._rates[base_curr]:
+                    self._rates[base_curr][target_curr] = []
+                
+                # Closeレートを為替レートとして使用
+                rates = []
+                for row in reader:
+                    try:
+                        rate_date = datetime.strptime(row['Date'], '%m/%d/%y').date()
+                        rate = ExchangeRate(
+                            base_currency=base_curr,
+                            target_currency=target_curr,
+                            rate=Decimal(row['Close']),
+                            date=rate_date
+                        )
+                        rates.append(rate)
+                    except Exception as e:
+                        print(f"Warning: Could not parse rate for {row.get('Date', 'unknown date')}: {e}")
+                
+                # レートをリストに追加
+                self._rates[base_curr][target_curr] = rates
                 
                 # レートを日付順にソート
                 for base_curr in self._rates:
@@ -171,3 +179,13 @@ class RateProvider:
         RateProvider._initialized = False
         self._rates.clear()
         self._rate_file = None
+
+    @property
+    def base_currency(self) -> Currency:
+        """基準通貨を取得"""
+        return self._base_currency
+
+    @property
+    def target_currency(self) -> Currency:
+        """対象通貨を取得"""
+        return self._target_currency
