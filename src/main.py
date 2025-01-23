@@ -4,10 +4,11 @@ from pathlib import Path
 import argparse
 from datetime import datetime
 
-from .config.settings import DATA_DIR
+from .config.settings import DATA_DIR, EXCHANGE_RATE_FILE
 from .app.application_context import ApplicationContext
 from .app.data_processor import InvestmentDataProcessor
-from .report.manager import InvestmentReportManager  # 変更点
+from .exchange.rate_provider import RateProvider  # 追加
+from .report.manager import InvestmentReportManager
 
 def parse_arguments():
     """コマンドライン引数のパース"""
@@ -22,6 +23,12 @@ def parse_arguments():
         type=Path,
         default=DATA_DIR,
         help='Directory containing input files'
+    )
+    parser.add_argument(
+        '--exchange-rate-file',
+        type=Path,
+        default=EXCHANGE_RATE_FILE,
+        help='CSV file containing historical exchange rates'
     )
     parser.add_argument(
         '--debug',
@@ -48,6 +55,10 @@ def main():
 
     try:
         logger.info("Starting investment data processing...")
+        
+        # 為替レートプロバイダーの初期化（先に初期化）
+        logger.debug("Initializing exchange rate provider...")
+        RateProvider(args.exchange_rate_file)
         
         # アプリケーションコンテキストの初期化
         logger.debug("Initializing application context...")

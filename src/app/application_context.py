@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from ..config.settings import (
     DATA_DIR, OUTPUT_DIR, LOG_DIR,
-    EXCHANGE_RATE_FILE, LOGGING_CONFIG, OUTPUT_FILES
+    LOGGING_CONFIG, OUTPUT_FILES
 )
 from ..exchange.rate_provider import RateProvider
 from ..core.transaction_loader import JSONTransactionLoader
@@ -34,13 +34,12 @@ class ApplicationContext:
             self.logger.debug("Setting up directories...")
             self._setup_directories()
             
-            # 為替レートプロバイダーの初期化
-            self.logger.debug("Initializing exchange rate provider...")
-            self.exchange_rate_provider = RateProvider()
-            
             # トランザクションローダーの初期化
             self.logger.debug("Initializing transaction loader...")
             self.transaction_loader = JSONTransactionLoader()
+            
+            # 為替レートプロバイダーをコンストラクタで初期化せず、既存のインスタンスを使用
+            self.exchange_rate_provider = RateProvider()
             
             # 各種プロセッサーを初期化
             self.logger.debug("Initializing processors...")

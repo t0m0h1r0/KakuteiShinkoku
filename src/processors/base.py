@@ -39,11 +39,12 @@ class BaseProcessor(ABC, Generic[T]):
     
     def _get_exchange_rate(self, target_date: date) -> Decimal:
         """指定日の為替レートを取得"""
-        return self.exchange_rate_provider.get_rate(
+        rate = self.exchange_rate_provider.get_rate(
             base_currency=Currency.USD, 
             target_currency=Currency.JPY, 
-            date=target_date
-        ).rate
+            rate_date=target_date
+        )
+        return rate.rate
     
     def _convert_money_to_jpy(self, usd_money: Money) -> Money:
         """USD金額を日本円に変換"""

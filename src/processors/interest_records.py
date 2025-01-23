@@ -5,7 +5,6 @@ from typing import Optional
 
 from ..exchange.money import Money
 from ..exchange.currency import Currency
-from ..exchange.rate_provider import RateProvider
 from ..config.settings import DEFAULT_EXCHANGE_RATE
 
 @dataclass
@@ -34,26 +33,18 @@ class InterestTradeRecord:
     def __post_init__(self):
         """JPY金額の設定"""
         # 為替レートが提供されている場合、JPY金額を計算
-        rate_provider = RateProvider()
-        
         if not self.gross_amount_jpy:
             object.__setattr__(
                 self, 
                 'gross_amount_jpy', 
-                self.gross_amount.convert(
-                    Currency.JPY, 
-                    rate_provider
-                )
+                self.gross_amount.convert(Currency.JPY)
             )
         
         if not self.tax_amount_jpy:
             object.__setattr__(
                 self, 
                 'tax_amount_jpy', 
-                self.tax_amount.convert(
-                    Currency.JPY, 
-                    rate_provider
-                )
+                self.tax_amount.convert(Currency.JPY)
             )
 
 @dataclass
@@ -76,25 +67,17 @@ class InterestSummaryRecord:
     
     def __post_init__(self):
         """JPY金額の設定"""
-        # 為替レートが提供されている場合、JPY金額を計算
-        rate_provider = RateProvider()
-        
+        # 総額のJPY変換
         if not self.total_gross_amount_jpy:
             object.__setattr__(
                 self, 
                 'total_gross_amount_jpy', 
-                self.total_gross_amount.convert(
-                    Currency.JPY, 
-                    rate_provider
-                )
+                self.total_gross_amount.convert(Currency.JPY)
             )
         
         if not self.total_tax_amount_jpy:
             object.__setattr__(
                 self, 
                 'total_tax_amount_jpy', 
-                self.total_tax_amount.convert(
-                    Currency.JPY, 
-                    rate_provider
-                )
+                self.total_tax_amount.convert(Currency.JPY)
             )

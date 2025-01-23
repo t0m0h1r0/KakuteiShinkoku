@@ -5,7 +5,6 @@ from typing import Optional
 
 from ..exchange.money import Money
 from ..exchange.currency import Currency
-from ..exchange.rate_provider import RateProvider
 from ..config.settings import DEFAULT_EXCHANGE_RATE
 
 @dataclass
@@ -53,36 +52,33 @@ class OptionTradeRecord:
         # strike_priceが数値型で渡された場合の対応
         if isinstance(self.strike_price, (int, float)):
             object.__setattr__(self, 'strike_price', Decimal(str(self.strike_price)))
-            
-        # 為替レートの設定
-        rate_provider = RateProvider()
         
         if not self.price_jpy:
             object.__setattr__(
                 self, 
                 'price_jpy', 
-                self.price.convert(Currency.JPY, rate_provider)
+                self.price.convert(Currency.JPY)
             )
         
         if not self.fees_jpy:
             object.__setattr__(
                 self, 
                 'fees_jpy', 
-                self.fees.convert(Currency.JPY, rate_provider)
+                self.fees.convert(Currency.JPY)
             )
         
         if not self.trading_pnl_jpy:
             object.__setattr__(
                 self, 
                 'trading_pnl_jpy', 
-                self.trading_pnl.convert(Currency.JPY, rate_provider)
+                self.trading_pnl.convert(Currency.JPY)
             )
         
         if not self.premium_pnl_jpy:
             object.__setattr__(
                 self, 
                 'premium_pnl_jpy', 
-                self.premium_pnl.convert(Currency.JPY, rate_provider)
+                self.premium_pnl.convert(Currency.JPY)
             )
 
 @dataclass
@@ -125,27 +121,25 @@ class OptionSummaryRecord:
             object.__setattr__(self, 'remaining_quantity', Decimal(str(self.remaining_quantity)))
         if isinstance(self.strike_price, (int, float)):
             object.__setattr__(self, 'strike_price', Decimal(str(self.strike_price)))
-            
-        # 為替レートの設定
-        rate_provider = RateProvider()
         
+        # 損益のJPY変換
         if not self.trading_pnl_jpy:
             object.__setattr__(
                 self, 
                 'trading_pnl_jpy', 
-                self.trading_pnl.convert(Currency.JPY, rate_provider)
+                self.trading_pnl.convert(Currency.JPY)
             )
         
         if not self.premium_pnl_jpy:
             object.__setattr__(
                 self, 
                 'premium_pnl_jpy', 
-                self.premium_pnl.convert(Currency.JPY, rate_provider)
+                self.premium_pnl.convert(Currency.JPY)
             )
         
         if not self.total_fees_jpy:
             object.__setattr__(
                 self, 
                 'total_fees_jpy', 
-                self.total_fees.convert(Currency.JPY, rate_provider)
+                self.total_fees.convert(Currency.JPY)
             )

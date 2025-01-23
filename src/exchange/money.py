@@ -71,7 +71,7 @@ class Money:
         if self.currency == target_currency:
             return self
 
-        # RateProviderがない場合はデフォルトを使用
+        # RateProviderがない場合は作成
         if rate_provider is None:
             rate_provider = RateProvider()
 
@@ -79,7 +79,7 @@ class Money:
         exchange_rate = rate_provider.get_rate(
             base_currency=self.currency, 
             target_currency=target_currency, 
-            date=self.reference_date
+            rate_date=self.reference_date
         )
 
         # 変換

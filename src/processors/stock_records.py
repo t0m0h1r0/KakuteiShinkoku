@@ -5,7 +5,6 @@ from typing import Optional
 
 from ..exchange.money import Money
 from ..exchange.currency import Currency
-from ..exchange.rate_provider import RateProvider
 from ..config.settings import DEFAULT_EXCHANGE_RATE
 
 @dataclass
@@ -38,28 +37,25 @@ class StockTradeRecord:
         if isinstance(self.quantity, int):
             object.__setattr__(self, 'quantity', Decimal(str(self.quantity)))
         
-        # 為替レートの設定
-        rate_provider = RateProvider()
-        
         if not self.price_jpy:
             object.__setattr__(
                 self, 
                 'price_jpy', 
-                self.price.convert(Currency.JPY, rate_provider)
+                self.price.convert(Currency.JPY)
             )
         
         if not self.realized_gain_jpy:
             object.__setattr__(
                 self, 
                 'realized_gain_jpy', 
-                self.realized_gain.convert(Currency.JPY, rate_provider)
+                self.realized_gain.convert(Currency.JPY)
             )
         
         if not self.fees_jpy:
             object.__setattr__(
                 self, 
                 'fees_jpy', 
-                self.fees.convert(Currency.JPY, rate_provider)
+                self.fees.convert(Currency.JPY)
             )
 
 @dataclass
@@ -80,6 +76,8 @@ class StockSummaryRecord:
     # 損益情報
     total_realized_gain: Money = field(default_factory=lambda: Money(Decimal('0')))
     total_fees: Money = field(default_factory=lambda: Money(Decimal('0')))
+    
+    # 為替情報
     exchange_rate: Decimal = DEFAULT_EXCHANGE_RATE
     
     # 日本円換算額
@@ -91,22 +89,21 @@ class StockSummaryRecord:
         # 数量が整数で渡された場合の対応
         if isinstance(self.initial_quantity, int):
             object.__setattr__(self, 'initial_quantity', Decimal(str(self.initial_quantity)))
+        
         if isinstance(self.remaining_quantity, int):
             object.__setattr__(self, 'remaining_quantity', Decimal(str(self.remaining_quantity)))
-
-        # 為替レートの設定
-        rate_provider = RateProvider()
         
+        # JPY変換
         if not self.total_realized_gain_jpy:
             object.__setattr__(
                 self, 
                 'total_realized_gain_jpy', 
-                self.total_realized_gain.convert(Currency.JPY, rate_provider)
+                self.total_realized_gain.convert(Currency.JPY)
             )
         
         if not self.total_fees_jpy:
             object.__setattr__(
                 self, 
                 'total_fees_jpy', 
-                self.total_fees.convert(Currency.JPY, rate_provider)
+                self.total_fees.convert(Currency.JPY)
             )
