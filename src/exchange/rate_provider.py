@@ -1,7 +1,7 @@
 import csv
 from datetime import datetime, date
 from decimal import Decimal
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union  
 from pathlib import Path
 
 from .currency import Currency
@@ -58,7 +58,7 @@ class RateProvider:
                     continue
                     
                 rate_value = default_rates.get(
-                    (base_curr, target_curr),
+                    (base_curr, target_curr), 
                     Decimal('1.0')
                 )
                 
@@ -70,6 +70,53 @@ class RateProvider:
                         date=default_date
                     )
                 ]
+
+    def _load_rates(self, rate_file: Union[str, Path]):
+        """為替レートCSVの読み込み"""
+        try:
+            with open(rate_file, 'r', encoding='utf-8') as csvfile:
+                
+                reader = csv.DictReader(line.replace(' ', '') for line in csvfile)
+
+                
+                for base_curr in Currency.supported_currencies():
+                    if base_curr not in self._rates:
+                        self._rates[base_curr] = {}
+                    
+                    for target_curr in Currency.supported_currencies():
+                        if base_curr == target_curr:
+                            continue
+                        
+                        # USD/JPYレートのみ対応
+                        if base_curr != Currency.USD or target_curr != Currency.JPY:
+                            continue
+                        
+                        # Close価格を為替レートとして使用
+                        rates = []
+                        for row in reader:
+                            try:
+                                rate_date = datetime.strptime(row['Date'], '%m/%d/%y').date()  # 変更
+                                rate = ExchangeRate(
+                                    base_currency=base_curr,
+                                    target_currency=target_curr,
+                                    rate=Decimal(row['Close']),
+                                    date=rate_date
+                                )
+                                rates.append(rate)
+                            except Exception as e:
+                                print(f"Warning: Could not parse rate for {row.get('Date', 'unknown date')}: {e}")
+                        
+                        self._rates[base_curr][target_curr] = rates
+                
+                # レートを日付順にソート
+                for base_curr in self._rates:
+                    for target_curr in self._rates[base_curr]:
+                        self._rates[base_curr][target_curr].sort(key=lambda x: x.date)
+
+        except FileNotFoundError:
+            print(f"Warning: Exchange rate file not found: {rate_file}")
+        except Exception as e:
+            print(f"Error loading exchange rates: {e}")
 
     def get_rate(self, 
                  base_currency: Currency, 
@@ -100,7 +147,7 @@ class RateProvider:
             )
 
         # USDベースのレート取得
-        if (base_currency in self._rates and 
+        if (base_currency in self._rates and
             target_currency in self._rates[base_currency]):
             matching_rates = [
                 rate for rate in self._rates[base_currency][target_currency]
@@ -108,19 +155,14 @@ class RateProvider:
             ]
 
             if matching_rates:
+                # 最も近い日付のレートを取得
                 return max(matching_rates, key=lambda r: r.date)
 
         # デフォルトレートを返却
-        default_rates = {
-            (Currency.USD, Currency.JPY): Decimal('150.0'),
-            (Currency.USD, Currency.EUR): Decimal('0.9'),
-            (Currency.USD, Currency.GBP): Decimal('0.8')
-        }
-
         return ExchangeRate(
             base_currency=base_currency,
             target_currency=target_currency,
-            rate=default_rates.get((base_currency, target_currency), Decimal('1.0')),
+            rate=DEFAULT_EXCHANGE_RATE,
             date=rate_date
         )
 
