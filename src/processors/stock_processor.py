@@ -58,12 +58,14 @@ class StockProcessor(BaseProcessor):
     
     def _update_position(self, symbol, action, quantity, price, fees):
         position = self._positions[symbol]
-        realized_gain = Decimal('0')
         
         if action == 'BUY':
             position.add_lot(StockLot(quantity, price, fees))
+            realized_gain = Decimal('0')
         elif action == 'SELL':
             realized_gain = position.remove_shares(quantity, price, fees)
+        else:
+            raise ValueError(f"Invalid action: {action}")
         
         avg_price = position.average_price
         return realized_gain, avg_price, position
