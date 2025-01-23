@@ -68,27 +68,27 @@ class InvestmentReportManager:
             total_summary = {
                 'income': income_summary,
                 'trading': {
-                    'stock_gain': stock_summary['total_usd'],
-                    'option_gain': option_summary['total_trading_pnl_usd'],
-                    'premium_income': option_summary['total_premium_pnl_usd'],
+                    'stock_gain': stock_summary,
+                    'option_gain': option_summary['trading_pnl'],
+                    'premium_income': option_summary['premium_pnl'],
                     'net_total': (
-                        stock_summary['total_usd'] +
-                        option_summary['total_trading_pnl_usd'] +
-                        option_summary['total_premium_pnl_usd']
+                        stock_summary +
+                        option_summary['trading_pnl'] +
+                        option_summary['premium_pnl']
                     )
                 },
                 'total': {
                     'total_income': income_summary['net_total'],
                     'total_trading': (
-                        stock_summary['total_usd'] +
-                        option_summary['total_trading_pnl_usd'] +
-                        option_summary['total_premium_pnl_usd']
+                        stock_summary +
+                        option_summary['trading_pnl'] +
+                        option_summary['premium_pnl']
                     ),
                     'grand_total': (
                         income_summary['net_total'] +
-                        stock_summary['total_usd'] +
-                        option_summary['total_trading_pnl_usd'] +
-                        option_summary['total_premium_pnl_usd']
+                        stock_summary +
+                        option_summary['trading_pnl'] +
+                        option_summary['premium_pnl']
                     )
                 }
             }

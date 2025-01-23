@@ -149,3 +149,9 @@ class Money:
     def __repr__(self) -> str:
         """開発者向けの文字列表現"""
         return f"Money(amount={self._amounts[self.display_currency]}, currency={self.display_currency})"
+    
+    def __radd__(self, other):
+        """sum()関数のために逆加算を可能にする"""
+        if other == 0:
+            return self
+        return self + other
