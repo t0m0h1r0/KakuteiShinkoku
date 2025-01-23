@@ -40,11 +40,13 @@ class BaseProcessor(ABC, Generic[T]):
         )
         return rate.rate
     
-    def _create_money(self, amount: Decimal) -> Money:
+    def _create_money(self, amount: Decimal, reference_date: date = None) -> Money:
+        if reference_date is None:
+            reference_date = date.today()
         return Money(
             amount=amount,
             currency=Currency.USD,
-            reference_date=date.today()
+            reference_date=reference_date
         )
 
     def _create_money_jpy(self, amount: Decimal) -> Money:

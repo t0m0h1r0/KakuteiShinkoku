@@ -9,7 +9,7 @@ class StockLot:
     trade_date: date
     quantity: Decimal
     price: Decimal
-    fees: Decimal
+    fees: Decimal = Decimal('0')
     
     def __post_init__(self):
         """データ型の変換"""
@@ -144,3 +144,51 @@ class StockPosition:
         cost_basis = quantity * open_price + open_fees
         proceeds = quantity * close_price - close_fees
         return (proceeds - cost_basis).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    
+    @property
+    def average_price(self) -> Decimal:
+        total_cost = sum(lot.quantity * lot.price for lot in self.lots)
+        total_quantity = sum(lot.quantity for lot in self.lots)
+        return total_cost / total_quantity if total_quantity > 0 else Decimal('0')
+    
+    @property
+    def total_quantity(self) -> Decimal:
+        return sum(lot.quantity for lot in self.lots)
+
+    def remove_shares(self, quantity: Decimal, price: Decimal, fees: Decimal) -> Decimal:
+        """FIFOで株式を売却し、損益を計算"""
+        if not self.lots:
+            return Decimal('0')
+        
+        remaining_quantity = quantity
+        realized_gain = Decimal('0')
+        
+        while remaining_quantity > 0 and self.lots:
+            lot = self.lots[0]
+            sold_quantity = min(remaining_quantity, lot.quantity)
+            
+            trade_realized_gain = self._calculate_realized_gain(
+                sold_quantity, lot.price, price,
+                lot.fees * (sold_quantity / lot.quantity),
+                fees * (sold_quantity / quantity)  
+            )
+            realized_gain += trade_realized_gain
+            
+            self.closed_trades.append(ClosedTrade(
+                open_date=lot.trade_date,
+                close_date=date.today(),
+                quantity=sold_quantity,
+                open_price=lot.price,  
+                close_price=price,
+                open_fees=lot.fees * (sold_quantity / lot.quantity),
+                close_fees=fees * (sold_quantity / quantity),
+                realized_gain=trade_realized_gain
+            ))
+            
+            lot.quantity -= sold_quantity
+            if lot.quantity == 0:
+                self.lots.pop(0)
+            
+            remaining_quantity -= sold_quantity
+            
+        return realized_gain
