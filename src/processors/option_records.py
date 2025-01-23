@@ -28,29 +28,22 @@ class OptionTradeRecord:
     is_closed: bool      
     is_expired: bool     
     is_assigned: bool    
-    price_jpy: Optional[Money] = None
-    fees_jpy: Optional[Money] = None
-    trading_pnl_jpy: Optional[Money] = None
-    premium_pnl_jpy: Optional[Money] = None
     
-    def __post_init__(self):
-        if isinstance(self.quantity, int):
-            object.__setattr__(self, 'quantity', Decimal(str(self.quantity)))
-            
-        if isinstance(self.strike_price, (int, float)):
-            object.__setattr__(self, 'strike_price', Decimal(str(self.strike_price)))
-        
-        if not self.price_jpy:
-            object.__setattr__(self, 'price_jpy', self.price.as_currency(Currency.JPY))
-        
-        if not self.fees_jpy:
-            object.__setattr__(self, 'fees_jpy', self.fees.as_currency(Currency.JPY))
-        
-        if not self.trading_pnl_jpy:
-            object.__setattr__(self, 'trading_pnl_jpy', self.trading_pnl.as_currency(Currency.JPY))
-        
-        if not self.premium_pnl_jpy:
-            object.__setattr__(self, 'premium_pnl_jpy', self.premium_pnl.as_currency(Currency.JPY))
+    @property
+    def price_jpy(self):
+        return self.price.as_currency(Currency.JPY)
+    
+    @property
+    def fees_jpy(self):
+        return self.fees.as_currency(Currency.JPY)
+    
+    @property
+    def trading_pnl_jpy(self):
+        return self.trading_pnl.as_currency(Currency.JPY)
+    
+    @property
+    def premium_pnl_jpy(self):
+        return self.premium_pnl.as_currency(Currency.JPY)
 
 @dataclass
 class OptionSummaryRecord:
@@ -70,23 +63,15 @@ class OptionSummaryRecord:
     trading_pnl: Money = field(default_factory=lambda: Money(Decimal('0')))
     premium_pnl: Money = field(default_factory=lambda: Money(Decimal('0')))
     total_fees: Money = field(default_factory=lambda: Money(Decimal('0')))
-    trading_pnl_jpy: Optional[Money] = None
-    premium_pnl_jpy: Optional[Money] = None
-    total_fees_jpy: Optional[Money] = None
     
-    def __post_init__(self):
-        if isinstance(self.initial_quantity, int):
-            object.__setattr__(self, 'initial_quantity', Decimal(str(self.initial_quantity)))
-        if isinstance(self.remaining_quantity, int):
-            object.__setattr__(self, 'remaining_quantity', Decimal(str(self.remaining_quantity)))
-        if isinstance(self.strike_price, (int, float)):
-            object.__setattr__(self, 'strike_price', Decimal(str(self.strike_price)))
-        
-        if not self.trading_pnl_jpy:
-            object.__setattr__(self, 'trading_pnl_jpy', self.trading_pnl.as_currency(Currency.JPY))
-        
-        if not self.premium_pnl_jpy:
-            object.__setattr__(self, 'premium_pnl_jpy', self.premium_pnl.as_currency(Currency.JPY))
-        
-        if not self.total_fees_jpy:
-            object.__setattr__(self, 'total_fees_jpy', self.total_fees.as_currency(Currency.JPY))
+    @property
+    def trading_pnl_jpy(self):
+        return self.trading_pnl.as_currency(Currency.JPY)
+    
+    @property
+    def premium_pnl_jpy(self):
+        return self.premium_pnl.as_currency(Currency.JPY)
+    
+    @property
+    def total_fees_jpy(self):
+        return self.total_fees.as_currency(Currency.JPY)

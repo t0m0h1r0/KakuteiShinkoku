@@ -18,24 +18,14 @@ class DividendTradeRecord:
    gross_amount: Money
    tax_amount: Money
    exchange_rate: Decimal
-   gross_amount_jpy: Optional[Money] = None
-   tax_amount_jpy: Optional[Money] = None
    
-   def __post_init__(self):
-       """JPY金額の設定"""
-       if not self.gross_amount_jpy:
-           object.__setattr__(
-               self, 
-               'gross_amount_jpy', 
-               self.gross_amount.as_currency(Currency.JPY)
-           )
-       
-       if not self.tax_amount_jpy:
-           object.__setattr__(
-               self, 
-               'tax_amount_jpy', 
-               self.tax_amount.as_currency(Currency.JPY)
-           )
+   @property
+   def gross_amount_jpy(self):
+       return self.gross_amount.as_currency(Currency.JPY)
+   
+   @property
+   def tax_amount_jpy(self):
+       return self.tax_amount.as_currency(Currency.JPY)
 
 @dataclass
 class DividendSummaryRecord:
@@ -46,22 +36,11 @@ class DividendSummaryRecord:
    
    total_gross_amount: Money = field(default_factory=lambda: Money(Decimal('0')))
    total_tax_amount: Money = field(default_factory=lambda: Money(Decimal('0')))
-      
-   total_gross_amount_jpy: Optional[Money] = None
-   total_tax_amount_jpy: Optional[Money] = None
    
-   def __post_init__(self):
-       """JPY金額の設定"""
-       if not self.total_gross_amount_jpy:
-           object.__setattr__(
-               self, 
-               'total_gross_amount_jpy', 
-               self.total_gross_amount.as_currency(Currency.JPY)
-           )
-       
-       if not self.total_tax_amount_jpy:
-           object.__setattr__(
-               self, 
-               'total_tax_amount_jpy', 
-               self.total_tax_amount.as_currency(Currency.JPY)
-           )
+   @property
+   def total_gross_amount_jpy(self):
+       return self.total_gross_amount.as_currency(Currency.JPY)
+   
+   @property
+   def total_tax_amount_jpy(self):
+       return self.total_tax_amount.as_currency(Currency.JPY)
