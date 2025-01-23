@@ -39,8 +39,19 @@ class TextFormatter(BaseFormatter):
 
     def format_money(self, money: Money, use_color: bool = False) -> str:
         """Moneyオブジェクトをフォーマット"""
-        formatted = f"${money.usd:,.2f}"
-        if use_color and money.usd < 0:
+        if isinstance(money, Money):
+            value = money.usd
+        else:
+            value = Decimal(str(money))
+            
+        # 3桁ごとにカンマを追加し、小数点以下2桁を表示
+        whole, decimal = f"{abs(value):.2f}".split('.')
+        formatted = f"${int(whole):,}.{decimal}"
+        
+        if value < 0:
+            formatted = f"-{formatted}"
+            
+        if use_color and value < 0:
             return f"{self.COLORS['RED']}{formatted}{self.COLORS['END']}"
         return formatted
 
@@ -81,7 +92,7 @@ class TextFormatter(BaseFormatter):
     def _format_record_list(self, records: List) -> str:
         """記録リストのフォーマット"""
         if not records:
-            return "No records found"
+            return "記録が見つかりません"
 
         # 配当と利子のレコードを分離
         dividend_records = [r for r in records if self._is_dividend_record(r)]
@@ -121,9 +132,9 @@ class TextFormatter(BaseFormatter):
             net_jpy = summary['amount_jpy'] - summary['tax_jpy']
             
             lines.append(f"\nアカウント: {account_id}")
-            lines.append(f"配当総額: {self._format_money(summary['amount_usd'])} ({self._format_money(summary['amount_jpy'], True)})")
-            lines.append(f"税額合計: {self._format_money(summary['tax_usd'])} ({self._format_money(summary['tax_jpy'], True)})")
-            lines.append(f"受取配当金: {self._format_money(net_usd)} ({self._format_money(net_jpy, True)})")
+            lines.append(f"配当総額: {self._format_money(summary['amount_usd'])} (¥{int(summary['amount_jpy']):,})")
+            lines.append(f"税額合計: {self._format_money(summary['tax_usd'])} (¥{int(summary['tax_jpy']):,})")
+            lines.append(f"受取配当金: {self._format_money(net_usd)} (¥{int(net_jpy):,})")
 
         if len(accounts) > 1:
             total_amount_usd = sum(s['amount_usd'] for s in accounts.values())
@@ -134,9 +145,9 @@ class TextFormatter(BaseFormatter):
             net_total_jpy = total_amount_jpy - total_tax_jpy
             
             lines.append("\n配当総合計:")
-            lines.append(f"配当総額: {self._format_money(total_amount_usd)} ({self._format_money(total_amount_jpy, True)})")
-            lines.append(f"税額合計: {self._format_money(total_tax_usd)} ({self._format_money(total_tax_jpy, True)})")
-            lines.append(f"受取配当金: {self._format_money(net_total_usd)} ({self._format_money(net_total_jpy, True)})")
+            lines.append(f"配当総額: {self._format_money(total_amount_usd)} (¥{int(total_amount_jpy):,})")
+            lines.append(f"税額合計: {self._format_money(total_tax_usd)} (¥{int(total_tax_jpy):,})")
+            lines.append(f"受取配当金: {self._format_money(net_total_usd)} (¥{int(net_total_jpy):,})")
 
         return lines
 
@@ -162,9 +173,9 @@ class TextFormatter(BaseFormatter):
             net_jpy = summary['amount_jpy'] - summary['tax_jpy']
             
             lines.append(f"\nアカウント: {account_id}")
-            lines.append(f"利子総額: {self._format_money(summary['amount_usd'])} ({self._format_money(summary['amount_jpy'], True)})")
-            lines.append(f"税額合計: {self._format_money(summary['tax_usd'])} ({self._format_money(summary['tax_jpy'], True)})")
-            lines.append(f"受取利子: {self._format_money(net_usd)} ({self._format_money(net_jpy, True)})")
+            lines.append(f"利子総額: {self._format_money(summary['amount_usd'])} (¥{int(summary['amount_jpy']):,})")
+            lines.append(f"税額合計: {self._format_money(summary['tax_usd'])} (¥{int(summary['tax_jpy']):,})")
+            lines.append(f"受取利子: {self._format_money(net_usd)} (¥{int(net_jpy):,})")
 
         if len(accounts) > 1:
             total_amount_usd = sum(s['amount_usd'] for s in accounts.values())
@@ -175,9 +186,9 @@ class TextFormatter(BaseFormatter):
             net_total_jpy = total_amount_jpy - total_tax_jpy
             
             lines.append("\n利子総合計:")
-            lines.append(f"利子総額: {self._format_money(total_amount_usd)} ({self._format_money(total_amount_jpy, True)})")
-            lines.append(f"税額合計: {self._format_money(total_tax_usd)} ({self._format_money(total_tax_jpy, True)})")
-            lines.append(f"受取利子: {self._format_money(net_total_usd)} ({self._format_money(net_total_jpy, True)})")
+            lines.append(f"利子総額: {self._format_money(total_amount_usd)} (¥{int(total_amount_jpy):,})")
+            lines.append(f"税額合計: {self._format_money(total_tax_usd)} (¥{int(total_tax_jpy):,})")
+            lines.append(f"受取利子: {self._format_money(net_total_usd)} (¥{int(net_total_jpy):,})")
 
         return lines
 
@@ -193,4 +204,10 @@ class TextFormatter(BaseFormatter):
         """金額のフォーマット処理"""
         if is_jpy:
             return f"¥{int(amount):,}"
-        return f"${amount:,.2f}"
+            
+        # USD金額の場合、小数点以下2桁まで表示
+        whole, decimal = f"{abs(amount):.2f}".split('.')
+        formatted = f"${int(whole):,}.{decimal}"
+        if amount < 0:
+            formatted = f"-{formatted}"
+        return formatted

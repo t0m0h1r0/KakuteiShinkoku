@@ -60,7 +60,10 @@ class CSVWriter(BaseOutput):
         if isinstance(value, (int, float)):
             value = Decimal(str(value))
         if isinstance(value, Decimal):
-            return f"{value:.2f}"
+            # 3桁ごとにカンマを追加し、小数点以下2桁を表示
+            whole, decimal = f"{value:.2f}".split('.')
+            whole = f"{int(whole):,}"
+            return f"{whole}.{decimal}"
         return str(value)
 
     def _format_jpy_amount(self, value: Any) -> str:
@@ -71,5 +74,6 @@ class CSVWriter(BaseOutput):
         if isinstance(value, (int, float)):
             value = Decimal(str(value))
         if isinstance(value, Decimal):
-            return str(int(value))
+            # JPYは小数点以下なしで3桁ごとにカンマを追加
+            return f"{int(value):,}"
         return str(value)
