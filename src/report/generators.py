@@ -113,7 +113,6 @@ class OptionSummaryReportGenerator(BaseReportGenerator):
             'trading_pnl_jpy': record.trading_pnl_jpy.jpy,
             'premium_pnl_jpy': record.premium_pnl_jpy.jpy,
             'total_fees_jpy': record.total_fees_jpy.jpy,
-            'exchange_rate': record.exchange_rate
         } for record in option_summary_records]
 
     def _get_option_summary_records(self, data: Dict[str, Any]) -> List:
@@ -161,7 +160,6 @@ class FinalSummaryReportGenerator(BaseReportGenerator):
             'gross_amount_jpy': gross_jpy,
             'tax_amount_jpy': tax_jpy,
             'net_amount_jpy': gross_jpy - tax_jpy,
-            'average_exchange_rate': weighted_rate
         }
 
     def _generate_interest_summary(self, records: List) -> Dict[str, Any]:
@@ -183,7 +181,6 @@ class FinalSummaryReportGenerator(BaseReportGenerator):
             'gross_amount_jpy': gross_jpy,
             'tax_amount_jpy': tax_jpy,
             'net_amount_jpy': gross_jpy - tax_jpy,
-            'average_exchange_rate': weighted_rate
         }
 
     def _generate_stock_summary(self, records: List) -> Dict[str, Any]:
@@ -203,7 +200,6 @@ class FinalSummaryReportGenerator(BaseReportGenerator):
             'gross_amount_jpy': total_gain_jpy,
             'tax_amount_jpy': Decimal('0'),
             'net_amount_jpy': total_gain_jpy,
-            'average_exchange_rate': weighted_rate
         }
 
     def _generate_option_summaries(self, records: List) -> List[Dict[str, Any]]:
@@ -211,9 +207,6 @@ class FinalSummaryReportGenerator(BaseReportGenerator):
         
         trading_gain_usd = sum(r.trading_pnl.usd for r in records)
         trading_gain_jpy = sum(r.trading_pnl_jpy.jpy for r in records)
-        trading_rate = self._calculate_weighted_exchange_rate(
-            [(abs(r.trading_pnl.usd), r.exchange_rate) for r in records]
-        )
         
         summaries.append({
             'category': 'オプション取引',
@@ -224,7 +217,6 @@ class FinalSummaryReportGenerator(BaseReportGenerator):
             'gross_amount_jpy': trading_gain_jpy,
             'tax_amount_jpy': Decimal('0'),
             'net_amount_jpy': trading_gain_jpy,
-            'average_exchange_rate': trading_rate
         })
         
         premium_usd = sum(r.premium_pnl.usd for r in records)
@@ -244,7 +236,6 @@ class FinalSummaryReportGenerator(BaseReportGenerator):
             'gross_amount_jpy': premium_jpy,
             'tax_amount_jpy': fees_jpy,
             'net_amount_jpy': premium_jpy - fees_jpy,
-            'average_exchange_rate': premium_rate
         })
         
         return summaries

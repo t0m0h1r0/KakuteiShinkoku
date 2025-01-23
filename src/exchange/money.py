@@ -13,12 +13,14 @@ class Money:
     """
     _amounts: Dict[Currency, Decimal]
     display_currency: Currency
+    decimal_places: Optional[int] = None
 
     def __init__(
         self,
         amount: Union[int, float, Decimal],
         currency: Optional[Currency] = None,
-        reference_date: Optional[date] = None
+        reference_date: Optional[date] = None,
+        decimal_places: Optional[int] = None
     ):
         """初期化メソッド。全通貨での金額を計算します。"""
         display_currency = currency if currency is not None else Currency.USD
@@ -45,6 +47,7 @@ class Money:
         # イミュータブルなインスタンス変数を設定
         object.__setattr__(self, '_amounts', amounts)
         object.__setattr__(self, 'display_currency', display_currency)
+        object.__setattr__(self, 'decimal_places', decimal_places)
 
     def __add__(self, other: 'Money') -> 'Money':
         """金額の加算"""
@@ -57,6 +60,7 @@ class Money:
         result = object.__new__(Money)
         object.__setattr__(result, '_amounts', new_amounts)
         object.__setattr__(result, 'display_currency', self.display_currency)
+        object.__setattr__(result, 'decimal_places', self.decimal_places)
         return result
 
     def __sub__(self, other: 'Money') -> 'Money':
@@ -70,6 +74,7 @@ class Money:
         result = object.__new__(Money)
         object.__setattr__(result, '_amounts', new_amounts)
         object.__setattr__(result, 'display_currency', self.display_currency)
+        object.__setattr__(result, 'decimal_places', self.decimal_places)
         return result
 
     def __mul__(self, scalar: Union[int, float, Decimal]) -> 'Money':
@@ -85,6 +90,7 @@ class Money:
         result = object.__new__(Money)
         object.__setattr__(result, '_amounts', new_amounts)
         object.__setattr__(result, 'display_currency', self.display_currency)
+        object.__setattr__(result, 'decimal_places', self.decimal_places)
         return result
 
     def __truediv__(self, scalar: Union[int, float, Decimal]) -> 'Money':
@@ -100,6 +106,7 @@ class Money:
         result = object.__new__(Money)
         object.__setattr__(result, '_amounts', new_amounts)
         object.__setattr__(result, 'display_currency', self.display_currency)
+        object.__setattr__(result, 'decimal_places', self.decimal_places)
         return result
 
     @property
@@ -122,19 +129,22 @@ class Money:
         """GBP金額"""
         return self._amounts[Currency.GBP]
     
-    def as_currency(self, currency: Currency) -> 'Money':
+    def as_currency(self, currency: Currency, decimal_places: Optional[int] = None) -> 'Money':
         """表示通貨を変更"""
         result = object.__new__(Money)
         object.__setattr__(result, '_amounts', self._amounts)
         object.__setattr__(result, 'display_currency', currency)
+        object.__setattr__(result, 'decimal_places', decimal_places if decimal_places is not None else self.decimal_places)
         return result
 
     def __str__(self) -> str:
         """文字列表現"""
         amount = self._amounts[self.display_currency]
-        if self.display_currency == Currency.JPY:
+        if self.display_currency == Currency.JPY and self.decimal_places is None:
             return f"{self.display_currency} {int(amount):,}"
-        return f"{self.display_currency} {amount:.2f}"
+        
+        decimal_places = 2 if self.decimal_places is None else self.decimal_places
+        return f"{self.display_currency} {amount:.{decimal_places}f}"
 
     def __repr__(self) -> str:
         """開発者向けの文字列表現"""

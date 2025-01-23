@@ -3,7 +3,7 @@ from typing import Dict, List
 from collections import defaultdict
 
 from ..core.transaction import Transaction
-from ..exchange.money import Money, Currency
+from ..exchange.money import Money, Currency, RateProvider
 from .base import BaseProcessor
 from .stock_records import StockTradeRecord, StockSummaryRecord
 from .stock_lot import StockLot, StockPosition
@@ -49,7 +49,7 @@ class StockProcessor(BaseProcessor):
             self._to_money(price * quantity), 
             self._to_money(realized_gain),
             self._to_money(fees),
-            Money(1).as_currency(Currency.JPY),
+            RateProvider().get_rate(Currency.USD,Currency.JPY,transaction.transaction_date).rate,
         )
         self._records.append(record)
         self._update_summary_record(record, position)

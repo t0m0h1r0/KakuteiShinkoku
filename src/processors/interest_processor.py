@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 from datetime import date
 
 from ..core.transaction import Transaction
-from ..exchange.money import Money, Currency
+from ..exchange.money import Money, Currency, RateProvider
 from .base import BaseProcessor
 from .interest_records import InterestTradeRecord, InterestSummaryRecord
 
@@ -37,7 +37,7 @@ class InterestProcessor(BaseProcessor):
             is_matured='MATURED' in transaction.description.upper(),
             gross_amount=gross_amount,
             tax_amount=tax_money,
-            exchange_rate=Money(1,reference_date=transaction.transaction_date).as_currency(Currency.JPY)
+            exchange_rate=RateProvider().get_rate(Currency.USD,Currency.JPY,transaction.transaction_date).rate,
         )
        
         self._trade_records.append(interest_record)

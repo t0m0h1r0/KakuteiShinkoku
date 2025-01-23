@@ -6,6 +6,7 @@ import re
 
 from ..core.transaction import Transaction
 from ..exchange.money import Money, Currency
+from ..exchange.rate_provider import RateProvider
 from .base import BaseProcessor
 from .option_records import OptionTradeRecord, OptionSummaryRecord
 from .option_position import OptionPosition, OptionContract
@@ -136,7 +137,7 @@ class OptionProcessor(BaseProcessor):
            quantity=quantity,
            price=price_money,
            fees=fees_money,
-           exchange_rate=Money(1).as_currency(Currency.JPY),
+           exchange_rate=RateProvider().get_rate(Currency.USD,Currency.JPY,transaction.transaction_date).rate,
            option_type=option_info['option_type'],
            strike_price=option_info['strike_price'],
            expiry_date=option_info['expiry_date'],
@@ -228,7 +229,6 @@ class OptionProcessor(BaseProcessor):
                trading_pnl=trade_record.trading_pnl,
                premium_pnl=trade_record.premium_pnl,
                total_fees=trade_record.fees,
-               exchange_rate=Money(1).as_currency(Currency.JPY),
            )
        
        summary = self._summary_records[symbol]
