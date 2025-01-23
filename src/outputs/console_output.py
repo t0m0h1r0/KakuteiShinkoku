@@ -1,7 +1,8 @@
-from typing import Any, List, Dict
-import logging
+from typing import Any, Dict, List
 from decimal import Decimal
+import logging
 
+from ..exchange.money import Money
 from ..outputs.base_output import BaseOutput
 from ..formatters.base_formatter import BaseFormatter
 
@@ -31,31 +32,35 @@ class ConsoleOutput(BaseOutput):
 
     def _output_summary(self, summary: Dict) -> None:
         """投資サマリーを出力"""
+        def _format_money(money: Money) -> str:
+            """Moneyオブジェクトをフォーマット"""
+            return f"${money.usd:,.2f}"
+
         print("\n【投資総合レポート】")
         print("=" * 40)
         
         # 収入サマリー
         income = summary.get('income', {})
         print("\n【収入サマリー】")
-        print(f"配当総額:     ${income.get('dividend_total', 0):.2f}")
-        print(f"利子総額:     ${income.get('interest_total', 0):.2f}")
-        print(f"税金総額:     ${income.get('tax_total', 0):.2f}")
-        print(f"純収入:       ${income.get('net_total', 0):.2f}")
+        print(f"配当総額:     {_format_money(income.get('dividend_total', Money(0)))}")
+        print(f"利子総額:     {_format_money(income.get('interest_total', Money(0)))}")
+        print(f"税金総額:     {_format_money(income.get('tax_total', Money(0)))}")
+        print(f"純収入:       {_format_money(income.get('net_total', Money(0)))}")
         
         # 取引サマリー
         trading = summary.get('trading', {})
         print("\n【取引サマリー】")
-        print(f"株式取引損益: ${trading.get('stock_gain', 0):.2f}")
-        print(f"オプション取引損益: ${trading.get('option_gain', 0):.2f}")
-        print(f"オプションプレミアム収入: ${trading.get('premium_income', 0):.2f}")
-        print(f"純取引損益:   ${trading.get('net_total', 0):.2f}")
+        print(f"株式取引損益: {_format_money(trading.get('stock_gain', Money(0)))}")
+        print(f"オプション取引損益: {_format_money(trading.get('option_gain', Money(0)))}")
+        print(f"オプションプレミアム収入: {_format_money(trading.get('premium_income', Money(0)))}")
+        print(f"純取引損益:   {_format_money(trading.get('net_total', Money(0)))}")
         
         # 総合計
         total = summary.get('total', {})
         print("\n【総合計】")
-        print(f"総収入:       ${total.get('total_income', 0):.2f}")
-        print(f"総取引損益:   ${total.get('total_trading', 0):.2f}")
-        print(f"総合計:       ${total.get('grand_total', 0):.2f}")
+        print(f"総収入:       {_format_money(total.get('total_income', Money(0)))}")
+        print(f"総取引損益:   {_format_money(total.get('total_trading', Money(0)))}")
+        print(f"総合計:       {_format_money(total.get('grand_total', Money(0)))}")
         print("=" * 40)
 
     def _output_record_summary(self, records: List) -> None:
@@ -110,7 +115,6 @@ class ConsoleOutput(BaseOutput):
 
     def _calculate_account_summary(self, records: List) -> Dict:
         """アカウント別の収入サマリーを計算"""
-        from decimal import Decimal
         from collections import defaultdict
         
         accounts = defaultdict(lambda: {
@@ -148,29 +152,33 @@ class ColorConsoleOutput(ConsoleOutput):
 
     def _output_summary(self, summary: Dict) -> None:
         """カラー付きサマリー出力"""
+        def _format_money(money: Money) -> str:
+            """Moneyオブジェクトをフォーマット"""
+            return f"${money.usd:,.2f}"
+
         print(f"\n{self.COLORS['HEADER']}【投資総合レポート】{self.COLORS['END']}")
         print("=" * 40)
         
-        # 収入サマリー（青色）
+        # 収入サマリー
         income = summary.get('income', {})
         print(f"\n{self.COLORS['BLUE']}【収入サマリー】{self.COLORS['END']}")
-        print(f"配当総額:     ${income.get('dividend_total', 0):.2f}")
-        print(f"利子総額:     ${income.get('interest_total', 0):.2f}")
-        print(f"税金総額:     ${income.get('tax_total', 0):.2f}")
-        print(f"純収入:       ${income.get('net_total', 0):.2f}")
+        print(f"配当総額:     {_format_money(income.get('dividend_total', Money(0)))}")
+        print(f"利子総額:     {_format_money(income.get('interest_total', Money(0)))}")
+        print(f"税金総額:     {_format_money(income.get('tax_total', Money(0)))}")
+        print(f"純収入:       {_format_money(income.get('net_total', Money(0)))}")
         
-        # 取引サマリー（緑色）
+        # 取引サマリー
         trading = summary.get('trading', {})
         print(f"\n{self.COLORS['GREEN']}【取引サマリー】{self.COLORS['END']}")
-        print(f"株式取引損益: ${trading.get('stock_gain', 0):.2f}")
-        print(f"オプション取引損益: ${trading.get('option_gain', 0):.2f}")
-        print(f"オプションプレミアム収入: ${trading.get('premium_income', 0):.2f}")
-        print(f"純取引損益:   ${trading.get('net_total', 0):.2f}")
+        print(f"株式取引損益: {_format_money(trading.get('stock_gain', Money(0)))}")
+        print(f"オプション取引損益: {_format_money(trading.get('option_gain', Money(0)))}")
+        print(f"オプションプレミアム収入: {_format_money(trading.get('premium_income', Money(0)))}")
+        print(f"純取引損益:   {_format_money(trading.get('net_total', Money(0)))}")
         
-        # 総合計（ボールド）
+        # 総合計
         total = summary.get('total', {})
         print(f"\n{self.COLORS['BOLD']}【総合計】{self.COLORS['END']}")
-        print(f"総収入:       ${total.get('total_income', 0):.2f}")
-        print(f"総取引損益:   ${total.get('total_trading', 0):.2f}")
-        print(f"総合計:       ${total.get('grand_total', 0):.2f}")
+        print(f"総収入:       {_format_money(total.get('total_income', Money(0)))}")
+        print(f"総取引損益:   {_format_money(total.get('total_trading', Money(0)))}")
+        print(f"総合計:       {_format_money(total.get('grand_total', Money(0)))}")
         print("=" * 40)

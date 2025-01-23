@@ -22,6 +22,41 @@ class TextFormatter(BaseFormatter):
             self.logger.error(f"Error formatting data: {e}")
             return str(data)
 
+    def _is_summary_data(self, data: Dict) -> bool:
+        """データがサマリータイプかを判定"""
+        return all(key in data for key in ['income', 'trading', 'total'])
+
+    def _format_summary_data(self, data: Dict) -> str:
+        """総合サマリーのフォーマット"""
+        income = data['income']
+        trading = data['trading']
+        total = data['total']
+        
+        lines = ["投資サマリーレポート"]
+        lines.append("-" * 40)
+        
+        # 収入サマリー
+        lines.append("\n収入サマリー:")
+        lines.append(f"配当総額: ${income['dividend_total'].usd:,.2f}")
+        lines.append(f"利子総額: ${income['interest_total'].usd:,.2f}")
+        lines.append(f"税金合計: ${income['tax_total'].usd:,.2f}")
+        lines.append(f"純収入: ${income['net_total'].usd:,.2f}")
+        
+        # 取引サマリー
+        lines.append("\n取引サマリー:")
+        lines.append(f"株式取引損益: ${trading['stock_gain'].usd:,.2f}")
+        lines.append(f"オプション取引損益: ${trading['option_gain'].usd:,.2f}")
+        lines.append(f"オプションプレミアム収入: ${trading['premium_income'].usd:,.2f}")
+        lines.append(f"純取引損益: ${trading['net_total'].usd:,.2f}")
+        
+        # 総合計
+        lines.append("\n総合計:")
+        lines.append(f"総収入: ${total['total_income'].usd:,.2f}")
+        lines.append(f"総取引損益: ${total['total_trading'].usd:,.2f}")
+        lines.append(f"最終合計: ${total['grand_total'].usd:,.2f}")
+        
+        return "\n".join(lines)
+
     def _format_money(self, amount: Decimal, is_jpy: bool = False) -> str:
         """金額のフォーマット処理"""
         if is_jpy:
@@ -131,59 +166,10 @@ class TextFormatter(BaseFormatter):
 
         return lines
 
-    def _format_full_summary(self, data: Dict) -> str:
-        """総合サマリーのフォーマット"""
-        income = data['income']
-        trading = data['trading']
-        total = data['total']
-        
-        lines = ["投資サマリーレポート"]
-        lines.append("-" * 40)
-        
-        # 収入サマリー
-        lines.append("\n収入サマリー:")
-        lines.append(f"配当総額: {self._format_money(income['dividend_total_usd'])} ({self._format_money(income['dividend_total_jpy'], True)})")
-        lines.append(f"利子総額: {self._format_money(income['interest_total_usd'])} ({self._format_money(income['interest_total_jpy'], True)})")
-        lines.append(f"税金合計: {self._format_money(income['tax_total_usd'])} ({self._format_money(income['tax_total_jpy'], True)})")
-        lines.append(f"純収入: {self._format_money(income['net_total_usd'])} ({self._format_money(income['net_total_jpy'], True)})")
-        
-        # 取引サマリー
-        lines.append("\n取引サマリー:")
-        lines.append(f"株式取引損益: {self._format_money(trading['stock_gain_usd'])} ({self._format_money(trading['stock_gain_jpy'], True)})")
-        lines.append(f"オプション取引損益: {self._format_money(trading['option_gain_usd'])} ({self._format_money(trading['option_gain_jpy'], True)})")
-        lines.append(f"オプションプレミアム収入: {self._format_money(trading['premium_income_usd'])} ({self._format_money(trading['premium_income_jpy'], True)})")
-        lines.append(f"純取引損益: {self._format_money(trading['net_total_usd'])} ({self._format_money(trading['net_total_jpy'], True)})")
-        
-        # 総合計
-        lines.append("\n総合計:")
-        lines.append(f"総収入: {self._format_money(total['total_income_usd'])} ({self._format_money(total['total_income_jpy'], True)})")
-        lines.append(f"総取引損益: {self._format_money(total['total_trading_usd'])} ({self._format_money(total['total_trading_jpy'], True)})")
-        lines.append(f"最終合計: {self._format_money(total['grand_total_usd'])} ({self._format_money(total['grand_total_jpy'], True)})")
-        
-        return "\n".join(lines)
+    def _is_dividend_record(self, record: Any) -> bool:
+        """配当レコードかどうかを判定"""
+        return hasattr(record, 'income_type') and record.income_type == 'Dividend'
 
-    def _format_account_summary(self, data: Dict) -> str:
-        """アカウント別サマリーのフォーマット"""
-        lines = []
-        
-        for account_id, summary in data['accounts'].items():
-            lines.append(f"\nアカウント: {account_id}")
-            
-            if 'dividend' in summary and summary['dividend_usd'] > 0:
-                lines.append(f"配当総額: {self._format_money(summary['dividend_usd'])} ({self._format_money(summary['dividend_jpy'], True)})")
-            
-            if 'interest' in summary and summary['interest_usd'] > 0:
-                lines.append(f"利子総額: {self._format_money(summary['interest_usd'])} ({self._format_money(summary['interest_jpy'], True)})")
-            
-            if 'tax' in summary and summary['tax_usd'] > 0:
-                lines.append(f"税金合計: {self._format_money(summary['tax_usd'])} ({self._format_money(summary['tax_jpy'], True)})")
-            
-            net_total_usd = summary.get('dividend_usd', Decimal('0')) + \
-                           summary.get('interest_usd', Decimal('0')) - \
-                           summary.get('tax_usd', Decimal('0'))
-            net_total_jpy = summary.get('dividend_jpy', Decimal('0')) + \
-                           summary.get('interest_jpy', Decimal('0')) - \
-                           summary.get('tax_jpy', Decimal('0'))
-            lines.append(f"純収入: {self._format_money(net_total_usd)} ({self._format_money(net_total_jpy, True)})")
-        
-        return "\n".join(lines)
+    def _is_interest_record(self, record: Any) -> bool:
+        """利子レコードかどうかを判定"""
+        return hasattr(record, 'income_type') and record.income_type != 'Dividend'
