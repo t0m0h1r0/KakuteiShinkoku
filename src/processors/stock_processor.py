@@ -24,17 +24,14 @@ class StockProcessor(BaseProcessor):
 
     def process(self, transaction: Transaction) -> None:
         """取引の処理"""
-        # 満期トランザクションのシンボルを記憶し、過去のすべての取引を除外
         if self._is_matured_transaction(transaction):
             self._matured_symbols.add(transaction.symbol)
-            # すでに記録された取引から同じシンボルの全ての取引を削除
             self._trade_records = [
                 record for record in self._trade_records 
                 if record.symbol != transaction.symbol
             ]
             return
 
-        # 満期を迎えたシンボルに属する場合は除外
         if transaction.symbol in self._matured_symbols:
             return
 
@@ -56,7 +53,6 @@ class StockProcessor(BaseProcessor):
         realized_gain = Decimal('0')
         
         if action == 'BUY':
-            # 買い取引
             lot = StockLot(
                 trade_date=transaction.transaction_date,
                 quantity=quantity,
@@ -65,13 +61,12 @@ class StockProcessor(BaseProcessor):
             )
             position.add_lot(lot)
         elif action == 'SELL':
-            # 売り取引
             realized_gain = position.sell_shares(quantity, price, fees)
     
         # 金額オブジェクトの作成
-        price_money = self._create_money_with_rate(price * quantity, exchange_rate)
-        fees_money = self._create_money_with_rate(fees, exchange_rate)
-        realized_gain_money = self._create_money_with_rate(realized_gain, exchange_rate)
+        price_money = self._create_money(price * quantity)
+        fees_money = self._create_money(fees)
+        realized_gain_money = self._create_money(realized_gain)
 
         # 取引記録の作成
         trade_record = StockTradeRecord(
@@ -95,7 +90,6 @@ class StockProcessor(BaseProcessor):
         """サマリーレコードを更新"""
         symbol = trade_record.symbol
         
-        # サマリーレコードが存在しない場合は作成
         if symbol not in self._summary_records:
             self._summary_records[symbol] = StockSummaryRecord(
                 account_id=trade_record.account_id,
@@ -110,20 +104,16 @@ class StockProcessor(BaseProcessor):
         position_summary = position.get_position_summary()
         realized_gains = position.get_realized_gains()
         
-        # ポジション情報の更新
         summary.remaining_quantity = position_summary['quantity']
         if not position_summary['has_position']:
             summary.status = 'Closed'
             summary.close_date = trade_record.trade_date
         
-        # 損益情報の更新
-        summary.total_realized_gain = self._create_money_with_rate(
-            realized_gains['total_realized_gain'], 
-            trade_record.exchange_rate
+        summary.total_realized_gain = self._create_money(
+            realized_gains['total_realized_gain']
         )
-        summary.total_fees = self._create_money_with_rate(
-            realized_gains['total_fees'], 
-            trade_record.exchange_rate
+        summary.total_fees = self._create_money(
+            realized_gains['total_fees']
         )
 
     def _is_stock_transaction(self, transaction: Transaction) -> bool:

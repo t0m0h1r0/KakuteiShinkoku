@@ -1,16 +1,14 @@
 from typing import Dict, List
 from decimal import Decimal
+from ..exchange.currency import Currency
 
 class ReportCalculator:
-    """レポート計算のユーティリティクラス"""
-    
     @staticmethod
     def calculate_income_summary(dividend_records: list, interest_records: list) -> Dict[str, Decimal]:
-        """収入サマリーを計算"""
         summary = {
-            'dividend_total': sum(r.gross_amount.amount for r in dividend_records),
-            'interest_total': sum(r.gross_amount.amount for r in interest_records),
-            'tax_total': sum(r.tax_amount.amount 
+            'dividend_total': sum(r.gross_amount.usd for r in dividend_records),
+            'interest_total': sum(r.gross_amount.usd for r in interest_records),
+            'tax_total': sum(r.tax_amount.usd 
                            for r in dividend_records + interest_records)
         }
         
@@ -24,15 +22,14 @@ class ReportCalculator:
 
     @staticmethod
     def calculate_income_summary_details(records: List) -> Dict[str, Decimal]:
-        """収入の詳細サマリーを計算"""
         total_usd = Decimal('0')
         total_jpy = Decimal('0')
         exchange_rate_sum = Decimal('0')
         count = 0
 
         for record in records:
-            total_usd += record.gross_amount.amount - record.tax_amount.amount
-            total_jpy += record.gross_amount_jpy.amount - record.tax_amount_jpy.amount
+            total_usd += record.gross_amount.usd - record.tax_amount.usd
+            total_jpy += record.gross_amount.jpy - record.tax_amount.jpy
             exchange_rate_sum += record.exchange_rate
             count += 1
 
@@ -44,15 +41,14 @@ class ReportCalculator:
 
     @staticmethod
     def calculate_stock_summary_details(records: List) -> Dict[str, Decimal]:
-        """株式取引サマリーの計算"""
         total_usd = Decimal('0')
         total_jpy = Decimal('0')
         exchange_rate_sum = Decimal('0')
         count = 0
 
         for record in records:
-            total_usd += record.realized_gain.amount
-            total_jpy += record.realized_gain_jpy.amount
+            total_usd += record.realized_gain.usd
+            total_jpy += record.realized_gain.jpy
             exchange_rate_sum += record.exchange_rate
             count += 1
 
@@ -64,24 +60,22 @@ class ReportCalculator:
 
     @staticmethod
     def calculate_option_summary_details(records: List) -> Dict[str, Decimal]:
-        """オプション取引サマリーの計算"""
         trading_pnl_usd = Decimal('0')
         trading_pnl_jpy = Decimal('0')
         premium_pnl_usd = Decimal('0')
         premium_pnl_jpy = Decimal('0')
         fees_usd = Decimal('0')
         fees_jpy = Decimal('0')
-        
         exchange_rate_sum = Decimal('0')
         count = 0
 
         for record in records:
-            trading_pnl_usd += record.trading_pnl.amount
-            trading_pnl_jpy += record.trading_pnl_jpy.amount
-            premium_pnl_usd += record.premium_pnl.amount
-            premium_pnl_jpy += record.premium_pnl_jpy.amount
-            fees_usd += record.fees.amount
-            fees_jpy += record.fees_jpy.amount
+            trading_pnl_usd += record.trading_pnl.usd
+            trading_pnl_jpy += record.trading_pnl.jpy
+            premium_pnl_usd += record.premium_pnl.usd
+            premium_pnl_jpy += record.premium_pnl.jpy
+            fees_usd += record.fees.usd
+            fees_jpy += record.fees.jpy
             exchange_rate_sum += record.exchange_rate
             count += 1
 
