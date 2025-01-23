@@ -5,7 +5,8 @@ import re
 from datetime import date
 
 from ..core.transaction import Transaction
-from ..core.money import Money, Currency
+from ..exchange.money import Money
+from ..exchange.currency import Currency
 from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .stock_records import StockTradeRecord, StockSummaryRecord
@@ -19,7 +20,6 @@ class StockProcessor(BaseProcessor):
         self._positions: Dict[str, StockPosition] = defaultdict(StockPosition)
         self._trade_records: List[StockTradeRecord] = []
         self._summary_records: Dict[str, StockSummaryRecord] = {}
-        self._assignments: Dict[str, List[Dict]] = defaultdict(list)
         self._matured_symbols: set = set()
 
     def process(self, transaction: Transaction) -> None:
@@ -43,15 +43,6 @@ class StockProcessor(BaseProcessor):
     
         self._process_stock_transaction(transaction)
 
-    def record_option_assignment(self, symbol: str, date: date, quantity: int, 
-                               strike_price: Decimal) -> None:
-        """オプション権利行使情報を記録"""
-        self._assignments[symbol].append({
-            'date': date,
-            'quantity': quantity,
-            'strike_price': strike_price
-        })
-
     def _process_stock_transaction(self, transaction: Transaction) -> None:
         """株式取引を処理"""
         symbol = transaction.symbol
@@ -60,12 +51,6 @@ class StockProcessor(BaseProcessor):
         price = self._parse_decimal(transaction.price)
         fees = self._parse_decimal(transaction.fees)
         exchange_rate = self._get_exchange_rate(transaction.transaction_date)
-        
-        # オプション権利行使の影響を確認
-        if action == 'BUY' and symbol in self._assignments:
-            price = self._adjust_price_for_assignments(
-                symbol, transaction.transaction_date, quantity, price
-            )
         
         position = self._positions[symbol]
         realized_gain = Decimal('0')
@@ -97,8 +82,8 @@ class StockProcessor(BaseProcessor):
             action=action,
             quantity=quantity,
             price=price_money,
-            fees=fees_money,
             realized_gain=realized_gain_money,
+            fees=fees_money,
             exchange_rate=exchange_rate
         )
         
@@ -141,14 +126,6 @@ class StockProcessor(BaseProcessor):
             trade_record.exchange_rate
         )
 
-    def get_records(self) -> List[StockTradeRecord]:
-        """取引記録を取得"""
-        return sorted(self._trade_records, key=lambda x: x.trade_date)
-
-    def get_summary_records(self) -> List[StockSummaryRecord]:
-        """サマリー記録を取得"""
-        return sorted(self._summary_records.values(), key=lambda x: x.symbol)
-
     def _is_stock_transaction(self, transaction: Transaction) -> bool:
         """株式取引トランザクションかどうかを判定"""
         if not transaction.symbol:
@@ -177,21 +154,6 @@ class StockProcessor(BaseProcessor):
             'FULL REDEMPTION'
         ]
         return transaction.action_type.upper() in [keyword.upper() for keyword in maturity_keywords]
-
-    def _adjust_price_for_assignments(self, symbol: str, trade_date: date, 
-                                    quantity: Decimal, price: Decimal) -> Decimal:
-        """オプション権利行使による価格調整"""
-        assignments = self._assignments[symbol]
-        total_adjustment = Decimal('0')
-        
-        # 該当する権利行使を探す
-        for assignment in assignments:
-            if assignment['date'] == trade_date:
-                # 権利行使価格との差額を調整
-                price_diff = assignment['strike_price'] - price
-                total_adjustment += price_diff
-        
-        return price + total_adjustment if total_adjustment != 0 else price
 
     @staticmethod
     def _parse_decimal(value: any) -> Decimal:

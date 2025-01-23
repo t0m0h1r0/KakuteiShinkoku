@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Dict, List, Optional
 
 from ..core.transaction import Transaction
-from ..core.money import Money, Currency
+from ..exchange.money import Money, Currency
 from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .dividend_records import DividendTradeRecord, DividendSummaryRecord

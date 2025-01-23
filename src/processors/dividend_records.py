@@ -3,7 +3,9 @@ from decimal import Decimal
 from datetime import date
 from typing import Optional
 
-from ..core.money import Money, Currency
+from ..exchange.money import Money
+from ..exchange.currency import Currency
+from ..exchange.rate_provider import RateProvider
 from ..config.settings import DEFAULT_EXCHANGE_RATE
 
 @dataclass
@@ -31,12 +33,27 @@ class DividendTradeRecord:
     def __post_init__(self):
         """JPY金額の設定"""
         # 為替レートが提供されている場合、JPY金額を計算
-        if self.exchange_rate:
-            if not self.gross_amount_jpy:
-                self.gross_amount_jpy = self.gross_amount.convert_to_jpy(self.exchange_rate)
-            
-            if not self.tax_amount_jpy:
-                self.tax_amount_jpy = self.tax_amount.convert_to_jpy(self.exchange_rate)
+        rate_provider = RateProvider()
+        
+        if not self.gross_amount_jpy:
+            object.__setattr__(
+                self, 
+                'gross_amount_jpy', 
+                self.gross_amount.convert(
+                    Currency.JPY, 
+                    rate_provider
+                )
+            )
+        
+        if not self.tax_amount_jpy:
+            object.__setattr__(
+                self, 
+                'tax_amount_jpy', 
+                self.tax_amount.convert(
+                    Currency.JPY, 
+                    rate_provider
+                )
+            )
 
 @dataclass
 class DividendSummaryRecord:
@@ -46,8 +63,8 @@ class DividendSummaryRecord:
     description: str
     
     # 集計情報
-    total_gross_amount: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
-    total_tax_amount: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
+    total_gross_amount: Money = field(default_factory=lambda: Money(Decimal('0')))
+    total_tax_amount: Money = field(default_factory=lambda: Money(Decimal('0')))
     
     # 為替情報
     exchange_rate: Decimal = DEFAULT_EXCHANGE_RATE
@@ -58,9 +75,25 @@ class DividendSummaryRecord:
     
     def __post_init__(self):
         """JPY金額の設定"""
-        if self.exchange_rate:
-            if not self.total_gross_amount_jpy:
-                self.total_gross_amount_jpy = self.total_gross_amount.convert_to_jpy(self.exchange_rate)
-            
-            if not self.total_tax_amount_jpy:
-                self.total_tax_amount_jpy = self.total_tax_amount.convert_to_jpy(self.exchange_rate)
+        # 為替レートが提供されている場合、JPY金額を計算
+        rate_provider = RateProvider()
+        
+        if not self.total_gross_amount_jpy:
+            object.__setattr__(
+                self, 
+                'total_gross_amount_jpy', 
+                self.total_gross_amount.convert(
+                    Currency.JPY, 
+                    rate_provider
+                )
+            )
+        
+        if not self.total_tax_amount_jpy:
+            object.__setattr__(
+                self, 
+                'total_tax_amount_jpy', 
+                self.total_tax_amount.convert(
+                    Currency.JPY, 
+                    rate_provider
+                )
+            )

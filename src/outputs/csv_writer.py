@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from .base_output import BaseOutput
 from ..formatters.base_formatter import BaseFormatter
-from ..core.money import Money, Currency
+from ..exchange.money import Money, Currency
 
 class CSVWriter(BaseOutput):
     """CSV出力クラス"""

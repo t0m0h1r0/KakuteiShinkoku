@@ -6,7 +6,8 @@ import logging
 
 from ..core.transaction import Transaction
 from ..core.interfaces import IExchangeRateProvider
-from ..core.money import Money, Currency
+from ..exchange.currency import Currency
+from ..exchange.money import Money
 
 T = TypeVar('T')
 
@@ -38,14 +39,20 @@ class BaseProcessor(ABC, Generic[T]):
     
     def _get_exchange_rate(self, target_date: date) -> Decimal:
         """指定日の為替レートを取得"""
-        return self.exchange_rate_provider.get_rate(target_date)
+        return self.exchange_rate_provider.get_rate(
+            base_currency=Currency.USD, 
+            target_currency=Currency.JPY, 
+            date=target_date
+        ).rate
     
-    def _convert_money_to_jpy(self, usd_money: Money, rate: Decimal) -> Money:
+    def _convert_money_to_jpy(self, usd_money: Money) -> Money:
         """USD金額を日本円に変換"""
-        if usd_money.currency == Currency.JPY:
-            return usd_money
-        return usd_money.convert_to_jpy(rate)
+        return usd_money.convert(Currency.JPY)
 
-    def _create_money_with_rate(self, amount: Decimal, rate: Decimal) -> Money:
+    def _create_money_with_rate(self, amount: Decimal, exchange_rate: Decimal) -> Money:
         """為替レート付きでMoneyオブジェクトを作成"""
-        return Money(amount=amount, currency=Currency.USD, jpy_rate=rate)
+        return Money(
+            amount=amount, 
+            currency=Currency.USD, 
+            reference_date=date.today()
+        )

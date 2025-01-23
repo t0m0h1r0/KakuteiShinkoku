@@ -6,7 +6,7 @@ import re
 import logging
 
 from ..core.transaction import Transaction
-from ..core.money import Money, Currency
+from ..exchange.money import Money, Currency
 from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .option_records import OptionTradeRecord, OptionSummaryRecord

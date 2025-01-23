@@ -3,7 +3,9 @@ from decimal import Decimal
 from datetime import date
 from typing import Optional
 
-from ..core.money import Money, Currency
+from ..exchange.money import Money
+from ..exchange.currency import Currency
+from ..exchange.rate_provider import RateProvider
 from ..config.settings import DEFAULT_EXCHANGE_RATE
 
 @dataclass
@@ -46,27 +48,46 @@ class OptionTradeRecord:
         """JPY金額の設定"""
         # quantityが整数で渡された場合の対応
         if isinstance(self.quantity, int):
-            self.quantity = Decimal(str(self.quantity))
+            object.__setattr__(self, 'quantity', Decimal(str(self.quantity)))
             
         # strike_priceが数値型で渡された場合の対応
         if isinstance(self.strike_price, (int, float)):
-            self.strike_price = Decimal(str(self.strike_price))
+            object.__setattr__(self, 'strike_price', Decimal(str(self.strike_price)))
             
         # 為替レートの設定
-        if self.exchange_rate:
-            if not self.price_jpy:
-                self.price_jpy = self.price.convert_to_jpy(self.exchange_rate)
-            if not self.fees_jpy:
-                self.fees_jpy = self.fees.convert_to_jpy(self.exchange_rate)
-            if not self.trading_pnl_jpy:
-                self.trading_pnl_jpy = self.trading_pnl.convert_to_jpy(self.exchange_rate)
-            if not self.premium_pnl_jpy:
-                self.premium_pnl_jpy = self.premium_pnl.convert_to_jpy(self.exchange_rate)
+        rate_provider = RateProvider()
+        
+        if not self.price_jpy:
+            object.__setattr__(
+                self, 
+                'price_jpy', 
+                self.price.convert(Currency.JPY, rate_provider)
+            )
+        
+        if not self.fees_jpy:
+            object.__setattr__(
+                self, 
+                'fees_jpy', 
+                self.fees.convert(Currency.JPY, rate_provider)
+            )
+        
+        if not self.trading_pnl_jpy:
+            object.__setattr__(
+                self, 
+                'trading_pnl_jpy', 
+                self.trading_pnl.convert(Currency.JPY, rate_provider)
+            )
+        
+        if not self.premium_pnl_jpy:
+            object.__setattr__(
+                self, 
+                'premium_pnl_jpy', 
+                self.premium_pnl.convert(Currency.JPY, rate_provider)
+            )
 
 @dataclass
 class OptionSummaryRecord:
     """オプション取引サマリー記録"""
-    # 基本情報
     account_id: str
     symbol: str
     description: str
@@ -77,16 +98,18 @@ class OptionSummaryRecord:
     
     # 取引情報
     open_date: date
-    close_date: Optional[date]
-    status: str   # 'Open', 'Closed', 'Expired', 'Assigned'
-    initial_quantity: Decimal
-    remaining_quantity: Decimal
+    close_date: Optional[date] = None
+    status: str = 'Open'
+    initial_quantity: Decimal = Decimal('0')
+    remaining_quantity: Decimal = Decimal('0')
     
     # 累計損益情報
-    trading_pnl: Money   # 反対売買による累計損益
-    premium_pnl: Money   # プレミアムの累計損益
-    total_fees: Money    # 累計手数料
-    exchange_rate: Decimal
+    trading_pnl: Money = field(default_factory=lambda: Money(Decimal('0')))
+    premium_pnl: Money = field(default_factory=lambda: Money(Decimal('0')))
+    total_fees: Money = field(default_factory=lambda: Money(Decimal('0')))
+    
+    # 為替情報
+    exchange_rate: Decimal = DEFAULT_EXCHANGE_RATE
     
     # 日本円換算額
     trading_pnl_jpy: Optional[Money] = None
@@ -97,17 +120,32 @@ class OptionSummaryRecord:
         """JPY金額の設定"""
         # 数値型の変換
         if isinstance(self.initial_quantity, int):
-            self.initial_quantity = Decimal(str(self.initial_quantity))
+            object.__setattr__(self, 'initial_quantity', Decimal(str(self.initial_quantity)))
         if isinstance(self.remaining_quantity, int):
-            self.remaining_quantity = Decimal(str(self.remaining_quantity))
+            object.__setattr__(self, 'remaining_quantity', Decimal(str(self.remaining_quantity)))
         if isinstance(self.strike_price, (int, float)):
-            self.strike_price = Decimal(str(self.strike_price))
+            object.__setattr__(self, 'strike_price', Decimal(str(self.strike_price)))
             
         # 為替レートの設定
-        if self.exchange_rate:
-            if not self.trading_pnl_jpy:
-                self.trading_pnl_jpy = self.trading_pnl.convert_to_jpy(self.exchange_rate)
-            if not self.premium_pnl_jpy:
-                self.premium_pnl_jpy = self.premium_pnl.convert_to_jpy(self.exchange_rate)
-            if not self.total_fees_jpy:
-                self.total_fees_jpy = self.total_fees.convert_to_jpy(self.exchange_rate)
+        rate_provider = RateProvider()
+        
+        if not self.trading_pnl_jpy:
+            object.__setattr__(
+                self, 
+                'trading_pnl_jpy', 
+                self.trading_pnl.convert(Currency.JPY, rate_provider)
+            )
+        
+        if not self.premium_pnl_jpy:
+            object.__setattr__(
+                self, 
+                'premium_pnl_jpy', 
+                self.premium_pnl.convert(Currency.JPY, rate_provider)
+            )
+        
+        if not self.total_fees_jpy:
+            object.__setattr__(
+                self, 
+                'total_fees_jpy', 
+                self.total_fees.convert(Currency.JPY, rate_provider)
+            )

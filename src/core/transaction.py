@@ -3,7 +3,7 @@ from decimal import Decimal
 from datetime import date
 from typing import Optional
 
-from .money import Money
+from ..exchange.money import Money, Currency
 
 @dataclass(frozen=True)
 class Transaction:

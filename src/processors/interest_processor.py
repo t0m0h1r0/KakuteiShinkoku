@@ -3,7 +3,7 @@ from typing import Dict, List
 from datetime import date
 
 from ..core.transaction import Transaction
-from ..core.money import Money, Currency
+from ..exchange.money import Money, Currency
 from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .interest_records import InterestTradeRecord, InterestSummaryRecord

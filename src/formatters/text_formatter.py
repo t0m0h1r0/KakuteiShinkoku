@@ -3,8 +3,8 @@ from decimal import Decimal
 from collections import defaultdict
 
 from .base_formatter import BaseFormatter
-from ..core.money import Money
-from ..core.money import Currency
+from ..exchange.money import Money
+from ..exchange.money import Currency
 
 class TextFormatter(BaseFormatter):
     """テキスト形式のフォーマッタ"""
