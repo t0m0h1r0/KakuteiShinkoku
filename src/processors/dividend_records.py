@@ -5,7 +5,6 @@ from typing import Optional
 
 from ..exchange.money import Money
 from ..exchange.currency import Currency
-from ..config.settings import DEFAULT_EXCHANGE_RATE
 
 @dataclass
 class DividendTradeRecord:
@@ -47,9 +46,7 @@ class DividendSummaryRecord:
    
    total_gross_amount: Money = field(default_factory=lambda: Money(Decimal('0')))
    total_tax_amount: Money = field(default_factory=lambda: Money(Decimal('0')))
-   
-   exchange_rate: Decimal = DEFAULT_EXCHANGE_RATE
-   
+      
    total_gross_amount_jpy: Optional[Money] = None
    total_tax_amount_jpy: Optional[Money] = None
    

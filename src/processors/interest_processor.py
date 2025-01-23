@@ -102,7 +102,6 @@ class InterestProcessor(BaseProcessor):
                 account_id=interest_record.account_id,
                 symbol=symbol,
                 description=interest_record.description,
-                exchange_rate=interest_record.exchange_rate,
             )
        
         summary = self._summary_records[symbol]

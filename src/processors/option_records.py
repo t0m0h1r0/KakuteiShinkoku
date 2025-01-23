@@ -5,7 +5,6 @@ from typing import Optional
 
 from ..exchange.money import Money
 from ..exchange.currency import Currency
-from ..config.settings import DEFAULT_EXCHANGE_RATE
 
 @dataclass
 class OptionTradeRecord:
@@ -71,7 +70,6 @@ class OptionSummaryRecord:
     trading_pnl: Money = field(default_factory=lambda: Money(Decimal('0')))
     premium_pnl: Money = field(default_factory=lambda: Money(Decimal('0')))
     total_fees: Money = field(default_factory=lambda: Money(Decimal('0')))
-    exchange_rate: Decimal = DEFAULT_EXCHANGE_RATE
     trading_pnl_jpy: Optional[Money] = None
     premium_pnl_jpy: Optional[Money] = None
     total_fees_jpy: Optional[Money] = None

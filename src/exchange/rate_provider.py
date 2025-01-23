@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .currency import Currency
 from .exchange_rate import ExchangeRate
-from ..config.settings import DEFAULT_EXCHANGE_RATE, EXCHANGE_RATE_FILE
+DEFAULT_EXCHANGE_RATE = '150.0'
 
 class RateProvider:
     """為替レートを提供するシングルトンクラス"""
@@ -22,9 +22,6 @@ class RateProvider:
             cls._instance = super(RateProvider, cls).__new__(cls)
         
         if not cls._initialized or (rate_file and str(rate_file) != cls._rate_file):
-            if rate_file is None:
-                rate_file = EXCHANGE_RATE_FILE if not cls._rate_file else cls._rate_file
-            
             # 通貨ペアの設定
             if base_currency and target_currency:
                 cls._instance._base_currency = base_currency
@@ -33,7 +30,7 @@ class RateProvider:
                 cls._instance._base_currency = Currency.USD
                 cls._instance._target_currency = Currency.JPY
             
-            cls._instance._initialize(rate_file)
+            cls._instance._initialize(rate_file if rate_file else str(DEFAULT_EXCHANGE_RATE))
         
         return cls._instance
 

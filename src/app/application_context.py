@@ -1,89 +1,161 @@
 import logging
 import logging.config
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from decimal import Decimal
 
-from ..config.settings import (
-    DATA_DIR, OUTPUT_DIR, LOG_DIR,
-    LOGGING_CONFIG, OUTPUT_FILES
-)
 from ..core.transaction_loader import JSONTransactionLoader
 from ..processors.dividend_processor import DividendProcessor
 from ..processors.interest_processor import InterestProcessor
 from ..processors.stock_processor import StockProcessor
 from ..processors.option_processor import OptionProcessor
-
-from .display_manager import DisplayManager
-from .writer_manager import WriterManager
-from .cleanup_handler import CleanupHandler
+from ..outputs.console_output import ConsoleOutput, ColorConsoleOutput
+from ..outputs.logfile_output import LogFileOutput
+from ..outputs.csv_writer import CSVWriter
+from ..formatters.text_formatter import TextFormatter
 
 class ApplicationContext:
-    """アプリケーションのコンテキスト管理クラス"""
-    
-    def __init__(self, use_color_output: bool = True):
-        # ログ設定の初期化
+    def __init__(self, config, use_color_output: bool = True):
+        self.config = config
         self._setup_logging()
-        
-        # ロガーの初期化
         self.logger = logging.getLogger(self.__class__.__name__)
         
         try:
-            # ディレクトリの設定
-            self.logger.debug("Setting up directories...")
-            self._setup_directories()
-            
-            # トランザクションローダーの初期化
-            self.logger.debug("Initializing transaction loader...")
+            self.logger.debug("Setting up application...")
             self.transaction_loader = JSONTransactionLoader()
-                        
-            # 各種プロセッサーを初期化
-            self.logger.debug("Initializing processors...")
             self._initialize_processors()
             
-            # 出力系の初期化
-            self.logger.debug("Initializing output systems...")
-            self.display_outputs = DisplayManager.create_outputs(use_color_output)
+            self.display_outputs = self._create_display_outputs(use_color_output)
+            self.writers = self._create_writers()
             
-            # ライターの初期化（出力先を設定）
-            self.writers = WriterManager.create_writers(self.display_outputs)
-            
-            # 処理結果の保存用
             self.processing_results: Optional[Dict[str, Any]] = None
-            
             self.logger.info("Application context initialized successfully")
             
         except Exception as e:
             self.logger.error(f"Error initializing application context: {e}")
             raise
 
-    def _setup_logging(self):
-        """ログ設定"""
-        try:
-            # ログディレクトリの作成
-            LOG_DIR.mkdir(parents=True, exist_ok=True)
-            
-            # ファイルハンドラーのパスを更新
-            config = LOGGING_CONFIG.copy()
-            config['handlers']['file']['filename'] = str(LOG_DIR / 'processing.log')
-            
-            logging.config.dictConfig(config)
-        except Exception as e:
-            print(f"Error setting up logging: {e}")
-            raise
+    def _create_writers(self) -> Dict:
+        """Create CSV writers"""
+        paths = self.config.get_output_paths()
+        return {
+            'console': self.display_outputs['console'],
+            'dividend_csv': CSVWriter(
+                paths['dividend_history'],
+                fieldnames=[
+                    'date', 'account', 'symbol', 'description',
+                    'action', 'gross_amount', 'tax_amount', 'net_amount',
+                    'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',
+                    'exchange_rate'
+                ]
+            ),
+            'interest_csv': CSVWriter(
+                paths['interest_history'],
+                fieldnames=[
+                    'date', 'account', 'symbol', 'description',
+                    'action', 'gross_amount', 'tax_amount', 'net_amount',
+                    'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',
+                    'exchange_rate'
+                ]
+            ),
+            'stock_trade_csv': CSVWriter(
+                paths['stock_trade_history'],
+                fieldnames=[
+                    'date', 'account', 'symbol', 'description',
+                    'action', 'quantity', 'price', 'realized_gain',
+                    'price_jpy', 'realized_gain_jpy',
+                    'exchange_rate'
+                ]
+            ),
+            'option_trade_csv': CSVWriter(
+                paths['option_trade_history'],
+                fieldnames=[
+                    'date', 'account', 'symbol', 'description',
+                    'action', 'quantity', 'option_type', 'strike_price',
+                    'expiry_date', 'underlying',
+                    'price', 'fees', 
+                    'trading_pnl', 'premium_pnl',
+                    'price_jpy', 'fees_jpy', 
+                    'trading_pnl_jpy', 'premium_pnl_jpy',
+                    'exchange_rate', 'position_type', 
+                    'is_closed', 'is_expired', 'is_assigned'
+                ]
+            ),
+            'option_summary_csv': CSVWriter(
+                paths['option_summary'],
+                fieldnames=[
+                    'account', 'symbol', 'description', 'underlying',
+                    'option_type', 'strike_price', 'expiry_date',
+                    'open_date', 'close_date', 'status',
+                    'initial_quantity', 'remaining_quantity',
+                    'trading_pnl', 'premium_pnl', 'total_fees',
+                    'trading_pnl_jpy', 'premium_pnl_jpy', 'total_fees_jpy',
+                    'exchange_rate'
+                ]
+            ),
+            'final_summary_csv': CSVWriter(
+                paths['final_summary'],
+                fieldnames=[
+                    'category', 'subcategory',
+                    'gross_amount_usd', 'tax_amount_usd', 'net_amount_usd',
+                    'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy'
+                ]
+            )
+        }
 
-    def _setup_directories(self):
-        """ディレクトリ構造の設定"""
-        for directory in [DATA_DIR, OUTPUT_DIR, LOG_DIR]:
-            self.logger.debug(f"Creating directory: {directory}")
-            directory.mkdir(parents=True, exist_ok=True)
+    def _create_display_outputs(self, use_color: bool) -> Dict:
+        """Create display outputs with console and log file"""
+        text_formatter = TextFormatter()
+        summary_log = self.config.logging_config['log_dir'] / 'processing_summary.log'
+        summary_log.parent.mkdir(parents=True, exist_ok=True)
         
-        # 出力ディレクトリの作成
-        for output_path in OUTPUT_FILES.values():
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+        return {
+            'console': ColorConsoleOutput(text_formatter) if use_color else ConsoleOutput(text_formatter),
+            'log_file': LogFileOutput(
+                output_path=summary_log,
+                formatter=text_formatter,
+                line_prefix='[SUMMARY] '
+            )
+        }
+
+    def _setup_logging(self):
+        """Setup logging configuration"""
+        log_config = self._create_logging_config()
+        logging.config.dictConfig(log_config)
+
+    def _create_logging_config(self) -> Dict[str, Any]:
+        """Create logging configuration dictionary"""
+        log_dir = Path(self.config.logging_config['log_dir'])
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        return {
+            'version': 1,
+            'formatters': {
+                'detailed': {
+                    'format': self.config.logging_config['log_format']
+                }
+            },
+            'handlers': {
+                'console': {
+                    'class': 'logging.StreamHandler',
+                    'formatter': 'detailed',
+                    'level': self.config.logging_config['console_level']
+                },
+                'file': {
+                    'class': 'logging.FileHandler',
+                    'filename': str(log_dir / self.config.logging_config['log_file']),
+                    'formatter': 'detailed',
+                    'level': self.config.logging_config['file_level']
+                }
+            },
+            'root': {
+                'handlers': ['console', 'file'],
+                'level': self.config.logging_config['file_level']
+            }
+        }
 
     def _initialize_processors(self):
-        """各種プロセッサーの初期化"""
+        """Initialize processors"""
         try:
             self.logger.debug("Initializing dividend processor...")
             self.dividend_processor = DividendProcessor()
@@ -102,10 +174,6 @@ class ApplicationContext:
             raise
         
     def cleanup(self) -> None:
-        """コンテキストのクリーンアップ"""
-        try:
-            self.logger.debug("Starting context cleanup...")
-            self.logger.info("Context cleanup completed")
-        except Exception as e:
-            self.logger.error(f"Error during cleanup: {e}")
-            raise
+        """Cleanup context"""
+        self.logger.debug("Starting context cleanup...")
+        self.logger.info("Context cleanup completed")

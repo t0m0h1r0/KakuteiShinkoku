@@ -4,7 +4,6 @@ from datetime import date
 from typing import Optional
 
 from ..exchange.money import Money, Currency
-from ..config.settings import DEFAULT_EXCHANGE_RATE
 
 @dataclass
 class StockTradeRecord:
@@ -37,7 +36,6 @@ class StockSummaryRecord:
     description: str
     open_date: date
     initial_quantity: Decimal
-    exchange_rate: Decimal = DEFAULT_EXCHANGE_RATE
     close_date: Optional[date] = None
     remaining_quantity: Decimal = Decimal('0')
     total_realized_gain: Money = field(default_factory=lambda: Money(0))

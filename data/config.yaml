@@ -1,0 +1,26 @@
+data_dir: data
+output_dir: output
+debug: false
+use_color: true
+
+exchange_rate_file: HistoricalPrices.csv
+default_exchange_rate: 150.0
+
+input_encoding: utf-8
+output_encoding: utf-8
+
+output_files:
+  dividend_history: dividend_history.csv
+  dividend_summary: dividend_summary.csv
+  interest_history: interest_history.csv
+  stock_trade_history: stock_history.csv
+  option_trade_history: option_history.csv
+  option_summary: option_summary.csv
+  final_summary: final_summary.csv
+
+logging:
+  console_level: INFO
+  file_level: DEBUG
+  log_dir: output/logs
+  log_file: processing.log
+  log_format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

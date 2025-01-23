@@ -89,7 +89,6 @@ class DividendProcessor(BaseProcessor):
                 account_id=dividend_record.account_id,
                 symbol=symbol,
                 description=dividend_record.description,
-                exchange_rate=dividend_record.exchange_rate
             )
         
         summary = self._summary_records[symbol]
