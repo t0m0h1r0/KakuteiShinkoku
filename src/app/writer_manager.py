@@ -74,7 +74,6 @@ class WriterManager:
                     'gross_amount_jpy',     # 総額（JPY）
                     'tax_amount_jpy',       # 税額（JPY）
                     'net_amount_jpy',       # 純額（JPY）
-                    'average_exchange_rate' # 平均為替レート
                 ]
             )
         }
