@@ -4,17 +4,20 @@ import logging
 
 from ..exchange.money import Money
 from ..outputs.base_output import BaseOutput
-from ..formatters.base_formatter import BaseFormatter
+from ..formatters.text_formatter import TextFormatter
 
 class ConsoleOutput(BaseOutput):
     """コンソール出力クラス"""
     
+    def __init__(self, formatter: TextFormatter = None):
+        super().__init__(formatter or TextFormatter())
+
     def output(self, data: Any) -> None:
         """データをコンソールに出力"""
         try:
             # サマリーデータの場合
             if isinstance(data, dict) and self._is_summary_data(data):
-                self._output_summary(data)
+                print(self._get_summary_text(data))
             # レコードリストの場合
             elif isinstance(data, list):
                 self._output_record_summary(data)
@@ -30,38 +33,9 @@ class ConsoleOutput(BaseOutput):
         """サマリーデータかどうかを判定"""
         return all(key in data for key in ['income', 'trading', 'total'])
 
-    def _output_summary(self, summary: Dict) -> None:
-        """投資サマリーを出力"""
-        def _format_money(money: Money) -> str:
-            """Moneyオブジェクトをフォーマット"""
-            return f"${money.usd:,.2f}"
-
-        print("\n【投資総合レポート】")
-        print("=" * 40)
-        
-        # 収入サマリー
-        income = summary.get('income', {})
-        print("\n【収入サマリー】")
-        print(f"配当総額:     {_format_money(income.get('dividend_total', Money(0)))}")
-        print(f"利子総額:     {_format_money(income.get('interest_total', Money(0)))}")
-        print(f"税金総額:     {_format_money(income.get('tax_total', Money(0)))}")
-        print(f"純収入:       {_format_money(income.get('net_total', Money(0)))}")
-        
-        # 取引サマリー
-        trading = summary.get('trading', {})
-        print("\n【取引サマリー】")
-        print(f"株式取引損益: {_format_money(trading.get('stock_gain', Money(0)))}")
-        print(f"オプション取引損益: {_format_money(trading.get('option_gain', Money(0)))}")
-        print(f"オプションプレミアム収入: {_format_money(trading.get('premium_income', Money(0)))}")
-        print(f"純取引損益:   {_format_money(trading.get('net_total', Money(0)))}")
-        
-        # 総合計
-        total = summary.get('total', {})
-        print("\n【総合計】")
-        print(f"総収入:       {_format_money(total.get('total_income', Money(0)))}")
-        print(f"総取引損益:   {_format_money(total.get('total_trading', Money(0)))}")
-        print(f"総合計:       {_format_money(total.get('grand_total', Money(0)))}")
-        print("=" * 40)
+    def _get_summary_text(self, summary: Dict) -> str:
+        """サマリーテキストを取得"""
+        return self.formatter._format_summary_data(summary) if self.formatter else str(summary)
 
     def _output_record_summary(self, records: List) -> None:
         """レコードの要約を出力"""
@@ -139,46 +113,6 @@ class ConsoleOutput(BaseOutput):
 class ColorConsoleOutput(ConsoleOutput):
     """カラー対応コンソール出力クラス"""
     
-    COLORS = {
-        'HEADER': '\033[95m',
-        'BLUE': '\033[94m',
-        'GREEN': '\033[92m',
-        'WARNING': '\033[93m',
-        'RED': '\033[91m',
-        'END': '\033[0m',
-        'BOLD': '\033[1m',
-        'UNDERLINE': '\033[4m'
-    }
-
-    def _output_summary(self, summary: Dict) -> None:
-        """カラー付きサマリー出力"""
-        def _format_money(money: Money) -> str:
-            """Moneyオブジェクトをフォーマット"""
-            return f"${money.usd:,.2f}"
-
-        print(f"\n{self.COLORS['HEADER']}【投資総合レポート】{self.COLORS['END']}")
-        print("=" * 40)
-        
-        # 収入サマリー
-        income = summary.get('income', {})
-        print(f"\n{self.COLORS['BLUE']}【収入サマリー】{self.COLORS['END']}")
-        print(f"配当総額:     {_format_money(income.get('dividend_total', Money(0)))}")
-        print(f"利子総額:     {_format_money(income.get('interest_total', Money(0)))}")
-        print(f"税金総額:     {_format_money(income.get('tax_total', Money(0)))}")
-        print(f"純収入:       {_format_money(income.get('net_total', Money(0)))}")
-        
-        # 取引サマリー
-        trading = summary.get('trading', {})
-        print(f"\n{self.COLORS['GREEN']}【取引サマリー】{self.COLORS['END']}")
-        print(f"株式取引損益: {_format_money(trading.get('stock_gain', Money(0)))}")
-        print(f"オプション取引損益: {_format_money(trading.get('option_gain', Money(0)))}")
-        print(f"オプションプレミアム収入: {_format_money(trading.get('premium_income', Money(0)))}")
-        print(f"純取引損益:   {_format_money(trading.get('net_total', Money(0)))}")
-        
-        # 総合計
-        total = summary.get('total', {})
-        print(f"\n{self.COLORS['BOLD']}【総合計】{self.COLORS['END']}")
-        print(f"総収入:       {_format_money(total.get('total_income', Money(0)))}")
-        print(f"総取引損益:   {_format_money(total.get('total_trading', Money(0)))}")
-        print(f"総合計:       {_format_money(total.get('grand_total', Money(0)))}")
-        print("=" * 40)
+    def _get_summary_text(self, summary: Dict) -> str:
+        """カラー付きサマリーテキストを取得"""
+        return self.formatter._format_summary_data(summary, use_color=True) if self.formatter else str(summary)

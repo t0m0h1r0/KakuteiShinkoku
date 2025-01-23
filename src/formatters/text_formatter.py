@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List
 from decimal import Decimal
 from collections import defaultdict
 
@@ -9,6 +9,17 @@ from ..exchange.money import Currency
 class TextFormatter(BaseFormatter):
     """テキスト形式のフォーマッタ"""
     
+    COLORS = {
+        'HEADER': '\033[95m',
+        'BLUE': '\033[94m',
+        'GREEN': '\033[92m',
+        'WARNING': '\033[93m',
+        'RED': '\033[91m',
+        'END': '\033[0m',
+        'BOLD': '\033[1m',
+        'UNDERLINE': '\033[4m'
+    }
+
     def format(self, data: Any) -> str:
         """データをテキスト形式でフォーマット"""
         try:
@@ -26,7 +37,14 @@ class TextFormatter(BaseFormatter):
         """データがサマリータイプかを判定"""
         return all(key in data for key in ['income', 'trading', 'total'])
 
-    def _format_summary_data(self, data: Dict) -> str:
+    def format_money(self, money: Money, use_color: bool = False) -> str:
+        """Moneyオブジェクトをフォーマット"""
+        formatted = f"${money.usd:,.2f}"
+        if use_color and money.usd < 0:
+            return f"{self.COLORS['RED']}{formatted}{self.COLORS['END']}"
+        return formatted
+
+    def _format_summary_data(self, data: Dict, use_color: bool = False) -> str:
         """総合サマリーのフォーマット"""
         income = data['income']
         trading = data['trading']
@@ -36,32 +54,29 @@ class TextFormatter(BaseFormatter):
         lines.append("-" * 40)
         
         # 収入サマリー
-        lines.append("\n収入サマリー:")
-        lines.append(f"配当総額: ${income['dividend_total'].usd:,.2f}")
-        lines.append(f"利子総額: ${income['interest_total'].usd:,.2f}")
-        lines.append(f"税金合計: ${income['tax_total'].usd:,.2f}")
-        lines.append(f"純収入: ${income['net_total'].usd:,.2f}")
+        header = f"{self.COLORS['BLUE']}収入サマリー:{self.COLORS['END']}" if use_color else "収入サマリー:"
+        lines.append(f"\n{header}")
+        lines.append(f"配当総額: {self.format_money(income['dividend_total'], use_color)}")
+        lines.append(f"利子総額: {self.format_money(income['interest_total'], use_color)}")
+        lines.append(f"税金合計: {self.format_money(income['tax_total'], use_color)}")
+        lines.append(f"純収入: {self.format_money(income['net_total'], use_color)}")
         
         # 取引サマリー
-        lines.append("\n取引サマリー:")
-        lines.append(f"株式取引損益: ${trading['stock_gain'].usd:,.2f}")
-        lines.append(f"オプション取引損益: ${trading['option_gain'].usd:,.2f}")
-        lines.append(f"オプションプレミアム収入: ${trading['premium_income'].usd:,.2f}")
-        lines.append(f"純取引損益: ${trading['net_total'].usd:,.2f}")
+        header = f"{self.COLORS['GREEN']}取引サマリー:{self.COLORS['END']}" if use_color else "取引サマリー:"
+        lines.append(f"\n{header}")
+        lines.append(f"株式取引損益: {self.format_money(trading['stock_gain'], use_color)}")
+        lines.append(f"オプション取引損益: {self.format_money(trading['option_gain'], use_color)}")
+        lines.append(f"オプションプレミアム収入: {self.format_money(trading['premium_income'], use_color)}")
+        lines.append(f"純取引損益: {self.format_money(trading['net_total'], use_color)}")
         
         # 総合計
-        lines.append("\n総合計:")
-        lines.append(f"総収入: ${total['total_income'].usd:,.2f}")
-        lines.append(f"総取引損益: ${total['total_trading'].usd:,.2f}")
-        lines.append(f"最終合計: ${total['grand_total'].usd:,.2f}")
+        header = f"{self.COLORS['BOLD']}総合計:{self.COLORS['END']}" if use_color else "総合計:"
+        lines.append(f"\n{header}")
+        lines.append(f"総収入: {self.format_money(total['total_income'], use_color)}")
+        lines.append(f"総取引損益: {self.format_money(total['total_trading'], use_color)}")
+        lines.append(f"最終合計: {self.format_money(total['grand_total'], use_color)}")
         
         return "\n".join(lines)
-
-    def _format_money(self, amount: Decimal, is_jpy: bool = False) -> str:
-        """金額のフォーマット処理"""
-        if is_jpy:
-            return f"¥{int(amount):,}"
-        return f"${amount:,.2f}"
 
     def _format_record_list(self, records: List) -> str:
         """記録リストのフォーマット"""
@@ -173,3 +188,9 @@ class TextFormatter(BaseFormatter):
     def _is_interest_record(self, record: Any) -> bool:
         """利子レコードかどうかを判定"""
         return hasattr(record, 'income_type') and record.income_type != 'Dividend'
+
+    def _format_money(self, amount: Decimal, is_jpy: bool = False) -> str:
+        """金額のフォーマット処理"""
+        if is_jpy:
+            return f"¥{int(amount):,}"
+        return f"${amount:,.2f}"
