@@ -6,7 +6,6 @@ import re
 
 from ..core.transaction import Transaction
 from ..exchange.money import Money, Currency
-from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .option_records import OptionTradeRecord, OptionSummaryRecord
 from .option_position import OptionPosition, OptionContract
@@ -14,8 +13,8 @@ from .option_position import OptionPosition, OptionContract
 class OptionProcessor(BaseProcessor):
    SHARES_PER_CONTRACT = 100
    
-   def __init__(self, exchange_rate_provider: IExchangeRateProvider):
-       super().__init__(exchange_rate_provider)
+   def __init__(self):
+       super().__init__()
        self._positions: Dict[str, OptionPosition] = defaultdict(OptionPosition)
        self._trade_records: List[OptionTradeRecord] = []
        self._summary_records: Dict[str, OptionSummaryRecord] = {}
@@ -83,7 +82,6 @@ class OptionProcessor(BaseProcessor):
            
        symbol = transaction.symbol
        action = self._normalize_action(transaction.action_type)
-       exchange_rate = self._get_exchange_rate(transaction.transaction_date)
        
        quantity = abs(Decimal(str(transaction.quantity or 0)))
        per_share_price = Decimal(str(transaction.price or 0))
@@ -138,7 +136,7 @@ class OptionProcessor(BaseProcessor):
            quantity=quantity,
            price=price_money,
            fees=fees_money,
-           exchange_rate=exchange_rate,
+           exchange_rate=Money(1).as_currency(Currency.JPY),
            option_type=option_info['option_type'],
            strike_price=option_info['strike_price'],
            expiry_date=option_info['expiry_date'],
@@ -230,7 +228,7 @@ class OptionProcessor(BaseProcessor):
                trading_pnl=trade_record.trading_pnl,
                premium_pnl=trade_record.premium_pnl,
                total_fees=trade_record.fees,
-               exchange_rate=trade_record.exchange_rate
+               exchange_rate=Money(1).as_currency(Currency.JPY),
            )
        
        summary = self._summary_records[symbol]

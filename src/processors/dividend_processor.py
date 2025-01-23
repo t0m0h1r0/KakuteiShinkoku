@@ -4,13 +4,12 @@ from datetime import date
 
 from ..core.transaction import Transaction
 from ..exchange.money import Money, Currency
-from ..core.interfaces import IExchangeRateProvider
 from .base import BaseProcessor
 from .dividend_records import DividendTradeRecord, DividendSummaryRecord
 
 class DividendProcessor(BaseProcessor):
-    def __init__(self, exchange_rate_provider: IExchangeRateProvider):
-        super().__init__(exchange_rate_provider)
+    def __init__(self):
+        super().__init__()
         self._tax_records: Dict[str, List[dict]] = {}
         self._trade_records: List[DividendTradeRecord] = []
         self._summary_records: Dict[str, DividendSummaryRecord] = {}
@@ -23,7 +22,6 @@ class DividendProcessor(BaseProcessor):
         if not self._is_dividend_transaction(transaction):
             return
 
-        exchange_rate = self._get_exchange_rate(transaction.transaction_date)
         tax_amount = self._find_matching_tax(transaction)
         
         gross_amount = self._create_money(abs(transaction.amount))
@@ -38,7 +36,7 @@ class DividendProcessor(BaseProcessor):
             action_type=transaction.action_type,
             gross_amount=gross_amount,
             tax_amount=tax_money,
-            exchange_rate=exchange_rate
+            exchange_rate=Money(1,reference_date=transaction.transaction_date).as_currency(Currency.JPY),
         )
         
         self._trade_records.append(dividend_record)

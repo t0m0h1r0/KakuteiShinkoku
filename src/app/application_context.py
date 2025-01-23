@@ -8,7 +8,6 @@ from ..config.settings import (
     DATA_DIR, OUTPUT_DIR, LOG_DIR,
     LOGGING_CONFIG, OUTPUT_FILES
 )
-from ..exchange.rate_provider import RateProvider
 from ..core.transaction_loader import JSONTransactionLoader
 from ..processors.dividend_processor import DividendProcessor
 from ..processors.interest_processor import InterestProcessor
@@ -37,10 +36,7 @@ class ApplicationContext:
             # トランザクションローダーの初期化
             self.logger.debug("Initializing transaction loader...")
             self.transaction_loader = JSONTransactionLoader()
-            
-            # 為替レートプロバイダーをコンストラクタで初期化せず、既存のインスタンスを使用
-            self.exchange_rate_provider = RateProvider()
-            
+                        
             # 各種プロセッサーを初期化
             self.logger.debug("Initializing processors...")
             self._initialize_processors()
@@ -90,16 +86,16 @@ class ApplicationContext:
         """各種プロセッサーの初期化"""
         try:
             self.logger.debug("Initializing dividend processor...")
-            self.dividend_processor = DividendProcessor(self.exchange_rate_provider)
+            self.dividend_processor = DividendProcessor()
             
             self.logger.debug("Initializing interest processor...")
-            self.interest_processor = InterestProcessor(self.exchange_rate_provider)
+            self.interest_processor = InterestProcessor()
             
             self.logger.debug("Initializing stock processor...")
-            self.stock_processor = StockProcessor(self.exchange_rate_provider)
+            self.stock_processor = StockProcessor()
             
             self.logger.debug("Initializing option processor...")
-            self.option_processor = OptionProcessor(self.exchange_rate_provider)
+            self.option_processor = OptionProcessor()
             
         except Exception as e:
             self.logger.error(f"Error initializing processors: {e}")
@@ -109,7 +105,6 @@ class ApplicationContext:
         """コンテキストのクリーンアップ"""
         try:
             self.logger.debug("Starting context cleanup...")
-            CleanupHandler.cleanup_context(self)
             self.logger.info("Context cleanup completed")
         except Exception as e:
             self.logger.error(f"Error during cleanup: {e}")

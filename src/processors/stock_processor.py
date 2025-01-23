@@ -3,15 +3,14 @@ from typing import Dict, List
 from collections import defaultdict
 
 from ..core.transaction import Transaction
-from ..exchange.money import Money
-from ..core.interfaces import IExchangeRateProvider
+from ..exchange.money import Money, Currency
 from .base import BaseProcessor
 from .stock_records import StockTradeRecord, StockSummaryRecord
 from .stock_lot import StockLot, StockPosition
 
 class StockProcessor(BaseProcessor):
-    def __init__(self, exchange_rate_provider: IExchangeRateProvider):
-        super().__init__(exchange_rate_provider)
+    def __init__(self):
+        super().__init__()
         self._positions: Dict[str, StockPosition] = defaultdict(StockPosition)
         self._records: List[StockTradeRecord] = []
         self._summary_records: Dict[str, StockSummaryRecord] = {}
@@ -35,7 +34,6 @@ class StockProcessor(BaseProcessor):
         quantity = Decimal(str(transaction.quantity or 0))
         price = Decimal(str(transaction.price or 0))
         fees = Decimal(str(transaction.fees or 0))
-        exchange_rate = self._get_exchange_rate(transaction.transaction_date)
         
         realized_gain, avg_price, position = self._update_position(
             symbol, action, quantity, price, fees
@@ -51,7 +49,7 @@ class StockProcessor(BaseProcessor):
             self._to_money(price * quantity), 
             self._to_money(realized_gain),
             self._to_money(fees),
-            exchange_rate
+            Money(1).as_currency(Currency.JPY),
         )
         self._records.append(record)
         self._update_summary_record(record, position)
@@ -79,7 +77,7 @@ class StockProcessor(BaseProcessor):
                 record.description, 
                 record.trade_date,
                 record.quantity,
-                record.exchange_rate
+                record.exchange_rate,
             )
             self._summary_records[record.symbol] = summary
         

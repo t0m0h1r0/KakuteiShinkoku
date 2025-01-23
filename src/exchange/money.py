@@ -12,7 +12,6 @@ class Money:
     インスタンス作成時に全通貨の金額を計算し、四則演算時の為替計算を不要にします。
     """
     _amounts: Dict[Currency, Decimal]
-    reference_date: date
     display_currency: Currency
 
     def __init__(
@@ -45,14 +44,10 @@ class Money:
 
         # イミュータブルなインスタンス変数を設定
         object.__setattr__(self, '_amounts', amounts)
-        object.__setattr__(self, 'reference_date', ref_date)
         object.__setattr__(self, 'display_currency', display_currency)
 
     def __add__(self, other: 'Money') -> 'Money':
         """金額の加算"""
-        if self.reference_date != other.reference_date:
-            raise ValueError("異なる参照日付の金額は加算できません")
-        
         # 各通貨での合計を計算
         new_amounts = {}
         for currency in Currency.supported_currencies():
@@ -61,15 +56,11 @@ class Money:
         # 新しいMoneyインスタンスを作成
         result = object.__new__(Money)
         object.__setattr__(result, '_amounts', new_amounts)
-        object.__setattr__(result, 'reference_date', self.reference_date)
         object.__setattr__(result, 'display_currency', self.display_currency)
         return result
 
     def __sub__(self, other: 'Money') -> 'Money':
-        """金額の減算"""
-        if self.reference_date != other.reference_date:
-            raise ValueError("異なる参照日付の金額は減算できません")
-        
+        """金額の減算"""        
         # 各通貨での差を計算
         new_amounts = {}
         for currency in Currency.supported_currencies():
@@ -78,7 +69,6 @@ class Money:
         # 新しいMoneyインスタンスを作成
         result = object.__new__(Money)
         object.__setattr__(result, '_amounts', new_amounts)
-        object.__setattr__(result, 'reference_date', self.reference_date)
         object.__setattr__(result, 'display_currency', self.display_currency)
         return result
 
@@ -94,7 +84,6 @@ class Money:
         # 新しいMoneyインスタンスを作成
         result = object.__new__(Money)
         object.__setattr__(result, '_amounts', new_amounts)
-        object.__setattr__(result, 'reference_date', self.reference_date)
         object.__setattr__(result, 'display_currency', self.display_currency)
         return result
 
@@ -110,7 +99,6 @@ class Money:
         # 新しいMoneyインスタンスを作成
         result = object.__new__(Money)
         object.__setattr__(result, '_amounts', new_amounts)
-        object.__setattr__(result, 'reference_date', self.reference_date)
         object.__setattr__(result, 'display_currency', self.display_currency)
         return result
 
@@ -138,7 +126,6 @@ class Money:
         """表示通貨を変更"""
         result = object.__new__(Money)
         object.__setattr__(result, '_amounts', self._amounts)
-        object.__setattr__(result, 'reference_date', self.reference_date)
         object.__setattr__(result, 'display_currency', currency)
         return result
 
@@ -151,4 +138,4 @@ class Money:
 
     def __repr__(self) -> str:
         """開発者向けの文字列表現"""
-        return f"Money(amount={self._amounts[self.display_currency]}, currency={self.display_currency}, date={self.reference_date})"
+        return f"Money(amount={self._amounts[self.display_currency]}, currency={self.display_currency})"

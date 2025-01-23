@@ -24,19 +24,16 @@ class ReportCalculator:
     def calculate_income_summary_details(records: List) -> Dict[str, Decimal]:
         total_usd = Decimal('0')
         total_jpy = Decimal('0')
-        exchange_rate_sum = Decimal('0')
         count = 0
 
         for record in records:
             total_usd += record.gross_amount.usd - record.tax_amount.usd
             total_jpy += record.gross_amount.jpy - record.tax_amount.jpy
-            exchange_rate_sum += record.exchange_rate
             count += 1
 
         return {
             'total_usd': total_usd,
             'total_jpy': total_jpy,
-            'exchange_rate': exchange_rate_sum / count if count > 0 else Decimal('150.0')
         }
 
     @staticmethod
@@ -49,13 +46,11 @@ class ReportCalculator:
         for record in records:
             total_usd += record.realized_gain.usd
             total_jpy += record.realized_gain.jpy
-            exchange_rate_sum += record.exchange_rate
             count += 1
 
         return {
             'total_usd': total_usd,
             'total_jpy': total_jpy,
-            'exchange_rate': exchange_rate_sum / count if count > 0 else Decimal('150.0')
         }
 
     @staticmethod
@@ -76,7 +71,6 @@ class ReportCalculator:
             premium_pnl_jpy += record.premium_pnl.jpy
             fees_usd += record.fees.usd
             fees_jpy += record.fees.jpy
-            exchange_rate_sum += record.exchange_rate
             count += 1
 
         return {
@@ -86,5 +80,4 @@ class ReportCalculator:
             'total_premium_pnl_jpy': premium_pnl_jpy,
             'total_fees_usd': fees_usd,
             'total_fees_jpy': fees_jpy,
-            'weighted_exchange_rate': exchange_rate_sum / count if count > 0 else Decimal('150.0')
         }
