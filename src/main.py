@@ -5,7 +5,8 @@ import argparse
 from datetime import datetime
 from decimal import Decimal
 import yaml
-from typing import Dict, Any
+from typing import Dict, Any, List
+import glob
 
 from .app.application_context import ApplicationContext
 from .app.data_processor import InvestmentDataProcessor
@@ -31,6 +32,18 @@ class Config:
         self.config['data_dir'].mkdir(parents=True, exist_ok=True)
         self.config['output_dir'].mkdir(parents=True, exist_ok=True)
         self.config['logging']['log_dir'].mkdir(parents=True, exist_ok=True)
+
+    def get_json_files(self) -> List[Path]:
+        """設定されたパターンに基づいてJSONファイルを取得"""
+        json_files = []
+        data_dir = self.config['data_dir']
+        
+        # トランザクションファイルパターンの処理
+        for pattern in self.config.get('transaction_files', ['*.json']):
+            matched_files = list(data_dir.glob(pattern))
+            json_files.extend(matched_files)
+        
+        return sorted(set(json_files))  # 重複を除去してソート
     
     def get_output_paths(self) -> Dict[str, Path]:
         return {
@@ -87,10 +100,16 @@ def main():
         logger.info("Starting investment data processing...")
         RateProvider(config.exchange_rate_file)
         
-        processor = InvestmentDataProcessor(context)
-        logger.info(f"Processing files from directory: {config.data_dir}")
+        # JSONファイルの取得
+        json_files = config.get_json_files()
+        if not json_files:
+            logger.error("No JSON files found matching the specified patterns")
+            return 1
+            
+        logger.info(f"Found {len(json_files)} JSON files to process")
         
-        if not processor.process_files(config.data_dir):
+        processor = InvestmentDataProcessor(context)
+        if not processor.process_files(json_files):
             logger.error("Data processing failed")
             return 1
         

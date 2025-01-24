@@ -17,18 +17,24 @@ class DataProcessor:
 class InvestmentDataProcessor(DataProcessor):
     """投資データ処理クラス"""
     
-    def process_files(self, data_dir: Path) -> bool:
-        """ファイル処理のメインフロー"""
+    def process_files(self, json_files: List[Path]) -> bool:
+        """複数のJSONファイルを処理"""
         try:
-            # JSONファイルの検索
-            json_files = list(data_dir.glob('*.json'))
-            if not json_files:
-                self.logger.error("No JSON files found for processing")
-                return False
+            all_transactions = []
+            
+            # 各JSONファイルからトランザクションを読み込み
+            for file in json_files:
+                try:
+                    self.logger.info(f"Processing file: {file}")
+                    transactions = self.context.transaction_loader.load(file)
+                    all_transactions.extend(transactions)
+                    self.logger.debug(f"Successfully loaded {len(transactions)} transactions from {file}")
+                except Exception as e:
+                    self.logger.error(f"Error processing file {file}: {e}\n{traceback.format_exc()}")
+                    continue
 
-            # トランザクションの処理
-            all_transactions = self._load_transactions(json_files)
             if not all_transactions:
+                self.logger.error("No transactions were loaded from any files")
                 return False
 
             # データの処理と結果の返却
@@ -65,28 +71,24 @@ class InvestmentDataProcessor(DataProcessor):
                 'interest_records': interest_records,
                 'stock_records': stock_records,
                 'option_records': option_records,
-                'option_processor': self.context.option_processor  # オプションプロセッサも追加
+                'option_processor': self.context.option_processor
             }
 
             # レポート生成
             report_manager = InvestmentReportManager(self.context.writers)
             report_manager.generate_reports(self.context.processing_results)
 
+            # 処理されたトランザクション数をログ出力
+            total_records = (
+                len(dividend_records) +
+                len(interest_records) +
+                len(stock_records) +
+                len(option_records)
+            )
+            self.logger.info(f"Successfully processed {total_records} total records")
+
             return True
 
         except Exception as e:
             self.logger.error(f"Data processing error: {e}\n{traceback.format_exc()}")
             return False
-
-    def _load_transactions(self, json_files: List[Path]) -> List[Transaction]:
-        """トランザクションの読み込み"""
-        all_transactions = []
-        for file in json_files:
-            try:
-                self.logger.info(f"Processing file: {file}")
-                transactions = self.context.transaction_loader.load(file)
-                all_transactions.extend(transactions)
-                self.logger.debug(f"Successfully loaded {len(transactions)} transactions from {file}")
-            except Exception as e:
-                self.logger.error(f"Error loading file {file}: {e}\n{traceback.format_exc()}")
-        return all_transactions

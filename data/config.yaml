@@ -3,7 +3,12 @@ output_dir: output
 debug: false
 use_color: true
 
-exchange_rate_file: HistoricalPrices.csv
+# JSONファイルパターンを追加
+transaction_files:
+  - "Schwab_*.json"
+  - "TD_Ameritrade_*.json"
+
+exchange_rate_file: data/HistoricalPrices.csv 
 default_exchange_rate: 150.0
 
 input_encoding: utf-8
