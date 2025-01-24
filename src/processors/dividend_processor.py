@@ -10,7 +10,6 @@ from .dividend_records import DividendTradeRecord, DividendSummaryRecord
 class DividendProcessor(BaseProcessor):
     def __init__(self):
         super().__init__()
-        self._tax_records: Dict[str, List[dict]] = {}
         self._trade_records: List[DividendTradeRecord] = []
         self._summary_records: Dict[str, DividendSummaryRecord] = {}
 
@@ -50,36 +49,6 @@ class DividendProcessor(BaseProcessor):
         }
         return (transaction.action_type.upper() in dividend_actions and 
                 abs(transaction.amount) > Decimal('0'))
-
-    def _is_tax_transaction(self, transaction: Transaction) -> bool:
-        tax_actions = {
-            'NRA TAX ADJ',
-            'PR YR NRA TAX'
-        }
-        return transaction.action_type.upper() in tax_actions
-
-    def _process_tax(self, transaction: Transaction) -> None:
-        symbol = transaction.symbol or 'GENERAL'
-        if symbol not in self._tax_records:
-            self._tax_records[symbol] = []
-        
-        self._tax_records[symbol].append({
-            'date': transaction.transaction_date,
-            'amount': abs(transaction.amount)
-        })
-
-    def _find_matching_tax(self, transaction: Transaction) -> Decimal:
-        symbol = transaction.symbol or 'GENERAL'
-        if symbol not in self._tax_records:
-            return Decimal('0')
-
-        transaction_date = transaction.transaction_date
-        
-        for tax_record in self._tax_records[symbol]:
-            if abs((tax_record['date'] - transaction_date).days) <= 7:
-                return Decimal(tax_record['amount'])
-                
-        return Decimal('0')
 
     def _update_summary_record(self, dividend_record: DividendTradeRecord) -> None:
         symbol = dividend_record.symbol or 'GENERAL'

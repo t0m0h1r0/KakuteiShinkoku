@@ -73,21 +73,24 @@ class JSONTransactionLoader(TransactionLoader):
             raise TransactionParseError(f"トランザクションの生成に失敗: {e}")
 
     @staticmethod
-    def _parse_date(date_str: str) -> date:
-        """日付文字列をパース（既存のロジックを改善）"""
+    def _parse_date(date_str: str, formats: List[str] = None) -> date:
+        """より柔軟な日付パース"""
+        default_formats = [
+            '%m/%d/%Y',   # 米国形式 (12/31/2024)
+            '%Y-%m-%d',   # ISO形式 (2024-12-31)
+            '%m/%d/%y',   # 短縮年の米国形式 (12/31/24)
+            '%d/%m/%Y',   # 他の国際形式
+        ]
+        
+        formats = formats or default_formats
+        
         if not date_str:
             raise ValueError("日付が空です")
         
         # 'as of' が含まれる場合は分割
         clean_date_str = date_str.split(' as of ')[0].strip()
         
-        date_formats = [
-            '%m/%d/%Y',   # 米国形式 (12/31/2024)
-            '%Y-%m-%d',   # ISO形式 (2024-12-31)
-            '%m/%d/%y',   # 短縮年の米国形式 (12/31/24)
-        ]
-        
-        for fmt in date_formats:
+        for fmt in formats:
             try:
                 return datetime.strptime(clean_date_str, fmt).date()
             except ValueError:

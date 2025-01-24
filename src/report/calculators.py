@@ -19,18 +19,19 @@ class ReportCalculator:
     @staticmethod
     def calculate_income_summary_details(records: List) -> Money:
         """収入詳細の計算"""
-        return sum(r.gross_amount - r.tax_amount for r in records)
+        return Money(sum(r.gross_amount.usd - r.tax_amount.usd for r in records))
 
     @staticmethod
     def calculate_stock_summary_details(records: List) -> Money:
         """株式取引サマリーの計算"""
-        return sum(r.realized_gain for r in records)
+        total_gain = sum(r.realized_gain.usd for r in records)
+        return Money(total_gain)
 
     @staticmethod
     def calculate_option_summary_details(records: List) -> Dict[str, Money]:
         """オプション取引サマリーの計算"""
         return {
-            'trading_pnl': sum(r.trading_pnl for r in records),
-            'premium_pnl': sum(r.premium_pnl for r in records),
-            'fees': sum(r.fees for r in records)
+            'trading_pnl': Money(sum(r.trading_pnl.usd for r in records)),
+            'premium_pnl': Money(sum(r.premium_pnl.usd for r in records)),
+            'fees': Money(sum(r.fees.usd for r in records))
         }

@@ -1,3 +1,4 @@
+# base.py
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List
 from datetime import date
@@ -17,22 +18,23 @@ class BaseProcessor(ABC, Generic[T]):
         self.records: List[T] = []
         self.logger = logging.getLogger(self.__class__.__name__)
         self._rate_provider = RateProvider()
-    
+        self._tax_records: Dict[str, List[dict]] = {}
+
     @abstractmethod
     def process(self, transaction: Transaction) -> None:
         pass
-    
+
     def process_all(self, transactions: List[Transaction]) -> List[T]:
         for transaction in transactions:
             self.process(transaction)
         return self.get_records()
-    
+
     def get_records(self) -> List[T]:
         return sorted(
             self.records, 
             key=lambda x: getattr(x, 'record_date', getattr(x, 'trade_date', None))
         )
-    
+
     def _get_exchange_rate(self, trade_date: date) -> Decimal:
         """為替レートを取得"""
         rate = self._rate_provider.get_rate(
@@ -57,3 +59,37 @@ class BaseProcessor(ABC, Generic[T]):
             currency=Currency.JPY,
             reference_date=date.today()
         )
+
+    def _is_tax_transaction(self, transaction: Transaction) -> bool:
+        """共通の税金トランザクション判定メソッド"""
+        tax_actions = {
+            'NRA TAX ADJ', 'PR YR NRA TAX', 
+            'TAX', 'NRA TAX'
+        }
+        return transaction.action_type.upper() in tax_actions
+
+    def _process_tax(self, transaction: Transaction, symbol_key: str = 'symbol') -> None:
+        """共通の税金トランザクション処理メソッド"""
+        symbol = getattr(transaction, symbol_key, 'GENERAL')
+        if symbol not in self._tax_records:
+            self._tax_records[symbol] = []
+        
+        self._tax_records[symbol].append({
+            'date': transaction.transaction_date,
+            'amount': abs(transaction.amount)
+        })
+
+    def _find_matching_tax(self, transaction: Transaction, symbol_key: str = 'symbol', max_days: int = 7) -> Decimal:
+        """共通の税金マッチングメソッド"""
+        symbol = getattr(transaction, symbol_key, 'GENERAL')
+        if symbol not in self._tax_records:
+            return Decimal('0')
+
+        tax_records = self._tax_records[symbol]
+        transaction_date = transaction.transaction_date
+       
+        for tax_record in tax_records:
+            if abs((tax_record['date'] - transaction_date).days) <= max_days:
+                return Decimal(tax_record['amount'])
+
+        return Decimal('0')
