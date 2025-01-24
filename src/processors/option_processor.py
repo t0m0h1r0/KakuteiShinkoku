@@ -348,5 +348,5 @@ class OptionProcessor(BaseProcessor):
             summary.status = 'Assigned'
             summary.close_date = trade_record.trade_date
         elif summary.remaining_quantity <= 0:
-            summary.status = 'Closed'
+            summary.status = 'Closed'  
             summary.close_date = trade_record.trade_date
