@@ -1,6 +1,6 @@
 from datetime import datetime, date
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 import re
 import logging
@@ -123,9 +123,7 @@ class OptionProcessor(BaseProcessor):
         action = self._normalize_action(transaction.action_type)
         
         # 数量と価格の取得
-        quantity = abs(Decimal(str(transaction.quantity or 0)))
-        per_share_price = Decimal(str(transaction.price or 0))
-        fees = Decimal(str(transaction.fees or 0))
+        quantity, per_share_price, fees = self._get_transaction_details(transaction)
 
         position = self._positions[symbol]
         
@@ -145,6 +143,13 @@ class OptionProcessor(BaseProcessor):
         
         # トランザクショントラッカーの更新
         self._transaction_tracker.update_tracking(symbol, action, quantity)
+
+    def _get_transaction_details(self, transaction: Transaction) -> Tuple[Decimal, Decimal, Decimal]:
+        """取引の数量、価格、手数料を取得"""
+        quantity = abs(Decimal(str(transaction.quantity or 0)))
+        per_share_price = Decimal(str(transaction.price or 0))
+        fees = Decimal(str(transaction.fees or 0))
+        return quantity, per_share_price, fees
 
     def _handle_transaction_type(
         self, 
