@@ -1,3 +1,4 @@
+# main.py
 import sys
 import logging
 from pathlib import Path
@@ -9,7 +10,8 @@ from typing import Dict, Any, List
 
 from .app.application_context import ApplicationContext
 from .app.data_processor import InvestmentDataProcessor
-from .exchange.rate_provider import RateProvider
+from .exchange.rate_provider import RateProvider, ExchangePair
+from .exchange.currency import Currency
 
 class Config:
     def __init__(self, config_path: Path):
@@ -20,25 +22,11 @@ class Config:
             return yaml.safe_load(f)
 
     def get_json_files(self) -> List[Path]:
-        """指定されたJSONファイルのパスを取得"""
-        json_files = []
-        for pattern in self.config.get('transaction_files', []):
-            json_files.append(Path(pattern))
-        return sorted(json_files)
+        return [Path(pattern) for pattern in self.config.get('transaction_files', [])]
     
     def get_output_paths(self) -> Dict[str, Path]:
-        return {
-            key: Path(path) 
-            for key, path in self.config['output_files'].items()
-        }
-    
-    def get_default_exchange_rate(self) -> Decimal:
-        return Decimal(str(self.config['default_exchange_rate']))
+        return {key: Path(path) for key, path in self.config['output_files'].items()}
 
-    @property
-    def exchange_rate_file(self) -> Path:
-        return Path(self.config['exchange_rate_file'])
-    
     @property
     def debug(self) -> bool:
         return self.config['debug']
@@ -50,6 +38,25 @@ class Config:
     @property
     def logging_config(self) -> Dict[str, Any]:
         return self.config['logging']
+
+    @property
+    def exchange_config(self) -> Dict[str, Any]:
+        return self.config['exchange']
+
+def initialize_rate_provider(config: Config) -> None:
+    rate_provider = RateProvider()
+    pairs = []
+    
+    for pair_config in config.exchange_config['pairs']:
+        base = Currency.from_str(pair_config['base'])
+        target = Currency.from_str(pair_config['target'])
+        default_rate = Decimal(str(pair_config['default_rate']))
+        history_file = Path(pair_config['history_file']) if 'history_file' in pair_config else None
+        
+        pair = ExchangePair(base, target, default_rate, history_file)
+        pairs.append(pair)
+    
+    rate_provider.initialize(pairs)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Investment data processor')
@@ -71,9 +78,10 @@ def main():
         logger = logging.getLogger(__name__)
         
         logger.info("Starting investment data processing...")
-        RateProvider(config.exchange_rate_file)
         
-        # JSONファイルの取得
+        # 為替レートプロバイダーの初期化
+        initialize_rate_provider(config)
+        
         json_files = config.get_json_files()
         if not json_files:
             logger.error("No JSON files found matching the specified patterns")

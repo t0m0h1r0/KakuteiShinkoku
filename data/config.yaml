@@ -9,8 +9,12 @@ transaction_files:
 exchange_rate_file: data/HistoricalPrices.csv 
 default_exchange_rate: 150.0
 
-input_encoding: utf-8
-output_encoding: utf-8
+exchange:
+ pairs:
+   - base: USD
+     target: JPY
+     default_rate: 150.0
+     history_file: data/HistoricalPrices.csv
 
 output_files:
   dividend_history: output/dividend_history.csv
