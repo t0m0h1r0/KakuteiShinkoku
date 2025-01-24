@@ -1,12 +1,10 @@
-data_dir: data
-output_dir: output
 debug: false
 use_color: true
 
 # JSONファイルパターンを追加
 transaction_files:
-  - "Schwab_*.json"
-  - "TD_Ameritrade_*.json"
+  - "data/Schwab_Main_XXX989_Transactions_20250117-213409.json"
+  - "data/TD_Ameritrade_XXX058_Transactions_20250123-234200.json"
 
 exchange_rate_file: data/HistoricalPrices.csv 
 default_exchange_rate: 150.0
@@ -15,13 +13,13 @@ input_encoding: utf-8
 output_encoding: utf-8
 
 output_files:
-  dividend_history: dividend_history.csv
-  dividend_summary: dividend_summary.csv
-  interest_history: interest_history.csv
-  stock_trade_history: stock_history.csv
-  option_trade_history: option_history.csv
-  option_summary: option_summary.csv
-  final_summary: final_summary.csv
+  dividend_history: output/dividend_history.csv
+  dividend_summary: output/dividend_summary.csv
+  interest_history: output/interest_history.csv
+  stock_trade_history: output/stock_history.csv
+  option_trade_history: output/option_history.csv
+  option_summary: output/option_summary.csv
+  final_summary: output/final_summary.csv
 
 logging:
   console_level: INFO

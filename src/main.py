@@ -6,7 +6,6 @@ from datetime import datetime
 from decimal import Decimal
 import yaml
 from typing import Dict, Any, List
-import glob
 
 from .app.application_context import ApplicationContext
 from .app.data_processor import InvestmentDataProcessor
@@ -15,56 +14,30 @@ from .exchange.rate_provider import RateProvider
 class Config:
     def __init__(self, config_path: Path):
         self.config = self._load_yaml(config_path)
-        self._setup_paths()
     
     def _load_yaml(self, config_path: Path) -> Dict[str, Any]:
         with open(config_path, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
-    
-    def _setup_paths(self):
-        base_dir = Path(__file__).parent.parent
-        
-        self.config['data_dir'] = base_dir / self.config['data_dir']
-        self.config['output_dir'] = base_dir / self.config['output_dir']
-        self.config['exchange_rate_file'] = self.config['data_dir'] / self.config['exchange_rate_file']
-        self.config['logging']['log_dir'] = base_dir / self.config['logging']['log_dir']
-        
-        self.config['data_dir'].mkdir(parents=True, exist_ok=True)
-        self.config['output_dir'].mkdir(parents=True, exist_ok=True)
-        self.config['logging']['log_dir'].mkdir(parents=True, exist_ok=True)
 
     def get_json_files(self) -> List[Path]:
-        """設定されたパターンに基づいてJSONファイルを取得"""
+        """指定されたJSONファイルのパスを取得"""
         json_files = []
-        data_dir = self.config['data_dir']
-        
-        # トランザクションファイルパターンの処理
-        for pattern in self.config.get('transaction_files', ['*.json']):
-            matched_files = list(data_dir.glob(pattern))
-            json_files.extend(matched_files)
-        
-        return sorted(set(json_files))  # 重複を除去してソート
+        for pattern in self.config.get('transaction_files', []):
+            json_files.append(Path(pattern))
+        return sorted(json_files)
     
     def get_output_paths(self) -> Dict[str, Path]:
         return {
-            key: self.config['output_dir'] / path 
+            key: Path(path) 
             for key, path in self.config['output_files'].items()
         }
     
     def get_default_exchange_rate(self) -> Decimal:
         return Decimal(str(self.config['default_exchange_rate']))
-    
-    @property
-    def data_dir(self) -> Path:
-        return self.config['data_dir']
-    
-    @property
-    def output_dir(self) -> Path:
-        return self.config['output_dir']
-    
+
     @property
     def exchange_rate_file(self) -> Path:
-        return self.config['exchange_rate_file']
+        return Path(self.config['exchange_rate_file'])
     
     @property
     def debug(self) -> bool:
@@ -128,6 +101,4 @@ def main():
             context.cleanup()
 
 if __name__ == "__main__":
-    project_root = Path(__file__).parent.parent
-    sys.path.insert(0, str(project_root))
     sys.exit(main())
