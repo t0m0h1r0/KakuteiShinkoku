@@ -20,6 +20,7 @@ class OptionTransactionTracker(BaseTransactionTracker):
             'fees': Decimal('0'),
             'max_status': 'Open'
         })
+        self._daily_transactions = defaultdict(lambda: defaultdict(list))
         self._option_info = defaultdict(dict)
 
     def track_daily_transactions(self, transactions: List[Transaction]) -> None:
@@ -42,12 +43,10 @@ class OptionTransactionTracker(BaseTransactionTracker):
             tracking['close_quantity'] += quantity
             
         if pnl:
-            if 'trading_pnl' in pnl:
-                tracking['trading_pnl'] += pnl['trading_pnl']
-            if 'premium_pnl' in pnl:
-                tracking['premium_pnl'] += pnl['premium_pnl']
+            tracking['trading_pnl'] = tracking.get('trading_pnl', 0) + pnl.get('trading_pnl', 0)
+            tracking['premium_pnl'] = tracking.get('premium_pnl', 0) + pnl.get('premium_pnl', 0)
             if 'fees' in pnl:
-                tracking['fees'] += pnl['fees']
+                tracking['fees'] = tracking.get('fees', 0) + pnl['fees']
         
         self._update_status(tracking)
 
@@ -69,11 +68,3 @@ class OptionTransactionTracker(BaseTransactionTracker):
             'fees': Decimal('0'),
             'max_status': 'Open'
         })
-
-    def store_option_info(self, symbol: str, option_info: Dict) -> None:
-        """オプション情報を保存"""
-        self._option_info[symbol] = option_info
-
-    def get_option_info(self, symbol: str) -> Dict:
-        """オプション情報を取得"""
-        return self._option_info.get(symbol, {})

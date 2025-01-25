@@ -31,12 +31,14 @@ class OptionProcessor(BaseProcessor):
             
             for symbol, daily_txs in self._transaction_tracker._daily_transactions.items():
                 for date in sorted(daily_txs.keys()):
-                    self._process_daily_transactions(symbol, daily_txs[date])
+                    try:
+                        self._process_daily_transactions(symbol, daily_txs[date])
+                    except Exception as e:
+                        self.logger.error(f"日次処理でエラー - symbol:{symbol}, date:{date} - {e}")
 
-            return self._trade_records
-
+            return self.get_records()
         except Exception as e:
-            self.logger.error(f"オプション取引処理中にエラーが発生: {e}")
+            self.logger.error(f"オプション取引処理中にエラー: {e}")
             return []
 
     def _process_daily_transactions(self, symbol: str, transactions: List[Transaction]) -> None:
@@ -160,6 +162,11 @@ class OptionProcessor(BaseProcessor):
     ) -> OptionTradeRecord:
         """トレードレコードの作成"""
         position = self._positions[symbol]
+        
+        price = self._create_money(trading_result['total_price'])
+        fees_money = self._create_money(fees)
+        trading_pnl = self._create_money(trading_result['trading_pnl'])
+        premium_pnl = self._create_money(trading_result['premium_pnl'])
 
         return OptionTradeRecord(
             record_date=transaction.transaction_date,
@@ -168,15 +175,15 @@ class OptionProcessor(BaseProcessor):
             description=transaction.description,
             action=action,
             quantity=quantity,
-            price=self._create_money(trading_result['total_price']),
-            fees=self._create_money(fees),
+            price=price,
+            fees=fees_money,
             exchange_rate=RateProvider().get_rate(Currency.USD, Currency.JPY, transaction.transaction_date).rate,
             option_type=option_info['option_type'],
             strike_price=option_info['strike_price'],
             expiry_date=option_info['expiry_date'],
             underlying=option_info['underlying'],
-            trading_pnl=self._create_money(trading_result['trading_pnl']),
-            premium_pnl=self._create_money(trading_result['premium_pnl']),
+            trading_pnl=trading_pnl,
+            premium_pnl=premium_pnl,
             position_type=self._determine_position_type(action),
             is_closed=not position.has_open_position(),
             is_expired=(action == 'EXPIRED'),
@@ -272,7 +279,10 @@ class OptionProcessor(BaseProcessor):
             strike_price=option_info['strike_price'],
             expiry_date=option_info['expiry_date'],
             open_date=trade_record.record_date,
-            initial_quantity=trade_record.quantity
+            initial_quantity=trade_record.quantity,
+            trading_pnl=trade_record.trading_pnl,
+            premium_pnl=trade_record.premium_pnl,
+            total_fees=trade_record.fees
         )
 
     def _update_summary_values(

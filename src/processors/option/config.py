@@ -20,15 +20,12 @@ class OptionProcessingConfig:
     # オプションシンボルのパターン
     OPTION_SYMBOL_PATTERN = r'\d{2}/\d{2}/\d{4}\s+\d+\.\d+\s+[CP]'
     
-    # デフォルトの日数
-    DEFAULT_MAX_DAYS = 7
-    
     # アクション種別
     ACTION_TYPES = {
-        'OPEN': ['BUY_TO_OPEN', 'SELL_TO_OPEN'],
-        'CLOSE': ['BUY_TO_CLOSE', 'SELL_TO_CLOSE'],
-        'EXPIRE': ['EXPIRED'],
-        'ASSIGN': ['ASSIGNED']
+        'OPEN': {'BUY_TO_OPEN', 'SELL_TO_OPEN'},
+        'CLOSE': {'BUY_TO_CLOSE', 'SELL_TO_CLOSE'},
+        'EXPIRE': {'EXPIRED'},
+        'ASSIGN': {'ASSIGNED'}
     }
     
     # ポジションタイプ

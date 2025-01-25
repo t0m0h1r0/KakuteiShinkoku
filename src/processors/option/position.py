@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import date
 from typing import List, Dict, Optional
+from .config import OptionProcessingConfig
 
 @dataclass
 class OptionContract:
@@ -49,8 +50,6 @@ class ClosedTrade:
             self.close_fees = Decimal(str(self.close_fees))
         if isinstance(self.realized_gain, (int, float)):
             self.realized_gain = Decimal(str(self.realized_gain))
-
-from ..option.config import OptionProcessingConfig
 
 class OptionPosition:
     """オプションポジション管理クラス"""
