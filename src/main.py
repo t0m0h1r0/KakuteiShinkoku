@@ -1,6 +1,7 @@
 # main.py
 import sys
 import logging
+import logging.config
 from pathlib import Path
 import argparse
 from datetime import datetime
@@ -8,8 +9,8 @@ from decimal import Decimal
 import yaml
 from typing import Dict, Any, List
 
-from .app.application_context import ApplicationContext
-from .app.data_processor import InvestmentDataProcessor
+from .app.context import ApplicationContext
+from .app.processor import InvestmentProcessor
 from .exchange.rate_provider import RateProvider, ExchangePair
 from .exchange.currency import Currency
 
@@ -26,6 +27,37 @@ class Config:
     
     def get_output_paths(self) -> Dict[str, Path]:
         return {key: Path(path) for key, path in self.config['output_files'].items()}
+
+    def create_logging_config(self) -> Dict[str, Any]:
+        """ロギング設定の作成"""
+        log_dir = Path(self.config['logging']['log_dir'])
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        return {
+            'version': 1,
+            'formatters': {
+                'detailed': {
+                    'format': self.config['logging']['log_format']
+                }
+            },
+            'handlers': {
+                'console': {
+                    'class': 'logging.StreamHandler',
+                    'formatter': 'detailed',
+                    'level': self.config['logging']['console_level']
+                },
+                'file': {
+                    'class': 'logging.FileHandler',
+                    'filename': str(log_dir / self.config['logging']['log_file']),
+                    'formatter': 'detailed',
+                    'level': self.config['logging']['file_level']
+                }
+            },
+            'root': {
+                'handlers': ['console', 'file'],
+                'level': self.config['logging']['file_level']
+            }
+        }
 
     @property
     def debug(self) -> bool:
@@ -74,9 +106,10 @@ def main():
     
     try:
         config = Config(args.config)
-        context = ApplicationContext(config, use_color_output=config.use_color)
+        logging.config.dictConfig(config.create_logging_config())
         logger = logging.getLogger(__name__)
         
+        context = ApplicationContext(config, use_color_output=config.use_color)
         logger.info("Starting investment data processing...")
         
         # 為替レートプロバイダーの初期化
@@ -89,7 +122,7 @@ def main():
             
         logger.info(f"Found {len(json_files)} JSON files to process")
         
-        processor = InvestmentDataProcessor(context)
+        processor = InvestmentProcessor(context)
         if not processor.process_files(json_files):
             logger.error("Data processing failed")
             return 1
