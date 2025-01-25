@@ -12,7 +12,7 @@ class InterestTradeRecord(BaseTradeRecord):
     """利子取引記録"""
     action_type: str
     income_type: str
-    is_matured: bool
+    #is_matured: bool
     
     gross_amount: Money
     tax_amount: Money

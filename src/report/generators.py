@@ -65,7 +65,7 @@ class OptionTradeReportGenerator(BaseReportGenerator):
         option_records = data.get('option_records', [])
         
         return [{
-            'date': record.trade_date,
+            'date': record.record_date,
             'account': record.account_id,
             'symbol': record.symbol,
             'description': record.description,
@@ -116,7 +116,7 @@ class OptionSummaryReportGenerator(BaseReportGenerator):
         } for record in option_summary_records]
 
     def _get_option_summary_records(self, data: Dict[str, Any]) -> List:
-        from ..processors.option_processor import OptionProcessor
+        from ..processors.option.processor import OptionProcessor
         option_processor = data.get('option_processor')
         
         if option_processor and isinstance(option_processor, OptionProcessor):
