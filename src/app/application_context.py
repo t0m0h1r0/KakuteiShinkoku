@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional
 from decimal import Decimal
 
 from ..core.transaction_loader import JSONTransactionLoader
-from ..processors.dividend_processor import DividendProcessor
 from ..processors.interest_processor import InterestProcessor
 from ..processors.stock_processor import StockProcessor
 from ..processors.option_processor import OptionProcessor
@@ -13,6 +12,7 @@ from ..outputs.console_output import ConsoleOutput, ColorConsoleOutput
 from ..outputs.logfile_output import LogFileOutput
 from ..outputs.csv_writer import CSVWriter
 from ..formatters.text_formatter import TextFormatter
+from ..processors.dividend.processor import DividendProcessor
 
 class ApplicationContext:
     def __init__(self, config, use_color_output: bool = True):

@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from ..core.transaction import Transaction
 from ..exchange.money import Money, Currency, RateProvider
-from .base import BaseProcessor
+from .base_ import BaseProcessor
 from .stock_records import StockTradeRecord, StockSummaryRecord
 from .stock_lot import StockLot, StockPosition
 

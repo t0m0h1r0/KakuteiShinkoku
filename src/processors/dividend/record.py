@@ -1,23 +1,17 @@
 from dataclasses import dataclass, field
 from decimal import Decimal
 from datetime import date
-from typing import Optional
 
-from ..exchange.money import Money
-from ..exchange.currency import Currency
+from ...exchange.money import Money
+from ...exchange.currency import Currency
+from ..base.record import BaseSummaryRecord, BaseTradeRecord
 
 @dataclass
-class DividendTradeRecord:
-   """配当取引記録"""
-   record_date: date
-   account_id: str
-   symbol: str
-   description: str
+class DividendTradeRecord(BaseTradeRecord):
    action_type: str
    income_type: str
    gross_amount: Money
    tax_amount: Money
-   exchange_rate: Decimal
    
    @property
    def gross_amount_jpy(self):
@@ -28,12 +22,7 @@ class DividendTradeRecord:
        return self.tax_amount.as_currency(Currency.JPY)
 
 @dataclass
-class DividendSummaryRecord:
-   """配当サマリー記録"""
-   account_id: str
-   symbol: str
-   description: str
-   
+class DividendSummaryRecord(BaseSummaryRecord):   
    total_gross_amount: Money = field(default_factory=lambda: Money(Decimal('0')))
    total_tax_amount: Money = field(default_factory=lambda: Money(Decimal('0')))
    
