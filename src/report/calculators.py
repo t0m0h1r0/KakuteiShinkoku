@@ -5,9 +5,24 @@ class ReportCalculator:
     @staticmethod
     def calculate_income_summary(dividend_records: list, interest_records: list) -> Dict[str, Money]:
         """収入サマリーの計算"""
-        dividend_total = sum(r.gross_amount for r in dividend_records)
-        interest_total = sum(r.gross_amount for r in interest_records)
-        tax_total = sum(r.tax_amount for r in dividend_records + interest_records)
+        # レコードが空の場合、ゼロで初期化されたMoneyオブジェクトを返す
+        if not dividend_records and not interest_records:
+            zero_money = Money(0)
+            return {
+                'dividend_total': zero_money,
+                'interest_total': zero_money,
+                'tax_total': zero_money,
+                'net_total': zero_money
+            }
+
+        # dividendレコードの処理
+        dividend_total = sum(r.gross_amount for r in dividend_records) if dividend_records else Money(0)
+        
+        # interestレコードの処理
+        interest_total = sum(r.gross_amount for r in interest_records) if interest_records else Money(0)
+        
+        # 全レコードの税金を集計
+        tax_total = sum(r.tax_amount for r in dividend_records + interest_records) if (dividend_records or interest_records) else Money(0)
         
         return {
             'dividend_total': dividend_total,
