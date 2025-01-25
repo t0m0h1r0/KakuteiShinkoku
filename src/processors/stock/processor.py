@@ -4,59 +4,12 @@ from datetime import date
 import logging
 from collections import defaultdict
 
-from ..core.transaction import Transaction
-from ..exchange.money import Money, Currency, RateProvider
-from .base_ import BaseProcessor
-from .stock_records import StockTradeRecord, StockSummaryRecord
-from .stock_lot import StockLot, StockPosition
-
-class StockTransactionTracker:
-    """株式取引の状態を追跡するクラス"""
-    def __init__(self):
-        self._daily_transactions: Dict[str, Dict[date, List[Transaction]]] = defaultdict(lambda: defaultdict(list))
-        self._transaction_tracking: Dict[str, Dict] = defaultdict(lambda: {
-            'total_quantity': Decimal('0'),
-            'total_cost': Decimal('0'),
-            'total_realized_gain': Decimal('0'),
-            'matured_dates': set()
-        })
-
-    def track_daily_transactions(self, transactions: List[Transaction]) -> None:
-        """日次トランザクションを追跡"""
-        for transaction in transactions:
-            if not transaction.symbol:
-                continue
-            
-            self._daily_transactions[transaction.symbol][transaction.transaction_date].append(transaction)
-            
-            if 'MATURED' in transaction.description.upper():
-                self._transaction_tracking[transaction.symbol]['matured_dates'].add(
-                    transaction.transaction_date
-                )
-
-    def update_tracking(self, symbol: str, quantity: Decimal, cost: Decimal, realized_gain: Decimal = Decimal('0')) -> None:
-        """取引状態を更新"""
-        tracking = self._transaction_tracking[symbol]
-        tracking['total_quantity'] += quantity
-        tracking['total_cost'] += cost
-        tracking['total_realized_gain'] += realized_gain
-
-    def is_matured(self, symbol: str, date: date) -> bool:
-        """満期状態のチェック"""
-        return date in self._transaction_tracking[symbol]['matured_dates']
-
-    def get_symbol_transactions(self, symbol: str) -> Dict[date, List[Transaction]]:
-        """特定のシンボルの全トランザクションを取得"""
-        return self._daily_transactions.get(symbol, {})
-
-    def get_tracking_info(self, symbol: str) -> Dict:
-        """特定のシンボルのトラッキング情報を取得"""
-        return self._transaction_tracking.get(symbol, {
-            'total_quantity': Decimal('0'),
-            'total_cost': Decimal('0'),
-            'total_realized_gain': Decimal('0'),
-            'matured_dates': set()
-        })
+from ...core.transaction import Transaction
+from ...exchange.money import Money, Currency, RateProvider
+from ..base.processor import BaseProcessor
+from .record import StockTradeRecord, StockSummaryRecord
+from .position import StockLot, StockPosition
+from .tracker import StockTransactionTracker
 
 class StockProcessor(BaseProcessor):
     """株式取引処理のメインプロセッサ"""
