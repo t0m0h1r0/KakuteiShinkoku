@@ -7,6 +7,7 @@ from ...exchange.money import Money, Currency
 from ..base.processor import BaseProcessor
 from .record import DividendTradeRecord, DividendSummaryRecord
 from .tracker import DividendTransactionTracker
+from .config import DividendProcessingConfig
 
 class DividendProcessor(BaseProcessor):
     """配当処理のメインプロセッサ"""
@@ -82,14 +83,20 @@ class DividendProcessor(BaseProcessor):
 
     def _is_dividend_transaction(self, transaction: Transaction) -> bool:
         """配当トランザクションの判定""" 
-        dividend_actions = {
-            'DIVIDEND', 
-            'CASH DIVIDEND',
-            'REINVEST DIVIDEND',
-            'PR YR CASH DIV'
-        }
-        return (transaction.action_type.upper() in dividend_actions and 
-                abs(transaction.amount) > Decimal('0'))
+        return (
+            transaction.action_type.upper() in DividendProcessingConfig.DIVIDEND_ACTIONS and 
+            abs(transaction.amount) > Decimal('0')
+        )
+
+    def _determine_dividend_type(self, transaction: Transaction) -> str:
+        """配当の種類を決定"""
+        action = transaction.action_type.upper()
+        
+        if 'REINVEST' in action:
+            return DividendProcessingConfig.DIVIDEND_TYPES['REINVEST']
+        
+        # デフォルトは通常の現金配当
+        return DividendProcessingConfig.DIVIDEND_TYPES['CASH']
 
     def _create_dividend_record(
         self, 
@@ -97,12 +104,13 @@ class DividendProcessor(BaseProcessor):
         gross_amount: Money,
         tax_amount: Money
     ) -> DividendTradeRecord:
+        """配当レコードの作成"""
         return DividendTradeRecord(
             record_date=transaction.transaction_date,
             account_id=transaction.account_id,
             symbol=transaction.symbol or '',
             description=transaction.description,
-            income_type='Dividend',
+            income_type=self._determine_dividend_type(transaction),
             action_type=transaction.action_type,
             gross_amount=gross_amount,
             tax_amount=tax_amount,
@@ -110,6 +118,7 @@ class DividendProcessor(BaseProcessor):
         )
 
     def _update_summary_record(self, dividend_record: DividendTradeRecord) -> None:
+        """サマリーレコードの更新"""
         symbol = dividend_record.symbol or 'GENERAL'
         
         if symbol not in self._summary_records:
@@ -124,7 +133,9 @@ class DividendProcessor(BaseProcessor):
         summary.total_tax_amount += dividend_record.tax_amount
                               
     def get_records(self) -> List[DividendTradeRecord]:
+        """トレードレコードの取得"""
         return sorted(self._trade_records, key=lambda x: x.record_date)
 
     def get_summary_records(self) -> List[DividendSummaryRecord]:
+        """サマリーレコードの取得"""
         return sorted(self._summary_records.values(), key=lambda x: x.symbol)

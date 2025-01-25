@@ -2,20 +2,21 @@ from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 from datetime import date
 import logging
-from collections import defaultdict
 
 from ...core.transaction import Transaction
-from ...exchange.money import Money, Currency, RateProvider
 from ..base.processor import BaseProcessor
+from ...exchange.money import Money, Currency
+from ...exchange.rate_provider import RateProvider
 from .record import StockTradeRecord, StockSummaryRecord
 from .position import StockLot, StockPosition
 from .tracker import StockTransactionTracker
+from .config import StockProcessingConfig
 
 class StockProcessor(BaseProcessor):
     """株式取引処理のメインプロセッサ"""
     def __init__(self):
         super().__init__()
-        self._positions: Dict[str, StockPosition] = defaultdict(StockPosition)
+        self._positions: Dict[str, StockPosition] = {}
         self._trade_records: List[StockTradeRecord] = []
         self._summary_records: Dict[str, StockSummaryRecord] = {}
         self._transaction_tracker = StockTransactionTracker()
@@ -124,7 +125,8 @@ class StockProcessor(BaseProcessor):
         fees: Decimal
     ) -> Tuple[Decimal, Decimal, StockPosition]:
         """ポジションの更新"""
-        position = self._positions[symbol]
+        position = self._positions.get(symbol, StockPosition())
+        self._positions[symbol] = position
         
         if action == 'BUY':
             position.add_lot(StockLot(quantity, price, fees))
@@ -189,7 +191,7 @@ class StockProcessor(BaseProcessor):
     @staticmethod        
     def _is_stock_transaction(transaction: Transaction) -> bool: 
         """株式トランザクションの判定"""
-        return transaction.action_type.upper() in {'BUY', 'SELL'}
+        return transaction.action_type.upper() in StockProcessingConfig.STOCK_ACTIONS
 
     def get_records(self) -> List[StockTradeRecord]:
         """トレードレコードの取得"""

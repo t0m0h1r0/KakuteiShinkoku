@@ -4,10 +4,10 @@ import logging
 
 from ...core.transaction import Transaction
 from ..base.processor import BaseProcessor
-from ...exchange.money import Money
-from ...exchange.currency import Currency
+from ...exchange.money import Money, Currency
 from .record import InterestTradeRecord, InterestSummaryRecord
 from .tracker import InterestTransactionTracker
+from .config import InterestProcessingConfig
 
 class InterestProcessor(BaseProcessor):
     """利子処理のメインプロセッサ"""
@@ -21,11 +21,9 @@ class InterestProcessor(BaseProcessor):
     def process_all(self, transactions: List[Transaction]) -> List[InterestTradeRecord]:
         """全トランザクションを処理"""
         try:
-            # 日次トランザクションの追跡を開始
             self.logger.debug("トランザクションの追跡を開始")
             self._transaction_tracker.track_daily_transactions(transactions)
             
-            # シンボルごとに処理
             for symbol, daily_symbol_txs in self._transaction_tracker._daily_transactions.items():
                 sorted_dates = sorted(daily_symbol_txs.keys())
                 for transaction_date in sorted_dates:
@@ -56,42 +54,29 @@ class InterestProcessor(BaseProcessor):
 
     def _process_daily_transactions(self, symbol: str, transactions: List[Transaction]) -> None:
         """日次トランザクションの処理"""
-        # 税金トランザクションを先に処理
         tax_transactions = [t for t in transactions if self._is_tax_transaction(t)]
         for tax_transaction in tax_transactions:
             self._process_tax(tax_transaction)
 
-        # 利子トランザクションを処理
         interest_transactions = [t for t in transactions if self._is_interest_transaction(t)]
         for transaction in interest_transactions:
             self._process_transaction(transaction)
 
-    def _is_matured_transaction(self, transaction: Transaction) -> bool:
-        """満期トランザクションの判定"""
-        return 'MATURED' in transaction.description.upper()
-
     def _process_transaction(self, transaction: Transaction) -> None:
         """利子取引の詳細処理"""
         try:
-            # 対応する税金を検索
             tax_amount = self._find_matching_tax(transaction)
             
-            # 金額の処理
             gross_amount = self._create_money(abs(transaction.amount))
             tax_money = self._create_money(tax_amount)
 
-            # 満期状態の確認
-            is_matured = self._is_matured_transaction(transaction)
-
-            # 取引レコードの作成
             interest_record = self._create_interest_record(
-                transaction, gross_amount, tax_money, is_matured
+                transaction, gross_amount, tax_money
             )
             
             self._trade_records.append(interest_record)
             self._update_summary_record(interest_record)
             
-            # トラッカーの更新
             self._transaction_tracker.update_tracking(
                 transaction.symbol or 'GENERAL',
                 abs(transaction.amount),
@@ -104,36 +89,26 @@ class InterestProcessor(BaseProcessor):
 
     def _is_interest_transaction(self, transaction: Transaction) -> bool:
         """利子トランザクションの判定""" 
-        interest_actions = {
-            'CREDIT INTEREST',
-            'BANK INTEREST',
-            'BOND INTEREST',
-            'CD INTEREST',
-            'PR YR BANK INT',
-        }
-        return (transaction.action_type.upper() in interest_actions and 
-                abs(transaction.amount) > Decimal('0'))
+        return (
+            transaction.action_type.upper() in InterestProcessingConfig.INTEREST_ACTIONS and 
+            abs(transaction.amount) > InterestProcessingConfig.MINIMUM_TAXABLE_INTEREST
+        )
 
-    def _determine_income_type(self, transaction: Transaction) -> str:
-        """利子タイプの決定"""
+    def _determine_interest_type(self, transaction: Transaction) -> str:
+        """利子の種類を決定"""
         action = transaction.action_type.upper()
         
-        if action == 'CD INTEREST':
-            return 'CD Interest'
-        elif action == 'BOND INTEREST':
-            return 'Bond Interest'
-        elif action == 'BANK INTEREST':
-            return 'Bank Interest'
-        elif action == 'CREDIT INTEREST':
-            return 'Credit Interest'
+        for key, value in InterestProcessingConfig.INTEREST_TYPES.items():
+            if key in action:
+                return value
+        
         return 'Other Interest'
 
     def _create_interest_record(
         self, 
         transaction: Transaction, 
         gross_amount: Money,
-        tax_amount: Money,
-        is_matured: bool
+        tax_amount: Money
     ) -> InterestTradeRecord:
         """利子レコードの作成"""
         return InterestTradeRecord(
@@ -141,9 +116,8 @@ class InterestProcessor(BaseProcessor):
             account_id=transaction.account_id,
             symbol=transaction.symbol or '',
             description=transaction.description,
-            income_type=self._determine_income_type(transaction),
+            income_type=self._determine_interest_type(transaction),
             action_type=transaction.action_type,
-            is_matured=is_matured,
             gross_amount=gross_amount,
             tax_amount=tax_amount,
             exchange_rate=self._rate_provider.get_rate(Currency.USD, Currency.JPY, transaction.transaction_date).rate,
@@ -169,5 +143,5 @@ class InterestProcessor(BaseProcessor):
         return sorted(self._trade_records, key=lambda x: x.record_date)
 
     def get_summary_records(self) -> List[InterestSummaryRecord]:
-        """サマリーレコードの取得"""  
+        """サマリーレコードの取得"""
         return sorted(self._summary_records.values(), key=lambda x: x.symbol)
