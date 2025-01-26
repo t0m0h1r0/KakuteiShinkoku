@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from ..core.transaction_loader import JSONTransactionLoader
-from ..outputs.console_output import ConsoleOutput, ColorConsoleOutput
-from ..outputs.logfile_output import LogFileOutput
+from ..outputs.console import ConsoleOutput
+from ..outputs.file import LogFileOutput
 from ..formatters.text_formatter import TextFormatter
 from ..processors.dividend.processor import DividendProcessor
 from ..processors.interest.processor import InterestProcessor
@@ -54,7 +54,7 @@ class ApplicationContext:
         log_dir.mkdir(parents=True, exist_ok=True)
         
         return {
-            'console': ColorConsoleOutput(formatter) if self.use_color else ConsoleOutput(formatter),
+            'console': ConsoleOutput(self.use_color),
             'log_file': LogFileOutput(
                 output_path=log_dir / 'processing_summary.log',
                 formatter=formatter,

@@ -3,7 +3,7 @@ from typing import Dict, Any
 import logging
 
 from ..formatters.text_formatter import TextFormatter
-from ..outputs.csv_writer import CSVWriter
+from ..outputs.csv import CSVOutput
 
 class ComponentLoader:
     """コンポーネント初期化を担当するクラス"""
@@ -12,7 +12,7 @@ class ComponentLoader:
         self.config = config
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def create_csv_writers(self, text_formatter: TextFormatter) -> Dict[str, CSVWriter]:
+    def create_csv_writers(self, text_formatter: TextFormatter) -> Dict[str, CSVOutput]:
         """CSVライターの作成"""
         paths = self.config.get_output_paths()
         return {
@@ -24,32 +24,32 @@ class ComponentLoader:
             'final_summary_csv': self._create_summary_writer(paths['final_summary'])
         }
 
-    def _create_dividend_writer(self, path: Path) -> CSVWriter:
-        return CSVWriter(path, [
+    def _create_dividend_writer(self, path: Path) -> CSVOutput:
+        return CSVOutput(path, [
             'date', 'account', 'symbol', 'description',
             'action', 'gross_amount', 'tax_amount', 'net_amount',
             'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',
             'exchange_rate'
         ])
 
-    def _create_interest_writer(self, path: Path) -> CSVWriter:
-        return CSVWriter(path, [
+    def _create_interest_writer(self, path: Path) -> CSVOutput:
+        return CSVOutput(path, [
             'date', 'account', 'symbol', 'description',
             'action', 'gross_amount', 'tax_amount', 'net_amount',
             'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy',
             'exchange_rate'
         ])
 
-    def _create_stock_writer(self, path: Path) -> CSVWriter:
-        return CSVWriter(path, [
+    def _create_stock_writer(self, path: Path) -> CSVOutput:
+        return CSVOutput(path, [
             'date', 'account', 'symbol', 'description',
             'action', 'quantity', 'price', 'realized_gain',
             'price_jpy', 'realized_gain_jpy',
             'exchange_rate'
         ])
 
-    def _create_option_writer(self, path: Path) -> CSVWriter:
-        return CSVWriter(path, [
+    def _create_option_writer(self, path: Path) -> CSVOutput:
+        return CSVOutput(path, [
             'date', 'account', 'symbol', 'description',
             'action', 'quantity', 'option_type', 'strike_price',
             'expiry_date', 'underlying',
@@ -61,8 +61,8 @@ class ComponentLoader:
             'is_closed', 'is_expired', 'is_assigned'
         ])
 
-    def _create_option_summary_writer(self, path: Path) -> CSVWriter:
-        return CSVWriter(path, [
+    def _create_option_summary_writer(self, path: Path) -> CSVOutput:
+        return CSVOutput(path, [
             'account', 'symbol', 'description', 'underlying',
             'option_type', 'strike_price', 'expiry_date',
             'open_date', 'close_date', 'status',
@@ -72,8 +72,8 @@ class ComponentLoader:
             'exchange_rate'
         ])
 
-    def _create_summary_writer(self, path: Path) -> CSVWriter:
-        return CSVWriter(path, [
+    def _create_summary_writer(self, path: Path) -> CSVOutput:
+        return CSVOutput(path, [
             'category', 'subcategory',
             'gross_amount_usd', 'tax_amount_usd', 'net_amount_usd',
             'gross_amount_jpy', 'tax_amount_jpy', 'net_amount_jpy'

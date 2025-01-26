@@ -1,7 +1,14 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 import logging
-from ..formatters.base_formatter import BaseFormatter
+
+class BaseFormatter(ABC):
+    """フォーマッタの基底クラス"""
+    
+    @abstractmethod
+    def format(self, data: Any) -> str:
+        """データをフォーマット"""
+        pass
 
 class BaseOutput(ABC):
     """出力処理の基底クラス"""
@@ -16,15 +23,16 @@ class BaseOutput(ABC):
         pass
 
     def _format_data(self, data: Any) -> str:
-        """データをフォーマット"""
+        """データのフォーマット処理"""
         if self.formatter is None:
             return str(data)
+            
         try:
             return self.formatter.format(data)
         except Exception as e:
-            self.logger.error(f"Error formatting data: {e}")
+            self.logger.error(f"フォーマットエラー: {e}")
             return str(data)
-            
+
     def set_formatter(self, formatter: BaseFormatter) -> None:
-        """フォーマッタを設定"""
+        """フォーマッタの設定"""
         self.formatter = formatter
