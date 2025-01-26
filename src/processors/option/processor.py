@@ -22,6 +22,7 @@ class OptionProcessor(BaseProcessor):
         self._trade_records: List[OptionTradeRecord] = []
         self._summary_records: Dict[str, OptionSummaryRecord] = {}
         self._transaction_tracker = OptionTransactionTracker()
+        self._rate_provider = exchange
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def process_all(self, transactions: List[Transaction]) -> List[OptionTradeRecord]:
@@ -177,7 +178,7 @@ class OptionProcessor(BaseProcessor):
             quantity=quantity,
             price=price,
             fees=fees_money,
-            exchange_rate=exchange.get_rate(Currency.USD, Currency.JPY, transaction.transaction_date).rate,
+            exchange_rate=exchange.get_rate(Currency.USD, Currency.JPY, transaction.transaction_date),
             option_type=option_info['option_type'],
             strike_price=option_info['strike_price'],
             expiry_date=option_info['expiry_date'],

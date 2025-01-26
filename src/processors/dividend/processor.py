@@ -114,7 +114,7 @@ class DividendProcessor(BaseProcessor):
             action_type=transaction.action_type,
             gross_amount=gross_amount,
             tax_amount=tax_amount,
-            exchange_rate=self._rate_provider.get_rate(Currency.USD, Currency.JPY, transaction.transaction_date).rate,
+            exchange_rate=self._rate_provider.get_rate(Currency.USD, Currency.JPY, transaction.transaction_date),
         )
 
     def _update_summary_record(self, dividend_record: DividendTradeRecord) -> None:

@@ -165,7 +165,7 @@ class StockProcessor(BaseProcessor):
             price=price_money,
             realized_gain=gain_money,
             fees=fees_money,
-            exchange_rate=exchange.get_rate(Currency.USD, Currency.JPY, transaction.transaction_date).rate,
+            exchange_rate=exchange.get_rate(Currency.USD, Currency.JPY, transaction.transaction_date),
         )
 
     def _update_summary_record(self, record: StockTradeRecord, position: StockPosition) -> None:
