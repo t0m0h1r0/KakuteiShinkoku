@@ -34,19 +34,3 @@ class DividendTradeRecord(BaseTradeRecord):
 class DividendSummaryRecord(BaseSummaryRecord):   
     total_gross_amount: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
     total_tax_amount: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
-    
-    @property
-    def total_net_amount(self) -> Money:
-        return self.total_gross_amount - self.total_tax_amount
-
-    @property
-    def total_gross_amount_jpy(self) -> Money:
-        return self.total_gross_amount.as_currency(Currency.JPY)
-    
-    @property
-    def total_tax_amount_jpy(self) -> Money:
-        return self.total_tax_amount.as_currency(Currency.JPY)
-    
-    @property
-    def total_net_amount_jpy(self) -> Money:
-        return self.total_net_amount.as_currency(Currency.JPY)

@@ -53,19 +53,3 @@ class OptionSummaryRecord(BaseSummaryRecord):
     option_type: str = ''
     strike_price: Decimal = Decimal('0')
     expiry_date: date = field(default_factory=date.today)
-    
-    @property
-    def total_pnl(self) -> Money:
-        return self.trading_pnl + self.premium_pnl - self.total_fees
-
-    @property
-    def trading_pnl_jpy(self) -> Money:
-        return self.trading_pnl.as_currency(Currency.JPY)
-    
-    @property
-    def premium_pnl_jpy(self) -> Money:
-        return self.premium_pnl.as_currency(Currency.JPY)
-    
-    @property
-    def total_fees_jpy(self) -> Money:
-        return self.total_fees.as_currency(Currency.JPY)
