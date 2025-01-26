@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from decimal import Decimal
 from datetime import date
+from typing import Optional
 
 from ...exchange.money import Money
 from ...exchange.currency import Currency
@@ -31,12 +32,8 @@ class DividendTradeRecord(BaseTradeRecord):
 
 @dataclass
 class DividendSummaryRecord(BaseSummaryRecord):   
-    total_gross_amount: Money = field(
-        default_factory=lambda: Money(Decimal('0'), Currency.USD)
-    )
-    total_tax_amount: Money = field(
-        default_factory=lambda: Money(Decimal('0'), Currency.USD)
-    )
+    total_gross_amount: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
+    total_tax_amount: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
     
     @property
     def total_net_amount(self) -> Money:

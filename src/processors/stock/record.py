@@ -1,44 +1,50 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from datetime import date
 from typing import Optional
 
 from ...exchange.money import Money
 from ...exchange.currency import Currency
+from ..base.record import BaseSummaryRecord, BaseTradeRecord
 
-@dataclass  
-class StockTradeRecord:
-    trade_date: date
-    account_id: str 
-    symbol: str
-    description: str
+@dataclass
+class StockTradeRecord(BaseTradeRecord):
     action: str
     quantity: Decimal
     price: Money
     realized_gain: Money
     fees: Money
-    exchange_rate: Decimal
     
     @property
-    def price_jpy(self):
-        return self.price.convert(Currency.JPY)
+    def price_jpy(self) -> Money:
+        return self.price.as_currency(Currency.JPY)
     
     @property
-    def realized_gain_jpy(self):
-        return self.realized_gain.convert(Currency.JPY)
+    def realized_gain_jpy(self) -> Money:
+        return self.realized_gain.as_currency(Currency.JPY)
     
     @property
-    def fees_jpy(self):
-        return self.fees.convert(Currency.JPY)
+    def fees_jpy(self) -> Money:
+        return self.fees.as_currency(Currency.JPY)
 
-@dataclass  
-class StockSummaryRecord:
-    account_id: str
-    symbol: str
-    description: str
-    open_date: date
-    initial_quantity: Decimal
-    close_date: Optional[date] = None
-    remaining_quantity: Decimal = Decimal('0')
-    total_realized_gain: Money = Money(Decimal('0'), Currency.USD)
-    total_fees: Money = Money(Decimal('0'), Currency.USD)
+@dataclass
+class StockSummaryRecord(BaseSummaryRecord):
+    initial_quantity: Decimal = Decimal('0')
+    total_realized_gain: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
+    total_fees: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
+    
+    @property
+    def total_realized_gain_jpy(self) -> Money:
+        return self.total_realized_gain.as_currency(Currency.JPY)
+    
+    @property
+    def total_fees_jpy(self) -> Money:
+        return self.total_fees.as_currency(Currency.JPY)
+    
+    @property
+    def net_profit(self) -> Money:
+        return self.total_realized_gain - self.total_fees
+    
+    @property
+    def net_profit_jpy(self) -> Money:
+        return self.net_profit.as_currency(Currency.JPY)

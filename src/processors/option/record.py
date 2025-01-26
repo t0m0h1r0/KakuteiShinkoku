@@ -9,64 +9,63 @@ from ..base.record import BaseSummaryRecord, BaseTradeRecord
 
 @dataclass
 class OptionTradeRecord(BaseTradeRecord):
-    """オプション取引記録"""
     action: str
     quantity: Decimal
-    option_type: str     
+    option_type: str
     strike_price: Decimal
     expiry_date: date
     underlying: str
     
     price: Money
     fees: Money
-    trading_pnl: Money   
-    premium_pnl: Money   
+    trading_pnl: Money
+    premium_pnl: Money
     
-    position_type: str   
-    is_closed: bool      
-    is_expired: bool     
-    is_assigned: bool     
-    
+    position_type: str
+    is_closed: bool
+    is_expired: bool
+    is_assigned: bool
+
     @property
-    def price_jpy(self):
+    def price_jpy(self) -> Money:
         return self.price.as_currency(Currency.JPY)
     
     @property
-    def fees_jpy(self):
+    def fees_jpy(self) -> Money:
         return self.fees.as_currency(Currency.JPY)
     
     @property
-    def trading_pnl_jpy(self):
+    def trading_pnl_jpy(self) -> Money:
         return self.trading_pnl.as_currency(Currency.JPY)
     
     @property
-    def premium_pnl_jpy(self):
+    def premium_pnl_jpy(self) -> Money:
         return self.premium_pnl.as_currency(Currency.JPY)
 
 @dataclass
 class OptionSummaryRecord(BaseSummaryRecord):
-    """オプション取引サマリー記録"""
-    underlying: str
-    option_type: str
-    strike_price: Decimal
-    expiry_date: date
-    open_date: date
-    close_date: Optional[date] = None
-    status: str = 'Open'
     initial_quantity: Decimal = Decimal('0')
     remaining_quantity: Decimal = Decimal('0')
-    trading_pnl: Money = field(default_factory=lambda: Money(Decimal('0')))
-    premium_pnl: Money = field(default_factory=lambda: Money(Decimal('0')))
-    total_fees: Money = field(default_factory=lambda: Money(Decimal('0')))
+    trading_pnl: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
+    premium_pnl: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
+    total_fees: Money = field(default_factory=lambda: Money(Decimal('0'), Currency.USD))
+    underlying: str = ''
+    option_type: str = ''
+    strike_price: Decimal = Decimal('0')
+    expiry_date: date = field(default_factory=date.today)
     
     @property
-    def trading_pnl_jpy(self):
+    def total_pnl(self) -> Money:
+        return self.trading_pnl + self.premium_pnl - self.total_fees
+
+    @property
+    def trading_pnl_jpy(self) -> Money:
         return self.trading_pnl.as_currency(Currency.JPY)
     
     @property
-    def premium_pnl_jpy(self):
+    def premium_pnl_jpy(self) -> Money:
         return self.premium_pnl.as_currency(Currency.JPY)
     
     @property
-    def total_fees_jpy(self):
+    def total_fees_jpy(self) -> Money:
         return self.total_fees.as_currency(Currency.JPY)

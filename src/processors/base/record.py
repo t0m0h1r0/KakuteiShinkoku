@@ -22,3 +22,11 @@ class BaseSummaryRecord(ABC):
     account_id: str
     symbol: str
     description: str
+    open_date: date
+    close_date: Optional[date] = None
+    remaining_quantity: Decimal = Decimal('0')
+    status: str = 'Open'
+
+    @property
+    def is_closed(self) -> bool:
+        return self.close_date is not None or self.status == 'Closed'

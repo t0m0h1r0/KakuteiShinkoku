@@ -9,10 +9,8 @@ from ..base.record import BaseSummaryRecord, BaseTradeRecord
 
 @dataclass
 class InterestTradeRecord(BaseTradeRecord):
-    """利子取引記録"""
     action_type: str
     income_type: str
-    
     gross_amount: Money
     tax_amount: Money
     
