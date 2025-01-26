@@ -73,7 +73,7 @@ class DividendProcessor(BaseProcessor):
                 income_type=self._determine_dividend_type(transaction),
                 gross_amount=gross_amount,
                 tax_amount=tax_money,
-                exchange_rate=gross_amount.usd / gross_amount.jpy  # 為替レートを計算
+                exchange_rate=gross_amount.get_rate()
             )
             
             self._trade_records.append(record)

@@ -80,11 +80,6 @@ class InterestProcessor(BaseProcessor):
             gross_amount = Money(abs(transaction.amount), Currency.USD, transaction.transaction_date)
             tax_money = Money(tax_amount, Currency.USD, transaction.transaction_date)
 
-            try:
-                exchange_rate = gross_amount.usd / gross_amount.jpy
-            except DivisionByZero:
-                exchange_rate = None
-
             interest_record = InterestTradeRecord(
                 record_date=transaction.transaction_date,
                 account_id=transaction.account_id,
@@ -94,8 +89,7 @@ class InterestProcessor(BaseProcessor):
                 action_type=transaction.action_type,
                 gross_amount=gross_amount,
                 tax_amount=tax_money,
-                #exchange_rate=gross_amount.usd / gross_amount.jpy  # 為替レートを計算
-                exchange_rate=exchange_rate,
+                exchange_rate=gross_amount.get_rate(),
             )
             
             self._trade_records.append(interest_record)

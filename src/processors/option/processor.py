@@ -90,11 +90,6 @@ class OptionProcessor(BaseProcessor):
         trading_pnl_money = Money(trading_result.get('trading_pnl', 0), Currency.USD, transaction.transaction_date)
         premium_pnl_money = Money(trading_result.get('premium_pnl', 0), Currency.USD, transaction.transaction_date)
 
-        try:
-            exchange_rate = price_money.usd / price_money.jpy
-        except Exception:
-            exchange_rate = None
-
         trade_record = OptionTradeRecord(
             record_date=transaction.transaction_date,
             account_id=transaction.account_id,
@@ -110,7 +105,7 @@ class OptionProcessor(BaseProcessor):
             fees=fees_money,
             trading_pnl=trading_pnl_money,
             premium_pnl=premium_pnl_money,
-            exchange_rate=exchange_rate,
+            exchange_rate=price_money.get_rate(),
             position_type=self._determine_position_type(action),
             is_closed=not position.has_open_position(),
             is_expired=(action == 'EXPIRED'),

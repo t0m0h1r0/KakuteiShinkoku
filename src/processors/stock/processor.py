@@ -94,7 +94,7 @@ class StockProcessor(BaseProcessor):
                 price=total_price,
                 realized_gain=realized_gain_money,
                 fees=fees_money,
-                exchange_rate=total_price.usd / total_price.jpy
+                exchange_rate=total_price.get_rate()
             )
             
             self._trade_records.append(record)

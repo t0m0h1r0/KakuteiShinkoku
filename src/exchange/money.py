@@ -65,6 +65,13 @@ class Money(MoneyProtocol):
     def as_currency(self, target_currency: CurrencyProtocol) -> Decimal:
         """指定通貨の金額を返す"""
         return self._values.get(target_currency, Decimal('0'))
+    
+    def get_rate(self, base_currency=Currency.USD, target_currency=Currency.JPY):
+        try:
+            rate = self.jpy / self.usd
+            return round(float(rate), 2)
+        except Exception:
+            return None
   
     @property
     def usd(self) -> Decimal:
