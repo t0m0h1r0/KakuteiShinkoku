@@ -26,7 +26,7 @@ class RateProtocol(Protocol):
 @runtime_checkable
 class MoneyProtocol(Protocol):
     """金額のプロトコル"""
-    amount: Decimal
+    amount: Decimal | float | int, 
     currency: CurrencyProtocol
     rate_date: date
 

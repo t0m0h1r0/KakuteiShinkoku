@@ -1,45 +1,62 @@
 from datetime import date
 from decimal import Decimal
-from typing import Protocol, runtime_checkable
+from pathlib import Path
+import csv
+import logging
+from typing import Optional
+from datetime import datetime
 
 from .currency import Currency
-from .provider import RateManager
 from .rate import Rate
 
 class ExchangeService:
-    """為替変換と通貨関連のサービスを提供するクラス"""
-    def __init__(self):
-        self._rate_manager = RateManager()
+   """為替変換サービス"""
+   def __init__(self):
+       self._default_rate = Decimal('150.0')  # USD/JPY デフォルト
+       self._rates = {}
+       self.logger = logging.getLogger(self.__class__.__name__)
 
-    def convert(self, amount: Decimal, from_currency: Currency, to_currency: Currency, conversion_date: date = None) -> Decimal:
-        """通貨を変換"""
-        if conversion_date is None:
-            conversion_date = date.today()
-        
-        rate = self._rate_manager.get_rate(from_currency, to_currency, conversion_date)
-        converted_amount = rate.convert(amount)
-        
-        return converted_amount
+   def convert(self, amount: Decimal, from_currency: Currency, to_currency: Currency, rate_date: Optional[date] = None) -> Decimal:
+       """通貨を変換"""
+       if rate_date is None:
+           rate_date = date.today()
 
-    def get_rate(self, base: Currency, target: Currency, rate_date: date = None) -> Rate:
-        """特定の日付の為替レートを取得"""
-        if rate_date is None:
-            rate_date = date.today()
-        
-        return self._rate_manager.get_rate(base, target, rate_date)
+       rate = self.get_rate(from_currency, to_currency, rate_date)
+       return rate.convert(amount)
 
-    def add_rate_source(self, base: Currency, target: Currency, default_rate: Decimal, history_file=None):
-        """レートソースを追加"""
-        from .provider import RateSource
-        source = RateSource(base, target, default_rate, history_file)
-        self._rate_manager.add_source(source)
+   def get_rate(self, base: Currency, target: Currency, rate_date: date) -> Rate:
+       """為替レートを取得"""
+       if base == target:
+           return Rate(base, target, Decimal('1'), rate_date)
 
-@runtime_checkable
-class ExchangeServiceProtocol(Protocol):
-    """為替サービスのプロトコル定義"""
-    def convert(self, amount: Decimal, from_currency: Currency, to_currency: Currency, conversion_date: date = None) -> Decimal: ...
-    def get_rate(self, base: Currency, target: Currency, rate_date: date = None) -> Rate: ...
-    def add_rate_source(self, base: Currency, target: Currency, default_rate: Decimal, history_file=None): ...
+       rate_key = (base, target, rate_date)
+       if rate_key in self._rates:
+           return self._rates[rate_key]
+
+       rate_value = self._default_rate if (base == Currency.USD and target == Currency.JPY) else (Decimal('1') / self._default_rate)
+       return Rate(base, target, rate_value, rate_date)
+
+   def add_rate_source(self, base: Currency, target: Currency, default_rate: Decimal, history_file: Optional[Path] = None):
+       """レートソースを追加"""
+       self._default_rate = default_rate
+       if history_file and history_file.exists():
+           self._load_rates(base, target, history_file)
+
+   def _load_rates(self, base: Currency, target: Currency, file_path: Path) -> None:
+       """CSVからレートを読み込み"""
+       try:
+           with open(file_path, 'r', encoding='utf-8') as f:
+               reader = csv.DictReader(line.replace(' ', '') for line in f)
+               for row in reader:
+                   try:
+                       rate_date = datetime.strptime(row['Date'], '%m/%d/%y').date()
+                       rate_value = Decimal(row['Close'])
+                       rate = Rate(base, target, rate_value, rate_date)
+                       self._rates[(base, target, rate_date)] = rate
+                   except Exception as e:
+                       self.logger.warning(f"レート解析エラー: {e}")
+       except Exception as e:
+           self.logger.error(f"レート読み込みエラー: {e}")
 
 # グローバルインスタンス
 exchange = ExchangeService()

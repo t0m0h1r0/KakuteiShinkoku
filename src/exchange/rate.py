@@ -27,16 +27,6 @@ class Rate:
             return converted.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
         return converted.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-    def __mul__(self, other: Decimal) -> Decimal:
-        """Decimalとの乗算をサポート"""
-        if isinstance(other, Decimal):
-            return self.convert(other)
-        raise TypeError(f"サポートされていないオペランドタイプ: {type(other)}")
-
-    def __rmul__(self, other: Decimal) -> Decimal:
-        """右からの乗算をサポート"""
-        return self.__mul__(other)
-
     def inverse(self) -> 'Rate':
         """逆レートを取得"""
         return Rate(
@@ -44,18 +34,6 @@ class Rate:
             target=self.base,
             value=Decimal('1') / self.value,
             date=self.date
-        )
-
-    def cross_rate(self, other: 'Rate') -> 'Rate':
-        """クロスレートを計算"""
-        if self.target != other.base:
-            raise ValueError("クロスレート計算には通貨が一致する必要があります")
-            
-        return Rate(
-            base=self.base,
-            target=other.target,
-            value=self.value * other.value,
-            date=max(self.date, other.date)
         )
 
     def __str__(self) -> str:
