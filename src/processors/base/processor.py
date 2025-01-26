@@ -17,6 +17,7 @@ class BaseProcessor(ABC, Generic[T]):
     def __init__(self):
         self._trade_records: List[T] = []
         self._tax_records: Dict[str, List[Dict]] = {}
+        self._rate_provider = exchange
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @abstractmethod

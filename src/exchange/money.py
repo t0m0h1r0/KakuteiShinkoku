@@ -26,6 +26,26 @@ class Money(MoneyProtocol):
         converted_amount = rate.convert(self.amount)
         return Money(converted_amount, target_currency, self.rate_date)
 
+    def as_currency(self, target_currency: CurrencyProtocol) -> 'Money':
+        """指定通貨で表現"""
+        if self.currency == target_currency:
+            return self
+        return self.convert(target_currency)
+  
+    @property
+    def usd(self) -> Decimal:
+        """USD表示"""
+        if self.currency == Currency.USD:
+            return self.amount
+        return self.convert(Currency.USD).amount
+    
+    @property
+    def jpy(self) -> Decimal:
+        """JPY表示"""
+        if self.currency == Currency.JPY:
+            return self.amount
+        return self.convert(Currency.JPY).amount
+
     def __add__(self, other: 'Money') -> 'Money':
         """同じ通貨の場合のみ加算"""
         if self.currency.code != other.currency.code:
