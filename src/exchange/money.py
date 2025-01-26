@@ -6,6 +6,7 @@ from typing import Union, Dict, Optional
 from .currency import Currency
 from .provider import RateManager
 from .types import CurrencyProtocol, MoneyProtocol
+from .exchange import exchange
 
 class Money(MoneyProtocol):
     def __init__(
@@ -40,7 +41,6 @@ class Money(MoneyProtocol):
             return
 
         # 為替レート管理
-        rate_manager = RateManager()
         self._values: Dict[CurrencyProtocol, Decimal] = {}
 
         # サポートされる通貨で変換
@@ -52,7 +52,7 @@ class Money(MoneyProtocol):
             else:
                 # 他の通貨は為替レートで変換
                 try:
-                    rate = rate_manager.get_rate(currency, target_currency, rate_date)
+                    rate = exchange.get_rate(currency, target_currency, rate_date)
                     try:
                         converted_amount = rate.convert(amount)
                         self._values[target_currency] = converted_amount
