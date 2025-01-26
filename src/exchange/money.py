@@ -52,6 +52,9 @@ class Money(MoneyProtocol):
             raise ValueError("異なる通貨間の加算はできません")
         return Money(self.amount + other.amount, self.currency, self.rate_date)
 
+    def __radd__(self, other: 'Money') -> 'Money':
+        return self.__add__(other)
+
     def __sub__(self, other: 'Money') -> 'Money':
         """同じ通貨の場合のみ減算"""
         if self.currency.code != other.currency.code:
