@@ -1,8 +1,10 @@
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List
 from decimal import Decimal
 
 from .interfaces import BaseReportGenerator
 from .calculators import ReportCalculator
+from ..exchange.money import Money
+from ..exchange.currency import Currency
 
 class DividendReportGenerator(BaseReportGenerator):
     def generate(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -16,10 +18,10 @@ class DividendReportGenerator(BaseReportGenerator):
             'action': record.action_type,
             'gross_amount': record.gross_amount.usd,
             'tax_amount': record.tax_amount.usd,
-            'net_amount': record.gross_amount.usd - record.tax_amount.usd,
-            'gross_amount_jpy': record.gross_amount_jpy.jpy,
-            'tax_amount_jpy': record.tax_amount_jpy.jpy,
-            'net_amount_jpy': record.gross_amount_jpy.jpy - record.tax_amount_jpy.jpy,
+            'net_amount': record.net_amount.usd,
+            'gross_amount_jpy': record.gross_amount.jpy,
+            'tax_amount_jpy': record.tax_amount.jpy,
+            'net_amount_jpy': record.net_amount.jpy,
             'exchange_rate': record.exchange_rate
         } for record in dividend_records]
 
@@ -35,10 +37,10 @@ class InterestReportGenerator(BaseReportGenerator):
             'action': record.action_type,
             'gross_amount': record.gross_amount.usd,
             'tax_amount': record.tax_amount.usd,
-            'net_amount': record.gross_amount.usd - record.tax_amount.usd,
-            'gross_amount_jpy': record.gross_amount_jpy.jpy,
-            'tax_amount_jpy': record.tax_amount_jpy.jpy,
-            'net_amount_jpy': record.gross_amount_jpy.jpy - record.tax_amount_jpy.jpy,
+            'net_amount': record.net_amount.usd,
+            'gross_amount_jpy': record.gross_amount.jpy,
+            'tax_amount_jpy': record.tax_amount.jpy,
+            'net_amount_jpy': record.net_amount.jpy,
             'exchange_rate': record.exchange_rate
         } for record in interest_records]
 
@@ -55,8 +57,8 @@ class StockTradeReportGenerator(BaseReportGenerator):
             'quantity': record.quantity,
             'price': record.price.usd,
             'realized_gain': record.realized_gain.usd,
-            'price_jpy': record.price_jpy.jpy,
-            'realized_gain_jpy': record.realized_gain_jpy.jpy,
+            'price_jpy': record.price.jpy,
+            'realized_gain_jpy': record.realized_gain.jpy,
             'exchange_rate': record.exchange_rate
         } for record in stock_records]
 
@@ -79,10 +81,10 @@ class OptionTradeReportGenerator(BaseReportGenerator):
             'fees': record.fees.usd,
             'trading_pnl': record.trading_pnl.usd,
             'premium_pnl': record.premium_pnl.usd,
-            'price_jpy': record.price_jpy.jpy,
-            'fees_jpy': record.fees_jpy.jpy,
-            'trading_pnl_jpy': record.trading_pnl_jpy.jpy,
-            'premium_pnl_jpy': record.premium_pnl_jpy.jpy,
+            'price_jpy': record.price.jpy,
+            'fees_jpy': record.fees.jpy,
+            'trading_pnl_jpy': record.trading_pnl.jpy,
+            'premium_pnl_jpy': record.premium_pnl.jpy,
             'exchange_rate': record.exchange_rate,
             'position_type': record.position_type,
             'is_closed': record.is_closed,
@@ -110,9 +112,9 @@ class OptionSummaryReportGenerator(BaseReportGenerator):
             'trading_pnl': record.trading_pnl.usd,
             'premium_pnl': record.premium_pnl.usd,
             'total_fees': record.total_fees.usd,
-            'trading_pnl_jpy': record.trading_pnl_jpy.jpy,
-            'premium_pnl_jpy': record.premium_pnl_jpy.jpy,
-            'total_fees_jpy': record.total_fees_jpy.jpy,
+            'trading_pnl_jpy': record.trading_pnl.jpy,
+            'premium_pnl_jpy': record.premium_pnl.jpy,
+            'total_fees_jpy': record.total_fees.jpy,
         } for record in option_summary_records]
 
     def _get_option_summary_records(self, data: Dict[str, Any]) -> List:
@@ -125,130 +127,85 @@ class OptionSummaryReportGenerator(BaseReportGenerator):
 
 class FinalSummaryReportGenerator(BaseReportGenerator):
     def generate(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        calculator = ReportCalculator()
+        
+        # 収入サマリーの計算
+        dividend_records = data.get('dividend_records', [])
+        interest_records = data.get('interest_records', [])
+        
+        # 収入サマリーの計算
+        income_summary = calculator.calculate_income_summary(dividend_records, interest_records)
+        
+        # 株式とオプションの取引サマリーの計算
+        stock_records = data.get('stock_records', [])
+        option_records = data.get('option_records', [])
+        
+        # 株式取引のサマリー
+        stock_summary = calculator.calculate_stock_summary_details(stock_records)
+        
+        # オプション取引のサマリー
+        option_summary = calculator.calculate_option_summary_details(option_records)
+        
         summary_records = []
         
-        dividend_summary = self._generate_dividend_summary(data.get('dividend_records', []))
-        summary_records.append(dividend_summary)
-        
-        interest_summary = self._generate_interest_summary(data.get('interest_records', []))
-        summary_records.append(interest_summary)
-        
-        stock_summary = self._generate_stock_summary(data.get('stock_records', []))
-        summary_records.append(stock_summary)
-        
-        option_summaries = self._generate_option_summaries(data.get('option_records', []))
-        summary_records.extend(option_summaries)
-        
-        return summary_records
-
-    def _generate_dividend_summary(self, records: List) -> Dict[str, Any]:
-        gross_usd = sum(r.gross_amount.usd for r in records)
-        tax_usd = sum(r.tax_amount.usd for r in records)
-        gross_jpy = sum(r.gross_amount_jpy.jpy for r in records)
-        tax_jpy = sum(r.tax_amount_jpy.jpy for r in records)
-        
-        weighted_rate = self._calculate_weighted_exchange_rate(
-            [(r.gross_amount.usd, r.exchange_rate) for r in records]
-        )
-        
-        return {
+        # 配当収入のサマリー
+        summary_records.append({
             'category': '配当収入',
             'subcategory': '受取配当金',
-            'gross_amount_usd': gross_usd,
-            'tax_amount_usd': tax_usd,
-            'net_amount_usd': gross_usd - tax_usd,
-            'gross_amount_jpy': gross_jpy,
-            'tax_amount_jpy': tax_jpy,
-            'net_amount_jpy': gross_jpy - tax_jpy,
-        }
-
-    def _generate_interest_summary(self, records: List) -> Dict[str, Any]:
-        gross_usd = sum(r.gross_amount.usd for r in records)
-        tax_usd = sum(r.tax_amount.usd for r in records)
-        gross_jpy = sum(r.gross_amount_jpy.jpy for r in records)
-        tax_jpy = sum(r.tax_amount_jpy.jpy for r in records)
+            'gross_amount_usd': income_summary['dividend_total'].usd,
+            'tax_amount_usd': income_summary['dividend_tax'].usd,
+            'net_amount_usd': (income_summary['dividend_total'] - income_summary['dividend_tax']).usd,
+            'gross_amount_jpy': income_summary['dividend_total'].jpy,
+            'tax_amount_jpy': income_summary['dividend_tax'].jpy,
+            'net_amount_jpy': (income_summary['dividend_total'] - income_summary['dividend_tax']).jpy,
+        })
         
-        weighted_rate = self._calculate_weighted_exchange_rate(
-            [(r.gross_amount.usd, r.exchange_rate) for r in records]
-        )
-        
-        return {
+        # 利子収入のサマリー
+        summary_records.append({
             'category': '利子収入',
             'subcategory': '受取利子',
-            'gross_amount_usd': gross_usd,
-            'tax_amount_usd': tax_usd,
-            'net_amount_usd': gross_usd - tax_usd,
-            'gross_amount_jpy': gross_jpy,
-            'tax_amount_jpy': tax_jpy,
-            'net_amount_jpy': gross_jpy - tax_jpy,
-        }
-
-    def _generate_stock_summary(self, records: List) -> Dict[str, Any]:
-        total_gain_usd = sum(r.realized_gain.usd for r in records)
-        total_gain_jpy = sum(r.realized_gain_jpy.jpy for r in records)
+            'gross_amount_usd': income_summary['interest_total'].usd,
+            'tax_amount_usd': income_summary['interest_tax'].usd,
+            'net_amount_usd': (income_summary['interest_total'] - income_summary['interest_tax']).usd,
+            'gross_amount_jpy': income_summary['interest_total'].jpy,
+            'tax_amount_jpy': income_summary['interest_tax'].jpy,
+            'net_amount_jpy': (income_summary['interest_total'] - income_summary['interest_tax']).jpy,
+        })
         
-        weighted_rate = self._calculate_weighted_exchange_rate(
-            [(abs(r.realized_gain.usd), r.exchange_rate) for r in records]
-        )
-        
-        return {
+        # 株式取引のサマリー
+        summary_records.append({
             'category': '株式取引',
             'subcategory': '売買損益',
-            'gross_amount_usd': total_gain_usd,
+            'gross_amount_usd': stock_summary.usd,
             'tax_amount_usd': Decimal('0'),
-            'net_amount_usd': total_gain_usd,
-            'gross_amount_jpy': total_gain_jpy,
+            'net_amount_usd': stock_summary.usd,
+            'gross_amount_jpy': stock_summary.jpy,
             'tax_amount_jpy': Decimal('0'),
-            'net_amount_jpy': total_gain_jpy,
-        }
-
-    def _generate_option_summaries(self, records: List) -> List[Dict[str, Any]]:
-        summaries = []
+            'net_amount_jpy': stock_summary.jpy,
+        })
         
-        trading_gain_usd = sum(r.trading_pnl.usd for r in records)
-        trading_gain_jpy = sum(r.trading_pnl_jpy.jpy for r in records)
-        
-        summaries.append({
+        # オプション取引損益のサマリー
+        summary_records.append({
             'category': 'オプション取引',
             'subcategory': '取引損益',
-            'gross_amount_usd': trading_gain_usd,
+            'gross_amount_usd': option_summary['trading_pnl'].usd,
             'tax_amount_usd': Decimal('0'),
-            'net_amount_usd': trading_gain_usd,
-            'gross_amount_jpy': trading_gain_jpy,
+            'net_amount_usd': option_summary['trading_pnl'].usd,
+            'gross_amount_jpy': option_summary['trading_pnl'].jpy,
             'tax_amount_jpy': Decimal('0'),
-            'net_amount_jpy': trading_gain_jpy,
+            'net_amount_jpy': option_summary['trading_pnl'].jpy,
         })
         
-        premium_usd = sum(r.premium_pnl.usd for r in records)
-        premium_jpy = sum(r.premium_pnl_jpy.jpy for r in records)
-        fees_usd = sum(r.fees.usd for r in records)
-        fees_jpy = sum(r.fees_jpy.jpy for r in records)
-        premium_rate = self._calculate_weighted_exchange_rate(
-            [(abs(r.premium_pnl.usd), r.exchange_rate) for r in records]
-        )
-        
-        summaries.append({
+        # オプションプレミアム収入のサマリー
+        summary_records.append({
             'category': 'オプション取引',
             'subcategory': 'プレミアム収入',
-            'gross_amount_usd': premium_usd,
-            'tax_amount_usd': fees_usd,
-            'net_amount_usd': premium_usd - fees_usd,
-            'gross_amount_jpy': premium_jpy,
-            'tax_amount_jpy': fees_jpy,
-            'net_amount_jpy': premium_jpy - fees_jpy,
+            'gross_amount_usd': option_summary['premium_pnl'].usd,
+            'tax_amount_usd': Decimal('0'),
+            'net_amount_usd': option_summary['premium_pnl'].usd,
+            'gross_amount_jpy': option_summary['premium_pnl'].jpy,
+            'tax_amount_jpy': Decimal('0'),
+            'net_amount_jpy': option_summary['premium_pnl'].jpy,
         })
         
-        return summaries
-
-    def _calculate_weighted_exchange_rate(self, amount_rate_pairs: List[Tuple[Decimal, Decimal]]) -> Decimal:
-        total_amount = sum(abs(amount) for amount, _ in amount_rate_pairs)
-        if total_amount == 0:
-            return Decimal('150.0')
-            
-        weighted_rate = sum(
-            abs(amount) * rate / total_amount 
-            for amount, rate in amount_rate_pairs
-            if amount != 0
-        )
-        
-        return weighted_rate.quantize(Decimal('0.01'))
+        return summary_records
