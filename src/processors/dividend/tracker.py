@@ -3,7 +3,7 @@ from typing import Dict, List
 from datetime import date
 from collections import defaultdict
 
-from ...core.transaction import Transaction
+from ...core.tx import Transaction
 from ..base.tracker import BaseTransactionTracker
 
 class DividendTransactionTracker(BaseTransactionTracker):

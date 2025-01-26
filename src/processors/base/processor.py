@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 import logging
 
-from ...core.transaction import Transaction
+from ...core.tx import Transaction
 from ...exchange.currency import Currency
 from ...exchange.money import Money
 from ...exchange.rate_provider import RateProvider

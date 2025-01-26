@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 import traceback
 
-from ..core.transaction import Transaction
+from ..core.tx import Transaction
 from .reporter import InvestmentReporter
 
 class InvestmentProcessor:

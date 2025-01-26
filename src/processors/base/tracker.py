@@ -2,7 +2,7 @@ from typing import Dict, List
 from datetime import date
 import logging
 
-from ...core.transaction import Transaction
+from ...core.tx import Transaction
 
 class BaseTransactionTracker:
     """基本トランザクション追跡クラス"""

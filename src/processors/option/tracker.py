@@ -4,7 +4,7 @@ from datetime import date
 from collections import defaultdict
 
 from ..base.tracker import BaseTransactionTracker
-from ...core.transaction import Transaction
+from ...core.tx import Transaction
 from ..option.config import OptionProcessingConfig
 
 class OptionTransactionTracker(BaseTransactionTracker):

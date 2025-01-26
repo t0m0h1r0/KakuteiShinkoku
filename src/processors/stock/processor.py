@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 from datetime import date
 import logging
 
-from ...core.transaction import Transaction
+from ...core.tx import Transaction
 from ..base.processor import BaseProcessor
 from ...exchange.money import Money, Currency
 from ...exchange.rate_provider import RateProvider

@@ -1,9 +1,9 @@
-from abc import ABC, abstractmethod
-from decimal import Decimal
-from typing import List, Optional, Any
-from datetime import date
+# core/base.py
 
-class IProcessor(ABC):
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional
+
+class Processor(ABC):
     """データ処理の基本インターフェース"""
     
     @abstractmethod
@@ -16,35 +16,27 @@ class IProcessor(ABC):
         """複数トランザクションを処理"""
         pass
 
-class ITransactionLoader(ABC):
-    """トランザクション読み込みの基本インターフェース"""
+class Loader(ABC):
+    """データ読み込みの基本インターフェース"""
     
     @abstractmethod
     def load(self, source: str) -> List[Any]:
-        """データソースからトランザクションを読み込む"""
+        """データソースからデータを読み込む"""
         pass
 
-class IExchangeRateProvider(ABC):
-    """為替レート提供の基本インターフェース"""
-    
-    @abstractmethod
-    def get_rate(self, target_date: date) -> Decimal:
-        """指定日の為替レートを取得"""
-        pass
-
-class IWriter(ABC):
-    """出力処理の基本インターフェース"""
+class Writer(ABC):
+    """データ書き出しの基本インターフェース"""
     
     @abstractmethod
     def write(self, records: List[Any]) -> None:
         """レコードを出力"""
         pass
 
-class IPositionManager(ABC):
+class PositionManager(ABC):
     """ポジション管理の基本インターフェース"""
     
     @abstractmethod
-    def update_position(self, transaction: Any) -> None:
+    def update(self, transaction: Any) -> None:
         """ポジションを更新"""
         pass
     

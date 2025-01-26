@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import Dict, List
 import logging
 
-from ...core.transaction import Transaction
+from ...core.tx import Transaction
 from ...exchange.money import Money, Currency
 from ..base.processor import BaseProcessor
 from .record import DividendTradeRecord, DividendSummaryRecord

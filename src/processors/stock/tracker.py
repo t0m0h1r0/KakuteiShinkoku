@@ -4,7 +4,7 @@ from datetime import date
 from collections import defaultdict
 
 from ..base.tracker import BaseTransactionTracker
-from ...core.transaction import Transaction
+from ...core.tx import Transaction
 
 class StockTransactionTracker(BaseTransactionTracker):
     """株式取引の状態を追跡するクラス"""

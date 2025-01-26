@@ -3,7 +3,7 @@ import logging.config
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from ..core.transaction_loader import JSONTransactionLoader
+from ..core.loader import JSONLoader
 from ..outputs.console import ConsoleOutput
 from ..outputs.file import LogFileOutput
 from ..formatters.text_formatter import TextFormatter
@@ -32,7 +32,7 @@ class ApplicationContext:
             raise
 
     def _initialize_core(self) -> None:
-        self.transaction_loader = JSONTransactionLoader()
+        self.transaction_loader = JSONLoader()
         self.processing_results: Optional[Dict[str, Any]] = None
 
     def _initialize_processors(self) -> None:
