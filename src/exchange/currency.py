@@ -1,34 +1,45 @@
 from enum import Enum
-from typing import List, Dict
 from decimal import Decimal
+from typing import List, Dict, Optional, Union
 
 class Currency(Enum):
     """通貨を表現する列挙型"""
-    USD = ('USD', '$', 2)  # (コード, シンボル, 小数点以下桁数)
-    JPY = ('JPY', '¥', 0)
-    EUR = ('EUR', '€', 2)
-    GBP = ('GBP', '£', 2)
+    USD = 'USD'
+    JPY = 'JPY'
+    EUR = 'EUR'
+    GBP = 'GBP'
     
-    def __init__(self, code: str, symbol: str, decimals: int):
-        self._code = code
-        self._symbol = symbol
-        self._decimals = decimals
+    def __init__(self, code: str):
+        self._details = self._get_currency_details()
+    
+    def _get_currency_details(self) -> Dict[str, Union[str, int]]:
+        """通貨の詳細情報を取得"""
+        details = {
+            'USD': {'code': 'USD', 'symbol': '$', 'decimals': 2},
+            'JPY': {'code': 'JPY', 'symbol': '¥', 'decimals': 0},
+            'EUR': {'code': 'EUR', 'symbol': '€', 'decimals': 2},
+            'GBP': {'code': 'GBP', 'symbol': '£', 'decimals': 2}
+        }
+        return details[self.value]
 
     @property
     def code(self) -> str:
-        return self._code
+        """通貨コードを取得"""
+        return self._details['code']
 
     @property
     def symbol(self) -> str:
-        return self._symbol
+        """通貨シンボルを取得"""
+        return self._details['symbol']
 
     @property
     def decimals(self) -> int:
-        return self._decimals
+        """小数点以下桁数を取得"""
+        return self._details['decimals']
 
     def get_decimal_factor(self) -> Decimal:
         """通貨の小数点以下桁数に基づく係数を取得"""
-        return Decimal(f"0.{'0' * self._decimals}")
+        return Decimal(f"0.{'0' * self.decimals}")
 
     @classmethod
     def supported_currencies(cls) -> List['Currency']:
@@ -38,12 +49,18 @@ class Currency(Enum):
     @classmethod
     def get_currency_pairs(cls) -> List[tuple['Currency', 'Currency']]:
         """有効な通貨ペアの組み合わせを取得"""
-        currencies = cls.supported_currencies()
-        return [(c1, c2) for c1 in currencies for c2 in currencies if c1 != c2]
-    
+        return [(c1, c2) for c1 in cls.supported_currencies() for c2 in cls.supported_currencies() if c1 != c2]
+
     @classmethod
-    def from_str(cls, currency_str: str) -> 'Currency':
-        """文字列から通貨を取得"""
+    def from_str(cls, currency_str: str) -> Optional['Currency']:
+        """文字列から通貨を取得
+        
+        Args:
+            currency_str (str): 通貨文字列（コードまたはシンボル）
+        
+        Returns:
+            Optional[Currency]: 対応する通貨。見つからない場合はNone
+        """
         currency_map = {
             'USD': cls.USD, '$': cls.USD,
             'JPY': cls.JPY, '¥': cls.JPY,
@@ -51,11 +68,9 @@ class Currency(Enum):
             'GBP': cls.GBP, '£': cls.GBP
         }
         
-        normalized = currency_str.upper().strip()
-        if normalized not in currency_map:
-            raise ValueError(f"サポートされていない通貨: {currency_str}")
-        return currency_map[normalized]
+        normalized = str(currency_str).upper().strip()
+        return currency_map.get(normalized)
 
     def __str__(self) -> str:
         """通貨のシンボルを返す"""
-        return self._symbol
+        return self.symbol

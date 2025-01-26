@@ -6,8 +6,8 @@ import logging
 
 from ...core.tx import Transaction
 from ..base.processor import BaseProcessor
-from ...exchange.money import Money, Currency
-from ...exchange.rate_provider import RateProvider
+from ...exchange.money import Currency
+from ...exchange.exchange import exchange
 from .record import OptionTradeRecord, OptionSummaryRecord
 from .position import OptionPosition, OptionContract
 from .tracker import OptionTransactionTracker
@@ -177,7 +177,7 @@ class OptionProcessor(BaseProcessor):
             quantity=quantity,
             price=price,
             fees=fees_money,
-            exchange_rate=RateProvider().get_rate(Currency.USD, Currency.JPY, transaction.transaction_date).rate,
+            exchange_rate=exchange.get_rate(Currency.USD, Currency.JPY, transaction.transaction_date).rate,
             option_type=option_info['option_type'],
             strike_price=option_info['strike_price'],
             expiry_date=option_info['expiry_date'],

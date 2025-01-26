@@ -5,8 +5,8 @@ import logging
 
 from ...core.tx import Transaction
 from ..base.processor import BaseProcessor
-from ...exchange.money import Money, Currency
-from ...exchange.rate_provider import RateProvider
+from ...exchange.money import Currency
+from ...exchange.exchange import exchange
 from .record import StockTradeRecord, StockSummaryRecord
 from .position import StockLot, StockPosition
 from .tracker import StockTransactionTracker
@@ -165,7 +165,7 @@ class StockProcessor(BaseProcessor):
             price=price_money,
             realized_gain=gain_money,
             fees=fees_money,
-            exchange_rate=RateProvider().get_rate(Currency.USD, Currency.JPY, transaction.transaction_date).rate,
+            exchange_rate=exchange.get_rate(Currency.USD, Currency.JPY, transaction.transaction_date).rate,
         )
 
     def _update_summary_record(self, record: StockTradeRecord, position: StockPosition) -> None:

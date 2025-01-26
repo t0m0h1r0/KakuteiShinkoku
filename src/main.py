@@ -11,7 +11,7 @@ from typing import Dict, Any, List
 
 from .app.context import ApplicationContext
 from .app.processor import InvestmentProcessor
-from .exchange.rate_provider import RateProvider, ExchangePair
+from .exchange.exchange import exchange
 from .exchange.currency import Currency
 
 class Config:
@@ -76,19 +76,15 @@ class Config:
         return self.config['exchange']
 
 def initialize_rate_provider(config: Config) -> None:
-    rate_provider = RateProvider()
     pairs = []
     
     for pair_config in config.exchange_config['pairs']:
-        base = Currency.from_str(pair_config['base'])
-        target = Currency.from_str(pair_config['target'])
-        default_rate = Decimal(str(pair_config['default_rate']))
-        history_file = Path(pair_config['history_file']) if 'history_file' in pair_config else None
-        
-        pair = ExchangePair(base, target, default_rate, history_file)
-        pairs.append(pair)
-    
-    rate_provider.initialize(pairs)
+        exchange.add_rate_source(
+            Currency.from_str(pair_config['base']),
+            Currency.from_str(pair_config['target']),
+            Decimal(str(pair_config['default_rate'])),
+            Path(pair_config['history_file']) if 'history_file' in pair_config else None,
+        )
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Investment data processor')

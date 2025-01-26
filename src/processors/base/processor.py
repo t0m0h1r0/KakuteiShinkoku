@@ -7,7 +7,7 @@ import logging
 from ...core.tx import Transaction
 from ...exchange.currency import Currency
 from ...exchange.money import Money
-from ...exchange.rate_provider import RateProvider
+from ...exchange.exchange import exchange
 
 T = TypeVar('T')
 
@@ -17,7 +17,6 @@ class BaseProcessor(ABC, Generic[T]):
     def __init__(self):
         self._trade_records: List[T] = []
         self._tax_records: Dict[str, List[Dict]] = {}
-        self._rate_provider = RateProvider()
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @abstractmethod
@@ -49,7 +48,7 @@ class BaseProcessor(ABC, Generic[T]):
         return Money(
             amount=amount,
             currency=Currency.USD,
-            reference_date=reference_date
+            rate_date=reference_date
         )
 
     def _is_tax_transaction(self, transaction: Transaction) -> bool:

@@ -3,9 +3,10 @@ from decimal import Decimal
 from datetime import date
 from typing import Optional
 
-from ...exchange.money import Money, Currency
+from ...exchange.money import Money
+from ...exchange.currency import Currency
 
-@dataclass
+@dataclass  
 class StockTradeRecord:
     trade_date: date
     account_id: str 
@@ -20,15 +21,15 @@ class StockTradeRecord:
     
     @property
     def price_jpy(self):
-        return self.price.as_currency(Currency.JPY)
+        return self.price.convert(Currency.JPY)
     
     @property
     def realized_gain_jpy(self):
-        return self.realized_gain.as_currency(Currency.JPY)
+        return self.realized_gain.convert(Currency.JPY)
     
     @property
     def fees_jpy(self):
-        return self.fees.as_currency(Currency.JPY)
+        return self.fees.convert(Currency.JPY)
 
 @dataclass  
 class StockSummaryRecord:
@@ -39,5 +40,5 @@ class StockSummaryRecord:
     initial_quantity: Decimal
     close_date: Optional[date] = None
     remaining_quantity: Decimal = Decimal('0')
-    total_realized_gain: Money = Money(0)
-    total_fees: Money = Money(0)
+    total_realized_gain: Money = Money(Decimal('0'), Currency.USD)
+    total_fees: Money = Money(Decimal('0'), Currency.USD)
