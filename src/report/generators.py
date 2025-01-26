@@ -153,11 +153,11 @@ class FinalSummaryReportGenerator(BaseReportGenerator):
             'category': '配当収入',
             'subcategory': '受取配当金',
             'gross_amount_usd': income_summary['dividend_total'].usd,
-            'tax_amount_usd': income_summary['dividend_tax'].usd,
-            'net_amount_usd': (income_summary['dividend_total'] - income_summary['dividend_tax']).usd,
+            'tax_amount_usd': income_summary.get('dividend_tax', income_summary['tax_total']).usd,
+            'net_amount_usd': (income_summary['dividend_total'] - income_summary.get('dividend_tax', income_summary['tax_total'])).usd,
             'gross_amount_jpy': income_summary['dividend_total'].jpy,
-            'tax_amount_jpy': income_summary['dividend_tax'].jpy,
-            'net_amount_jpy': (income_summary['dividend_total'] - income_summary['dividend_tax']).jpy,
+            'tax_amount_jpy': income_summary.get('dividend_tax', income_summary['tax_total']).jpy,
+            'net_amount_jpy': (income_summary['dividend_total'] - income_summary.get('dividend_tax', income_summary['tax_total'])).jpy,
         })
         
         # 利子収入のサマリー
@@ -165,11 +165,11 @@ class FinalSummaryReportGenerator(BaseReportGenerator):
             'category': '利子収入',
             'subcategory': '受取利子',
             'gross_amount_usd': income_summary['interest_total'].usd,
-            'tax_amount_usd': income_summary['interest_tax'].usd,
-            'net_amount_usd': (income_summary['interest_total'] - income_summary['interest_tax']).usd,
+            'tax_amount_usd': income_summary.get('interest_tax', Money(0, Currency.USD)).usd,
+            'net_amount_usd': (income_summary['interest_total'] - income_summary.get('interest_tax', Money(0, Currency.USD))).usd,
             'gross_amount_jpy': income_summary['interest_total'].jpy,
-            'tax_amount_jpy': income_summary['interest_tax'].jpy,
-            'net_amount_jpy': (income_summary['interest_total'] - income_summary['interest_tax']).jpy,
+            'tax_amount_jpy': income_summary.get('interest_tax', Money(0, Currency.USD)).jpy,
+            'net_amount_jpy': (income_summary['interest_total'] - income_summary.get('interest_tax', Money(0, Currency.USD))).jpy,
         })
         
         # 株式取引のサマリー
