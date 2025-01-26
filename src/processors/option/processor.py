@@ -9,60 +9,43 @@ from ..base.processor import BaseProcessor
 from ...exchange.money import Money
 from ...exchange.currency import Currency
 from ...exchange.exchange import exchange
+
 from .record import OptionTradeRecord, OptionSummaryRecord
 from .position import OptionPosition, OptionContract
 from .tracker import OptionTransactionTracker
 from .config import OptionProcessingConfig
 
-class OptionProcessor(BaseProcessor):
+class OptionProcessor(BaseProcessor[OptionTradeRecord]):
     def __init__(self):
         super().__init__()
         self._positions: Dict[str, OptionPosition] = {}
-        self._trade_records: List[OptionTradeRecord] = []
         self._summary_records: Dict[str, OptionSummaryRecord] = {}
         self._transaction_tracker = OptionTransactionTracker()
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    @staticmethod
-    def _normalize_action(action: str) -> str:
-        """アクション名の正規化"""
-        return action.upper().replace(' TO ', '_TO_').replace(' ', '')
-
-    def process_all(self, transactions: List[Transaction]) -> List[OptionTradeRecord]:
-        try:
-            self._transaction_tracker.track_daily_transactions(transactions)
+    def _process_daily_transactions(self, symbol: str, transactions: List[Transaction]) -> None:
+        """日次トランザクションを処理"""
+        # オプション取引のみフィルタリング
+        option_transactions = [
+            t for t in transactions 
+            if self._is_option_transaction(t)
+        ]
+        
+        if option_transactions:
+            # アクションタイプでソート
+            sorted_transactions = sorted(
+                option_transactions, 
+                key=lambda tx: (
+                    0 if self._normalize_action(tx.action_type).endswith('OPEN') else 1,
+                    -abs(Decimal(str(tx.quantity or 0)))
+                )
+            )
             
-            for symbol, daily_txs in self._transaction_tracker._daily_transactions.items():
-                for date in sorted(daily_txs.keys()):
-                    try:
-                        transactions_on_date = daily_txs[date]
-                        transactions_on_date = [
-                            t for t in transactions_on_date 
-                            if self._is_option_transaction(t)
-                        ]
-                        
-                        if transactions_on_date:
-                            # アクションタイプでソート
-                            sorted_transactions = sorted(
-                                transactions_on_date, 
-                                key=lambda tx: (
-                                    0 if self._normalize_action(tx.action_type).endswith('OPEN') else 1,
-                                    -abs(Decimal(str(tx.quantity or 0)))
-                                )
-                            )
-                            
-                            for transaction in sorted_transactions:
-                                self._process_transaction(transaction)
-
-                    except Exception as e:
-                        self.logger.error(f"日次処理でエラー - symbol:{symbol}, date:{date} - {e}")
-
-            return self.get_records()
-        except Exception as e:
-            self.logger.error(f"オプション取引処理中にエラー: {e}")
-            return []
+            for transaction in sorted_transactions:
+                self._process_transaction(transaction)
 
     def process(self, transaction: Transaction) -> None:
+        """単一トランザクションを処理"""
         try:
             if self._is_option_transaction(transaction):
                 self._process_transaction(transaction)
@@ -70,9 +53,11 @@ class OptionProcessor(BaseProcessor):
             self.logger.error(f"オプション取引の処理中にエラー: {transaction} - {e}")
 
     def _process_transaction(self, transaction: Transaction) -> None:
+        """オプション取引の処理"""
         option_info = self._parse_option_info(transaction.symbol)
         if not option_info:
             return
+
         symbol = transaction.symbol
         action = self._normalize_action(transaction.action_type)
         quantity = abs(Decimal(str(transaction.quantity or 0)))
@@ -122,6 +107,7 @@ class OptionProcessor(BaseProcessor):
         )
 
     def _get_or_create_position(self, symbol: str) -> OptionPosition:
+        """シンボルに対するポジションを取得または作成"""
         if symbol not in self._positions:
             self._positions[symbol] = OptionPosition()
         return self._positions[symbol]
@@ -176,8 +162,13 @@ class OptionProcessor(BaseProcessor):
         }
 
     @staticmethod
+    def _normalize_action(action: str) -> str:
+        """アクション名の正規化"""
+        return action.upper().replace(' TO ', '_TO_').replace(' ', '')
+
+    @staticmethod
     def _is_option_transaction(transaction: Transaction) -> bool:
-        """オプション取引かどうかを判定"""
+        """オプション取引の判定"""
         normalized_action = OptionProcessor._normalize_action(transaction.action_type)
         return (
             normalized_action in OptionProcessingConfig.OPTION_ACTIONS and 
@@ -274,10 +265,6 @@ class OptionProcessor(BaseProcessor):
         elif summary.remaining_quantity <= 0:
             summary.status = 'Closed'  
             summary.close_date = trade_record.record_date
-
-    def get_records(self) -> List[OptionTradeRecord]:
-        """トレードレコードの取得"""
-        return sorted(self._trade_records, key=lambda x: x.record_date)
 
     def get_summary_records(self) -> List[OptionSummaryRecord]:
         """サマリーレコードの取得"""

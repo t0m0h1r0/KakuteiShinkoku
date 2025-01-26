@@ -21,22 +21,27 @@ class BaseProcessor(ABC, Generic[T]):
         self._rate_provider = exchange
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug(f"{self.__class__.__name__}を初期化")
-
-    @abstractmethod
-    def process(self, transaction: Transaction) -> None:
-        """単一トランザクションを処理"""
-        pass
+        self._transaction_tracker = None  # サブクラスで初期化
 
     def process_all(self, transactions: List[Transaction]) -> List[T]:
         """全トランザクションを処理"""
         try:
             self.logger.debug(f"トランザクション一括処理を開始 (合計: {len(transactions)}件)")
-            for idx, transaction in enumerate(transactions):
-                try:
-                    self.logger.debug(f"トランザクション処理 [{idx+1}/{len(transactions)}]: {transaction.symbol} - {transaction.action_type}")
+            
+            # トランザクションの日次追跡
+            if hasattr(self, '_transaction_tracker') and self._transaction_tracker:
+                self._transaction_tracker.track_daily_transactions(transactions)
+            
+            # シンボルごとのトランザクション処理
+            if hasattr(self, '_transaction_tracker'):
+                for symbol, daily_txs in self._transaction_tracker._daily_transactions.items():
+                    sorted_dates = sorted(daily_txs.keys())
+                    for transaction_date in sorted_dates:
+                        transactions_on_date = daily_txs[transaction_date]
+                        self._process_daily_transactions(symbol, transactions_on_date)
+            else:
+                for transaction in transactions:
                     self.process(transaction)
-                except Exception as e:
-                    self.logger.error(f"トランザクション処理中にエラー: {transaction} - {e}\n{traceback.format_exc()}")
             
             self.logger.info(f"合計 {len(self._trade_records)} レコードを処理")
             return self.get_records()
@@ -44,6 +49,16 @@ class BaseProcessor(ABC, Generic[T]):
         except Exception as e:
             self.logger.error(f"一括処理中にエラーが発生: {e}\n{traceback.format_exc()}")
             return []
+
+    @abstractmethod
+    def _process_daily_transactions(self, symbol: str, transactions: List[Transaction]) -> None:
+        """日次トランザクションの処理（サブクラスで実装）"""
+        pass
+
+    @abstractmethod
+    def process(self, transaction: Transaction) -> None:
+        """単一トランザクションを処理（サブクラスで実装）"""
+        pass
 
     def _create_money(self, amount: Decimal, reference_date: Optional[date] = None) -> Money:
         """Money オブジェクトを作成"""
