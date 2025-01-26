@@ -1,99 +1,151 @@
 from dataclasses import dataclass, field
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Union, List, Optional
+from decimal import Decimal, DivisionByZero, InvalidOperation
+from typing import Union, Dict, Optional
 
 from .currency import Currency
 from .provider import RateManager
 from .types import CurrencyProtocol, MoneyProtocol
 
-@dataclass(frozen=True)
 class Money(MoneyProtocol):
-    """通貨と金額を表現するイミュータブルなクラス"""
-    amount: Decimal
-    currency: CurrencyProtocol
-    rate_date: date = field(default_factory=date.today)
-    
-    def __post_init__(self):
-        """パラメータの初期化と検証"""
-        if not isinstance(self.amount, Decimal):
-            object.__setattr__(self, 'amount', Decimal(str(self.amount)))
+    def __init__(
+        self, 
+        amount: Union[Decimal, float, int], 
+        currency: CurrencyProtocol, 
+        rate_date: Optional[date] = None,
+        _values: Optional[Dict[CurrencyProtocol, Decimal]] = None
+    ):
+        """
+        通貨金額を初期化
+        
+        Args:
+            amount: 金額
+            currency: 通貨
+            rate_date: 為替レート取得日付（デフォルトは今日）
+            _values: 事前計算された通貨変換値（主にコピーコンストラクタ用）
+        """
+        # 日付のデフォルト値を適切に設定
+        if rate_date is None:
+            rate_date = date.today()
 
-    def convert(self, target_currency: CurrencyProtocol) -> 'Money':
-        """指定された通貨に変換"""
+        # 入力をDecimalに変換
+        try:
+            amount = Decimal(str(amount))
+        except (TypeError, ValueError, InvalidOperation):
+            amount = Decimal('0')
+
+        # 事前計算された値が渡された場合
+        if _values is not None:
+            self._values = _values
+            return
+
+        # 為替レート管理
         rate_manager = RateManager()
-        rate = rate_manager.get_rate(self.currency, target_currency, self.rate_date)
-        converted_amount = rate.convert(self.amount)
-        return Money(converted_amount, target_currency, self.rate_date)
+        self._values: Dict[CurrencyProtocol, Decimal] = {}
 
-    def as_currency(self, target_currency: CurrencyProtocol) -> 'Money':
-        """指定通貨で表現"""
-        if self.currency == target_currency:
-            return self
-        return self.convert(target_currency)
+        # サポートされる通貨で変換
+        supported_currencies = [Currency.USD, Currency.JPY]
+        for target_currency in supported_currencies:
+            if target_currency == currency:
+                # 元の通貨はそのまま
+                self._values[target_currency] = amount
+            else:
+                # 他の通貨は為替レートで変換
+                try:
+                    rate = rate_manager.get_rate(currency, target_currency, rate_date)
+                    try:
+                        converted_amount = rate.convert(amount)
+                        self._values[target_currency] = converted_amount
+                    except (DivisionByZero, InvalidOperation):
+                        self._values[target_currency] = Decimal('0')
+                except Exception:
+                    # 変換に失敗した場合は0を設定
+                    self._values[target_currency] = Decimal('0')
+
+    def as_currency(self, target_currency: CurrencyProtocol) -> Decimal:
+        """指定通貨の金額を返す"""
+        return self._values.get(target_currency, Decimal('0'))
   
     @property
     def usd(self) -> Decimal:
-        """USD表示"""
-        if self.currency == Currency.USD:
-            return self.amount
-        return self.convert(Currency.USD).amount
+        """USD金額を返す"""
+        return self._values.get(Currency.USD, Decimal('0'))
     
     @property
     def jpy(self) -> Decimal:
-        """JPY表示"""
-        if self.currency == Currency.JPY:
-            return self.amount
-        return self.convert(Currency.JPY).amount
+        """JPY金額を返す"""
+        return self._values.get(Currency.JPY, Decimal('0'))
+
+    def _safe_divide(self, a: Decimal, b: Decimal) -> Decimal:
+        """安全な除算を行う"""
+        try:
+            return a / b if b != 0 else Decimal('0')
+        except (DivisionByZero, InvalidOperation):
+            return Decimal('0')
 
     def __add__(self, other: 'Money') -> 'Money':
-        """同じ通貨の場合のみ加算"""
-        if self.currency.code != other.currency.code:
-            raise ValueError("異なる通貨間の加算はできません")
-        return Money(self.amount + other.amount, self.currency, self.rate_date)
-
-    def __radd__(self, other: 'Money') -> 'Money':
-        return self.__add__(other)
+        """同じ通貨間の加算"""
+        new_values = {}
+        for currency in set(list(self._values.keys()) + list(other._values.keys())):
+            new_values[currency] = (
+                self._values.get(currency, Decimal('0')) + 
+                other._values.get(currency, Decimal('0'))
+            )
+        return Money(Decimal('0'), Currency.USD, _values=new_values)
 
     def __sub__(self, other: 'Money') -> 'Money':
-        """同じ通貨の場合のみ減算"""
-        if self.currency.code != other.currency.code:
-            raise ValueError("異なる通貨間の減算はできません")
-        return Money(self.amount - other.amount, self.currency, self.rate_date)
+        """同じ通貨間の減算"""
+        new_values = {}
+        for currency in set(list(self._values.keys()) + list(other._values.keys())):
+            new_values[currency] = (
+                self._values.get(currency, Decimal('0')) - 
+                other._values.get(currency, Decimal('0'))
+            )
+        return Money(Decimal('0'), Currency.USD, _values=new_values)
 
-    def __mul__(self, scalar: Union[int, float, Decimal]) -> 'Money':
+    def __mul__(self, scalar: Union[Decimal, float, int]) -> 'Money':
         """スカラー乗算"""
-        scalar_value = Decimal(str(scalar))
-        return Money(self.amount * scalar_value, self.currency, self.rate_date)
+        try:
+            scalar_value = Decimal(str(scalar))
+        except (TypeError, ValueError, InvalidOperation):
+            scalar_value = Decimal('0')
+        
+        new_values = {
+            currency: value * scalar_value 
+            for currency, value in self._values.items()
+        }
+        return Money(Decimal('0'), Currency.USD, _values=new_values)
 
-    def __truediv__(self, scalar: Union[int, float, Decimal]) -> 'Money':
+    def __truediv__(self, scalar: Union[Decimal, float, int]) -> 'Money':
         """スカラー除算"""
-        scalar_value = Decimal(str(scalar))
-        return Money(self.amount / scalar_value, self.currency, self.rate_date)
+        try:
+            scalar_value = Decimal(str(scalar))
+            if scalar_value == 0:
+                return Money(Decimal('0'), Currency.USD, _values=self._values)
+        except (TypeError, ValueError, InvalidOperation):
+            return Money(Decimal('0'), Currency.USD, _values=self._values)
+        
+        new_values = {
+            currency: self._safe_divide(value, scalar_value)
+            for currency, value in self._values.items()
+        }
+        return Money(Decimal('0'), Currency.USD, _values=new_values)
 
     def __str__(self) -> str:
         """文字列表現"""
-        return f"{self.currency.symbol}{self.format()}"
+        return f"USD: {self.usd}, JPY: {self.jpy}"
 
-    def format(self, decimal_places: Optional[int] = None) -> str:
-        """金額のフォーマット"""
-        if decimal_places is None:
-            decimal_places = self.currency.decimals
-
-        if self.currency.code == Currency.JPY.code:
-            return f"{int(self.amount):,}"
-        
-        return f"{self.amount:.{decimal_places}f}"
-
-    @staticmethod
-    def sum(monies: List['Money']) -> 'Money':
-        """同じ通貨のMoneyオブジェクトの合計を計算"""
+    @classmethod
+    def sum(cls, monies: list['Money']) -> 'Money':
+        """Moneyオブジェクトのリストを合計"""
         if not monies:
-            raise ValueError("空のリストは許可されません")
+            return Money(Decimal('0'), Currency.USD)
         
-        currency = monies[0].currency
-        if not all(m.currency.code == currency.code for m in monies):
-            raise ValueError("異なる通貨のMoneyオブジェクトは合計できません")
+        new_values = {}
+        for currency in [Currency.USD, Currency.JPY]:
+            new_values[currency] = sum(
+                money._values.get(currency, Decimal('0')) 
+                for money in monies
+            )
         
-        total_amount = sum(m.amount for m in monies)
-        return Money(total_amount, currency, monies[0].rate_date)
+        return Money(Decimal('0'), Currency.USD, _values=new_values)

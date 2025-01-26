@@ -1,12 +1,13 @@
+from typing import Dict, List, Optional
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
-from datetime import date
 import re
 import logging
 
 from ...core.tx import Transaction
 from ..base.processor import BaseProcessor
-from ...exchange.money import Currency
+from ...exchange.money import Money
+from ...exchange.currency import Currency
 from ...exchange.exchange import exchange
 from .record import OptionTradeRecord, OptionSummaryRecord
 from .position import OptionPosition, OptionContract
@@ -14,26 +15,45 @@ from .tracker import OptionTransactionTracker
 from .config import OptionProcessingConfig
 
 class OptionProcessor(BaseProcessor):
-    """オプション取引処理のメインプロセッサ"""
-    
     def __init__(self):
         super().__init__()
         self._positions: Dict[str, OptionPosition] = {}
         self._trade_records: List[OptionTradeRecord] = []
         self._summary_records: Dict[str, OptionSummaryRecord] = {}
         self._transaction_tracker = OptionTransactionTracker()
-        self._rate_provider = exchange
         self.logger = logging.getLogger(self.__class__.__name__)
 
+    @staticmethod
+    def _normalize_action(action: str) -> str:
+        """アクション名の正規化"""
+        return action.upper().replace(' TO ', '_TO_').replace(' ', '')
+
     def process_all(self, transactions: List[Transaction]) -> List[OptionTradeRecord]:
-        """全トランザクションを処理"""
         try:
             self._transaction_tracker.track_daily_transactions(transactions)
             
             for symbol, daily_txs in self._transaction_tracker._daily_transactions.items():
                 for date in sorted(daily_txs.keys()):
                     try:
-                        self._process_daily_transactions(symbol, daily_txs[date])
+                        transactions_on_date = daily_txs[date]
+                        transactions_on_date = [
+                            t for t in transactions_on_date 
+                            if self._is_option_transaction(t)
+                        ]
+                        
+                        if transactions_on_date:
+                            # アクションタイプでソート
+                            sorted_transactions = sorted(
+                                transactions_on_date, 
+                                key=lambda tx: (
+                                    0 if self._normalize_action(tx.action_type).endswith('OPEN') else 1,
+                                    -abs(Decimal(str(tx.quantity or 0)))
+                                )
+                            )
+                            
+                            for transaction in sorted_transactions:
+                                self._process_transaction(transaction)
+
                     except Exception as e:
                         self.logger.error(f"日次処理でエラー - symbol:{symbol}, date:{date} - {e}")
 
@@ -42,22 +62,7 @@ class OptionProcessor(BaseProcessor):
             self.logger.error(f"オプション取引処理中にエラー: {e}")
             return []
 
-    def _process_daily_transactions(self, symbol: str, transactions: List[Transaction]) -> None:
-        """日次トランザクションの処理"""
-        sorted_transactions = sorted(
-            transactions, 
-            key=lambda tx: (
-                0 if self._normalize_action(tx.action_type).endswith('OPEN') else 1,
-                -abs(Decimal(str(tx.quantity or 0)))
-            )
-        )
-        
-        for transaction in sorted_transactions:
-            if self._is_option_transaction(transaction):
-                self._process_transaction(transaction)
-
     def process(self, transaction: Transaction) -> None:
-        """単一トランザクションの処理"""
         try:
             if self._is_option_transaction(transaction):
                 self._process_transaction(transaction)
@@ -65,11 +70,9 @@ class OptionProcessor(BaseProcessor):
             self.logger.error(f"オプション取引の処理中にエラー: {transaction} - {e}")
 
     def _process_transaction(self, transaction: Transaction) -> None:
-        """オプション取引の詳細処理"""
         option_info = self._parse_option_info(transaction.symbol)
         if not option_info:
             return
-        
         symbol = transaction.symbol
         action = self._normalize_action(transaction.action_type)
         quantity = abs(Decimal(str(transaction.quantity or 0)))
@@ -81,9 +84,37 @@ class OptionProcessor(BaseProcessor):
             position, action, quantity, per_share_price, fees, transaction.transaction_date
         )
 
-        trade_record = self._create_trade_record(
-            transaction, symbol, option_info, action, 
-            quantity, per_share_price, fees, trading_result
+        # Money オブジェクトの作成
+        price_money = Money(per_share_price * quantity, Currency.USD, transaction.transaction_date)
+        fees_money = Money(fees, Currency.USD, transaction.transaction_date)
+        trading_pnl_money = Money(trading_result.get('trading_pnl', 0), Currency.USD, transaction.transaction_date)
+        premium_pnl_money = Money(trading_result.get('premium_pnl', 0), Currency.USD, transaction.transaction_date)
+
+        try:
+            exchange_rate = price_money.usd / price_money.jpy
+        except Exception:
+            exchange_rate = None
+
+        trade_record = OptionTradeRecord(
+            record_date=transaction.transaction_date,
+            account_id=transaction.account_id,
+            symbol=symbol,
+            description=transaction.description,
+            action=action,
+            quantity=quantity,
+            option_type=option_info['option_type'],
+            strike_price=option_info['strike_price'],
+            expiry_date=option_info['expiry_date'],
+            underlying=option_info['underlying'],
+            price=price_money,
+            fees=fees_money,
+            trading_pnl=trading_pnl_money,
+            premium_pnl=premium_pnl_money,
+            exchange_rate=exchange_rate,
+            position_type=self._determine_position_type(action),
+            is_closed=not position.has_open_position(),
+            is_expired=(action == 'EXPIRED'),
+            is_assigned=(action == 'ASSIGNED')
         )
         
         self._trade_records.append(trade_record)
@@ -96,7 +127,6 @@ class OptionProcessor(BaseProcessor):
         )
 
     def _get_or_create_position(self, symbol: str) -> OptionPosition:
-        """ポジションの取得または作成"""
         if symbol not in self._positions:
             self._positions[symbol] = OptionPosition()
         return self._positions[symbol]
@@ -150,47 +180,6 @@ class OptionProcessor(BaseProcessor):
             'premium_pnl': premium_pnl
         }
 
-    def _create_trade_record(
-        self, 
-        transaction: Transaction,
-        symbol: str, 
-        option_info: Dict, 
-        action: str, 
-        quantity: Decimal, 
-        per_share_price: Decimal, 
-        fees: Decimal, 
-        trading_result: Dict
-    ) -> OptionTradeRecord:
-        """トレードレコードの作成"""
-        position = self._positions[symbol]
-        
-        price = self._create_money(trading_result['total_price'])
-        fees_money = self._create_money(fees)
-        trading_pnl = self._create_money(trading_result['trading_pnl'])
-        premium_pnl = self._create_money(trading_result['premium_pnl'])
-
-        return OptionTradeRecord(
-            record_date=transaction.transaction_date,
-            account_id=transaction.account_id,
-            symbol=symbol,
-            description=transaction.description,
-            action=action,
-            quantity=quantity,
-            price=price,
-            fees=fees_money,
-            exchange_rate=exchange.get_rate(Currency.USD, Currency.JPY, transaction.transaction_date),
-            option_type=option_info['option_type'],
-            strike_price=option_info['strike_price'],
-            expiry_date=option_info['expiry_date'],
-            underlying=option_info['underlying'],
-            trading_pnl=trading_pnl,
-            premium_pnl=premium_pnl,
-            position_type=self._determine_position_type(action),
-            is_closed=not position.has_open_position(),
-            is_expired=(action == 'EXPIRED'),
-            is_assigned=(action == 'ASSIGNED')
-        )
-
     @staticmethod
     def _is_option_transaction(transaction: Transaction) -> bool:
         """オプション取引かどうかを判定"""
@@ -200,11 +189,6 @@ class OptionProcessor(BaseProcessor):
             bool(re.search(OptionProcessingConfig.OPTION_SYMBOL_PATTERN, transaction.symbol or ''))
         )
 
-    @staticmethod
-    def _normalize_action(action: str) -> str:
-        """アクション名の正規化"""
-        return action.upper().replace(' TO ', '_TO_').replace(' ', '')
-
     def _parse_option_info(self, symbol: str) -> Optional[Dict]:
         """オプション情報のパース"""
         try:
@@ -212,7 +196,6 @@ class OptionProcessor(BaseProcessor):
             match = re.match(pattern, symbol)
             if match:
                 underlying, expiry, strike, option_type = match.groups()
-                from datetime import datetime
                 return {
                     'underlying': underlying,
                     'expiry_date': datetime.strptime(expiry, '%m/%d/%Y').date(),
@@ -234,17 +217,6 @@ class OptionProcessor(BaseProcessor):
         if action in ['BUY_TO_OPEN', 'SELL_TO_CLOSE']:
             return OptionProcessingConfig.POSITION_TYPES['LONG']
         return OptionProcessingConfig.POSITION_TYPES['SHORT']
-
-    def get_records(self) -> List[OptionTradeRecord]:
-        """トレードレコードの取得"""
-        return sorted(self._trade_records, key=lambda x: x.record_date)
-
-    def get_summary_records(self) -> List[OptionSummaryRecord]:
-        """サマリーレコードの取得"""
-        return sorted(
-            [r for r in self._summary_records.values() if r is not None],
-            key=lambda x: (x.underlying or '', x.expiry_date or date.max, x.strike_price or 0)
-        )
 
     def _update_summary_record(
         self, 
@@ -307,3 +279,14 @@ class OptionProcessor(BaseProcessor):
         elif summary.remaining_quantity <= 0:
             summary.status = 'Closed'  
             summary.close_date = trade_record.record_date
+
+    def get_records(self) -> List[OptionTradeRecord]:
+        """トレードレコードの取得"""
+        return sorted(self._trade_records, key=lambda x: x.record_date)
+
+    def get_summary_records(self) -> List[OptionSummaryRecord]:
+        """サマリーレコードの取得"""
+        return sorted(
+            [r for r in self._summary_records.values() if r is not None],
+            key=lambda x: (x.underlying or '', x.expiry_date or date.max, x.strike_price or 0)
+        )

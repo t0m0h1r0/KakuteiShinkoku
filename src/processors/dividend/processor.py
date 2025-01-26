@@ -5,7 +5,8 @@ import logging
 
 from ...core.tx import Transaction
 from ..base.processor import BaseProcessor
-from ...exchange.money import Money, Currency
+from ...exchange.money import Money
+from ...exchange.currency import Currency
 from .record import DividendTradeRecord, DividendSummaryRecord
 from .tracker import DividendTransactionTracker
 from .config import DividendActionTypes, DividendTypes
@@ -59,8 +60,9 @@ class DividendProcessor(BaseProcessor):
             self.logger.debug(f"配当取引の処理: {transaction.symbol}")
             tax_amount = self._find_matching_tax(transaction)
             
-            gross_amount = Money(abs(transaction.amount), Currency.USD)
-            tax_money = Money(tax_amount, Currency.USD)
+            # 新しいMoneyクラスを使用
+            gross_amount = Money(abs(transaction.amount), Currency.USD, transaction.transaction_date)
+            tax_money = Money(tax_amount, Currency.USD, transaction.transaction_date)
 
             record = DividendTradeRecord(
                 record_date=transaction.transaction_date,
@@ -71,8 +73,7 @@ class DividendProcessor(BaseProcessor):
                 income_type=self._determine_dividend_type(transaction),
                 gross_amount=gross_amount,
                 tax_amount=tax_money,
-                exchange_rate=self._rate_provider.get_rate(
-                    Currency.USD, Currency.JPY, transaction.transaction_date)
+                exchange_rate=gross_amount.usd / gross_amount.jpy  # 為替レートを計算
             )
             
             self._trade_records.append(record)
@@ -80,8 +81,8 @@ class DividendProcessor(BaseProcessor):
             
             self._transaction_tracker.update_tracking(
                 transaction.symbol,
-                gross_amount.amount,
-                tax_money.amount
+                gross_amount.usd,
+                tax_money.usd
             )
 
         except Exception as e:
