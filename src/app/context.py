@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 from ..core.loader import JSONLoader
 from ..outputs.console import ConsoleOutput
 from ..outputs.file import LogFileOutput
-from ..formatters.text_formatter import TextFormatter
+from ..outputs.csv import CSVOutput
 from ..processors.dividend.processor import DividendProcessor
 from ..processors.interest.processor import InterestProcessor
 from ..processors.stock.processor import StockProcessor
@@ -44,12 +44,11 @@ class ApplicationContext:
 
     def _initialize_outputs(self) -> None:
         self.logger.debug("出力コンポーネントの初期化を開始...")
-        text_formatter = TextFormatter()
-        self.display_outputs = self._create_display_outputs(text_formatter)
-        self.writers = self.component_loader.create_csv_writers(text_formatter)
+        self.display_outputs = self._create_display_outputs()
+        self.writers = self.component_loader.create_csv_writers()
         self.writers['console'] = self.display_outputs['console']
 
-    def _create_display_outputs(self, formatter: TextFormatter) -> Dict:
+    def _create_display_outputs(self) -> Dict:
         log_dir = Path(self.config.logging_config['log_dir'])
         log_dir.mkdir(parents=True, exist_ok=True)
         
@@ -57,7 +56,6 @@ class ApplicationContext:
             'console': ConsoleOutput(self.use_color),
             'log_file': LogFileOutput(
                 output_path=log_dir / 'processing_summary.log',
-                formatter=formatter,
                 line_prefix='[SUMMARY] '
             )
         }

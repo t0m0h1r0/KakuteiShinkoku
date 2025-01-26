@@ -1,19 +1,15 @@
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict
 import logging
 
-from ..formatters.text_formatter import TextFormatter
 from ..outputs.csv import CSVOutput
 
 class ComponentLoader:
-    """コンポーネント初期化を担当するクラス"""
-    
     def __init__(self, config):
         self.config = config
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def create_csv_writers(self, text_formatter: TextFormatter) -> Dict[str, CSVOutput]:
-        """CSVライターの作成"""
+    def create_csv_writers(self) -> Dict[str, CSVOutput]:
         paths = self.config.get_output_paths()
         return {
             'dividend_csv': self._create_dividend_writer(paths['dividend_history']),
