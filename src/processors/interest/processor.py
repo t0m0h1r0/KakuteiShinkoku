@@ -1,5 +1,6 @@
 from decimal import Decimal
-from typing import Dict, List
+from typing import Dict, List, Optional
+from datetime import date
 import logging
 
 from ...core.tx import Transaction
@@ -67,8 +68,8 @@ class InterestProcessor(BaseProcessor):
         try:
             tax_amount = self._find_matching_tax(transaction)
             
-            gross_amount = self._create_money(abs(transaction.amount))
-            tax_money = self._create_money(tax_amount)
+            gross_amount = self._create_money(abs(transaction.amount), transaction.transaction_date)
+            tax_money = self._create_money(tax_amount, transaction.transaction_date)
 
             interest_record = self._create_interest_record(
                 transaction, gross_amount, tax_money

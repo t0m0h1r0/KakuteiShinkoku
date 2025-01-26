@@ -3,6 +3,7 @@ from typing import Generic, TypeVar, List, Optional, Any, Dict
 from datetime import date
 from decimal import Decimal
 import logging
+import traceback
 
 from ...core.tx import Transaction
 from ...exchange.currency import Currency
@@ -19,6 +20,7 @@ class BaseProcessor(ABC, Generic[T]):
         self._tax_records: Dict[str, List[Dict]] = {}
         self._rate_provider = exchange
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.debug(f"{self.__class__.__name__}を初期化")
 
     @abstractmethod
     def process(self, transaction: Transaction) -> None:
@@ -28,29 +30,35 @@ class BaseProcessor(ABC, Generic[T]):
     def process_all(self, transactions: List[Transaction]) -> List[T]:
         """全トランザクションを処理"""
         try:
-            self.logger.debug("トランザクション一括処理を開始")
-            for transaction in transactions:
+            self.logger.debug(f"トランザクション一括処理を開始 (合計: {len(transactions)}件)")
+            for idx, transaction in enumerate(transactions):
                 try:
+                    self.logger.debug(f"トランザクション処理 [{idx+1}/{len(transactions)}]: {transaction.symbol} - {transaction.action_type}")
                     self.process(transaction)
                 except Exception as e:
-                    self.logger.error(f"トランザクション処理中にエラー: {transaction} - {e}")
+                    self.logger.error(f"トランザクション処理中にエラー: {transaction} - {e}\n{traceback.format_exc()}")
             
             self.logger.info(f"合計 {len(self._trade_records)} レコードを処理")
             return self.get_records()
             
         except Exception as e:
-            self.logger.error(f"一括処理中にエラーが発生: {e}")
+            self.logger.error(f"一括処理中にエラーが発生: {e}\n{traceback.format_exc()}")
             return []
 
     def _create_money(self, amount: Decimal, reference_date: Optional[date] = None) -> Money:
         """Money オブジェクトを作成"""
         if reference_date is None:
             reference_date = date.today()
-        return Money(
-            amount=amount,
-            currency=Currency.USD,
-            rate_date=reference_date
-        )
+        try:
+            self.logger.debug(f"Money作成: amount={amount}, currency=USD, date={reference_date}")
+            return Money(
+                amount=amount,
+                currency=Currency.USD,
+                rate_date=reference_date
+            )
+        except Exception as e:
+            self.logger.error(f"Money作成エラー: {e}\n{traceback.format_exc()}")
+            raise
 
     def _is_tax_transaction(self, transaction: Transaction) -> bool:
         """税金トランザクションの判定"""
@@ -58,7 +66,9 @@ class BaseProcessor(ABC, Generic[T]):
             'NRA TAX ADJ', 'PR YR NRA TAX', 
             'TAX', 'NRA TAX'
         }
-        return transaction.action_type.upper() in tax_actions
+        is_tax = transaction.action_type.upper() in tax_actions
+        self.logger.debug(f"税金取引判定: {transaction.action_type} -> {is_tax}")
+        return is_tax
 
     def _process_tax(self, transaction: Transaction) -> None:
         """税金トランザクションの処理"""
@@ -75,14 +85,17 @@ class BaseProcessor(ABC, Generic[T]):
             self.logger.debug(f"税金レコードを処理: {symbol} - {abs(transaction.amount)}")
             
         except Exception as e:
-            self.logger.error(f"税金処理中にエラー: {transaction} - {e}")
+            self.logger.error(f"税金処理中にエラー: {transaction} - {e}\n{traceback.format_exc()}")
             raise
 
     def _find_matching_tax(self, transaction: Transaction, max_days: int = 7) -> Decimal:
         """対応する税金を検索"""
         try:
             symbol = transaction.symbol or 'GENERAL'
+            self.logger.debug(f"税金検索開始: {symbol} - {transaction.transaction_date}")
+            
             if symbol not in self._tax_records:
+                self.logger.debug(f"税金レコードなし: {symbol}")
                 return Decimal('0')
 
             tax_records = self._tax_records[symbol]
@@ -90,12 +103,14 @@ class BaseProcessor(ABC, Generic[T]):
             
             for tax_record in tax_records:
                 if abs((tax_record['date'] - transaction_date).days) <= max_days:
+                    self.logger.debug(f"税金レコード発見: {tax_record['amount']}")
                     return Decimal(tax_record['amount'])
 
+            self.logger.debug(f"対応する税金レコードなし")
             return Decimal('0')
             
         except Exception as e:
-            self.logger.warning(f"税金検索中にエラー: {transaction} - {e}")
+            self.logger.warning(f"税金検索中にエラー: {transaction} - {e}\n{traceback.format_exc()}")
             return Decimal('0')
 
     def get_records(self) -> List[T]:

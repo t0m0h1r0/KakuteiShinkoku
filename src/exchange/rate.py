@@ -23,10 +23,19 @@ class Rate:
         """金額を変換"""
         converted = amount * self.value
         
-        # 通貨に応じて丸め処理
         if self.target == Currency.JPY:
             return converted.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
         return converted.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    def __mul__(self, other: Decimal) -> Decimal:
+        """Decimalとの乗算をサポート"""
+        if isinstance(other, Decimal):
+            return self.convert(other)
+        raise TypeError(f"サポートされていないオペランドタイプ: {type(other)}")
+
+    def __rmul__(self, other: Decimal) -> Decimal:
+        """右からの乗算をサポート"""
+        return self.__mul__(other)
 
     def inverse(self) -> 'Rate':
         """逆レートを取得"""

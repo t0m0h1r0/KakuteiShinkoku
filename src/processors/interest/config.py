@@ -1,4 +1,4 @@
-from typing import Set
+from typing import Set, Dict
 from decimal import Decimal
 
 class InterestProcessingConfig:
@@ -7,26 +7,22 @@ class InterestProcessingConfig:
     # 有効な利子アクション
     INTEREST_ACTIONS: Set[str] = {
         'CREDIT INTEREST',
-        'BANK INTEREST',
-        'BOND INTEREST',
-        'CD INTEREST',
+        'BANK INTEREST', 
+        'BOND INTEREST', 
+        'CD INTEREST', 
+        'CD INTEREST TOTAL',
+        'CREDIT', 
         'PR YR BANK INT'
     }
     
-    # 利子の種類
-    INTEREST_TYPES = {
+    # 利子の種類を判定するマッピング
+    INTEREST_TYPES: Dict[str, str] = {
         'CD': 'Certificate of Deposit Interest',
-        'BANK': 'Bank Account Interest',
+        'BANK': 'Bank Account Interest', 
         'BOND': 'Bond Interest',
-        'CREDIT': 'Credit Account Interest'
-    }
-    
-    # 利子の課税レート
-    TAX_RATES = {
-        'BANK': 0.22,   # 通常の利子所得税率
-        'BOND': 0.20,   # 債券利子の税率
-        'CD': 0.22      # 預金証書の利子税率
+        'CREDIT': 'Credit Account Interest',
+        'TOTAL': 'Total Interest Income'
     }
     
     # 最小課税対象利子額
-    MINIMUM_TAXABLE_INTEREST = Decimal('10.00')
+    MINIMUM_TAXABLE_INTEREST: Decimal = Decimal('0.01')
