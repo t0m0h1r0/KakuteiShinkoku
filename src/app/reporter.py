@@ -1,15 +1,12 @@
 from typing import Dict, Any, List
 import logging
 
-from ..report.generators import (
-    DividendReportGenerator,
-    InterestReportGenerator,
-    StockTradeReportGenerator,
-    OptionTradeReportGenerator,
-    OptionSummaryReportGenerator,
-    FinalSummaryReportGenerator
-)
 from ..report.calculators import ReportCalculator
+from ..report.dividend import DividendReportGenerator
+from ..report.interest import InterestReportGenerator
+from ..report.stock import StockTradeReportGenerator
+from ..report.option import OptionTradeReportGenerator
+from ..report.summary import FinalSummaryReportGenerator, OptionSummaryReportGenerator
 
 class InvestmentReporter:
     def __init__(self, writers):

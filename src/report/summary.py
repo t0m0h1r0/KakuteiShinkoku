@@ -1,100 +1,20 @@
 from typing import Dict, Any, List
 from decimal import Decimal
 
-from .interfaces import BaseReportGenerator
-from .calculators import ReportCalculator
+from ..report.interfaces import BaseReportGenerator
+from ..report.calculators import ReportCalculator
 from ..exchange.money import Money
 from ..exchange.currency import Currency
-
-class DividendReportGenerator(BaseReportGenerator):
-    def generate(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        dividend_records = data.get('dividend_records', [])
-        
-        return [{
-            'date': record.record_date,
-            'account': record.account_id,
-            'symbol': record.symbol,
-            'description': record.description,
-            'action': record.action_type,
-            'gross_amount': record.gross_amount.usd,
-            'tax_amount': record.tax_amount.usd,
-            'net_amount': record.net_amount.usd,
-            'gross_amount_jpy': record.gross_amount.jpy,
-            'tax_amount_jpy': record.tax_amount.jpy,
-            'net_amount_jpy': record.net_amount.jpy,
-            'exchange_rate': record.exchange_rate
-        } for record in dividend_records]
-
-class InterestReportGenerator(BaseReportGenerator):
-    def generate(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        interest_records = data.get('interest_records', [])
-        
-        return [{
-            'date': record.record_date,
-            'account': record.account_id,
-            'symbol': record.symbol or '',
-            'description': record.description,
-            'action': record.action_type,
-            'gross_amount': record.gross_amount.usd,
-            'tax_amount': record.tax_amount.usd,
-            'net_amount': record.net_amount.usd,
-            'gross_amount_jpy': record.gross_amount.jpy,
-            'tax_amount_jpy': record.tax_amount.jpy,
-            'net_amount_jpy': record.net_amount.jpy,
-            'exchange_rate': record.exchange_rate
-        } for record in interest_records]
-
-class StockTradeReportGenerator(BaseReportGenerator):
-    def generate(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        stock_records = data.get('stock_records', [])
-        
-        return [{
-            'date': record.trade_date,
-            'account': record.account_id,
-            'symbol': record.symbol,
-            'description': record.description,
-            'action': record.action,
-            'quantity': record.quantity,
-            'price': record.price.usd,
-            'realized_gain': record.realized_gain.usd,
-            'price_jpy': record.price.jpy,
-            'realized_gain_jpy': record.realized_gain.jpy,
-            'exchange_rate': record.exchange_rate
-        } for record in stock_records]
-
-class OptionTradeReportGenerator(BaseReportGenerator):
-    def generate(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        option_records = data.get('option_records', [])
-        
-        return [{
-            'date': record.record_date,
-            'account': record.account_id,
-            'symbol': record.symbol,
-            'description': record.description,
-            'action': record.action,
-            'quantity': record.quantity,
-            'option_type': record.option_type,
-            'strike_price': float(record.strike_price),
-            'expiry_date': record.expiry_date.strftime('%Y-%m-%d'),
-            'underlying': record.underlying,
-            'price': record.price.usd,
-            'fees': record.fees.usd,
-            'trading_pnl': record.trading_pnl.usd,
-            'premium_pnl': record.premium_pnl.usd,
-            'price_jpy': record.price.jpy,
-            'fees_jpy': record.fees.jpy,
-            'trading_pnl_jpy': record.trading_pnl.jpy,
-            'premium_pnl_jpy': record.premium_pnl.jpy,
-            'exchange_rate': record.exchange_rate,
-            'position_type': record.position_type,
-            'is_closed': record.is_closed,
-            'is_expired': record.is_expired,
-            'is_assigned': record.is_assigned
-        } for record in option_records]
+from ..processors.option.record import OptionSummaryRecord
 
 class OptionSummaryReportGenerator(BaseReportGenerator):
     def generate(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        option_summary_records = self._get_option_summary_records(data)
+        option_processor = data.get('option_processor')
+        
+        if option_processor:
+            option_summary_records: List[OptionSummaryRecord] = option_processor.get_summary_records()
+        else:
+            option_summary_records = data.get('option_summary_records', [])
         
         return [{
             'account': record.account_id,
@@ -117,14 +37,6 @@ class OptionSummaryReportGenerator(BaseReportGenerator):
             'total_fees_jpy': record.total_fees.jpy,
         } for record in option_summary_records]
 
-    def _get_option_summary_records(self, data: Dict[str, Any]) -> List:
-        from ..processors.option.processor import OptionProcessor
-        option_processor = data.get('option_processor')
-        
-        if option_processor and isinstance(option_processor, OptionProcessor):
-            return option_processor.get_summary_records()
-        return data.get('option_summary_records', [])
-
 class FinalSummaryReportGenerator(BaseReportGenerator):
     def generate(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
         calculator = ReportCalculator()
@@ -133,12 +45,12 @@ class FinalSummaryReportGenerator(BaseReportGenerator):
         dividend_records = data.get('dividend_records', [])
         interest_records = data.get('interest_records', [])
         
-        # 収入サマリーの計算
-        income_summary = calculator.calculate_income_summary(dividend_records, interest_records)
-        
         # 株式とオプションの取引サマリーの計算
         stock_records = data.get('stock_records', [])
         option_records = data.get('option_records', [])
+        
+        # 収入サマリー
+        income_summary = calculator.calculate_income_summary(dividend_records, interest_records)
         
         # 株式取引のサマリー
         stock_summary = calculator.calculate_stock_summary_details(stock_records)
