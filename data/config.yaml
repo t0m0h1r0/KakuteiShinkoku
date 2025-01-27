@@ -26,7 +26,7 @@ output_files:
   final_summary: output/final_summary.csv
 
 logging:
-  console_level: INFO
+  console_level: ERROR
   file_level: DEBUG
   log_dir: output/logs
   log_file: processing.log
