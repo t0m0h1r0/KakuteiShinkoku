@@ -29,18 +29,12 @@ class BaseProcessor(ABC, Generic[T, R]):
         try:
             self.logger.debug(f"トランザクション一括処理を開始 (合計: {len(transactions)}件)")
             
+            # トランザクショントラッカーの初期化
             if hasattr(self, '_transaction_tracker') and self._transaction_tracker:
                 self._transaction_tracker.track_daily_transactions(transactions)
             
-            if hasattr(self, '_transaction_tracker'):
-                for symbol, daily_txs in self._transaction_tracker._daily_transactions.items():
-                    sorted_dates = sorted(daily_txs.keys())
-                    for transaction_date in sorted_dates:
-                        transactions_on_date = daily_txs[transaction_date]
-                        self._process_daily_transactions(symbol, transactions_on_date)
-            else:
-                for transaction in transactions:
-                    self.process(transaction)
+            # 日次処理の実行
+            self._process_daily_transactions_by_symbol(transactions)
             
             self.logger.info(f"合計 {len(self._trade_records)} レコードを処理")
             return self.get_records()
@@ -48,6 +42,18 @@ class BaseProcessor(ABC, Generic[T, R]):
         except Exception as e:
             self.logger.error(f"一括処理中にエラー: {e}")
             return []
+
+    def _process_daily_transactions_by_symbol(self, transactions: List[Transaction]) -> None:
+        """シンボルごとの日次処理を実行"""
+        if hasattr(self, '_transaction_tracker'):
+            for symbol, daily_txs in self._transaction_tracker._daily_transactions.items():
+                sorted_dates = sorted(daily_txs.keys())
+                for transaction_date in sorted_dates:
+                    transactions_on_date = daily_txs[transaction_date]
+                    self._process_daily_transactions(symbol, transactions_on_date)
+        else:
+            for transaction in transactions:
+                self.process(transaction)
 
     @abstractmethod
     def process(self, transaction: Transaction) -> None:
@@ -138,3 +144,11 @@ class BaseProcessor(ABC, Generic[T, R]):
     def get_summary_records(self) -> List[R]:
         """サマリーレコードの取得"""
         pass
+
+    def _create_trade_record(self, **kwargs) -> T:
+        """トレードレコードの作成"""
+        return self._record_class(**kwargs)
+
+    def _create_summary_record(self, **kwargs) -> R:
+        """サマリーレコードの作成"""
+        return self._summary_class(**kwargs)
