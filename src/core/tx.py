@@ -1,31 +1,48 @@
 # core/tx.py
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from datetime import date
-from typing import Optional
-from functools import total_ordering
+from typing import Optional, Dict, Any
+from enum import Enum, auto
 
-from ..exchange.money import Money
-from ..exchange.currency import Currency
+from ..exchange.money import Money, Currency
 
-@total_ordering
+class TransactionType(Enum):
+    """取引種別を表す列挙型"""
+    BUY = auto()
+    SELL = auto()
+    DIVIDEND = auto()
+    INTEREST = auto()
+    TAX = auto()
+    FEE = auto()
+    JOURNAL = auto()
+    OTHER = auto()
+
+    @classmethod
+    def from_str(cls, action: str) -> 'TransactionType':
+        """文字列から取引種別を判定"""
+        action_upper = action.upper()
+        
+        if 'BUY' in action_upper:
+            return cls.BUY
+        elif 'SELL' in action_upper:
+            return cls.SELL
+        elif 'DIVIDEND' in action_upper:
+            return cls.DIVIDEND
+        elif 'INTEREST' in action_upper:
+            return cls.INTEREST
+        elif 'TAX' in action_upper:
+            return cls.TAX
+        elif 'FEE' in action_upper or 'COMMISSION' in action_upper:
+            return cls.FEE
+        elif 'JOURNAL' in action_upper:
+            return cls.JOURNAL
+        return cls.OTHER
+
 @dataclass(frozen=True)
 class Transaction:
-    """
-    取引情報を表すイミュータブルなデータクラス
-    
-    Attributes:
-        transaction_date (date): 取引日
-        account_id (str): アカウントID
-        symbol (str): 銘柄シンボル
-        description (str): 取引説明
-        amount (Decimal): 取引金額
-        action_type (str): 取引種別
-        quantity (Optional[Decimal]): 数量
-        price (Optional[Decimal]): 価格
-        fees (Optional[Decimal]): 手数料
-    """
+    """取引情報を表すイミュータブルなデータクラス"""
     transaction_date: date
     account_id: str
     symbol: str
@@ -35,74 +52,64 @@ class Transaction:
     quantity: Optional[Decimal] = None
     price: Optional[Decimal] = None
     fees: Optional[Decimal] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """
-        データの整合性を確保するための初期化後処理
-        """
-        # 文字列フィールドの正規化
-        object.__setattr__(self, 'account_id', self.account_id.strip())
-        object.__setattr__(self, 'symbol', self.symbol.strip())
-        object.__setattr__(self, 'description', self.description.strip())
-        object.__setattr__(self, 'action_type', self.action_type.strip().upper())
+        """初期化後の処理"""
+        # frozenクラスでもmetadataは変更可能にする
+        object.__setattr__(self, 'metadata', dict(self.metadata))
 
-        # Decimal型の正規化
-        if isinstance(self.amount, (int, float)):
-            object.__setattr__(self, 'amount', Decimal(str(self.amount)))
-        if isinstance(self.quantity, (int, float)):
-            object.__setattr__(self, 'quantity', Decimal(str(self.quantity)))
-        if isinstance(self.price, (int, float)):
-            object.__setattr__(self, 'price', Decimal(str(self.price)))
-        if isinstance(self.fees, (int, float)):
-            object.__setattr__(self, 'fees', Decimal(str(self.fees)))
+    @property
+    def transaction_type(self) -> TransactionType:
+        """取引種別を判定"""
+        return TransactionType.from_str(self.action_type)
 
-    def create_money(self, currency: str = 'USD', rate_date: Optional[date] = None) -> Money:
-        """
-        トランザクション金額をMoneyオブジェクトに変換
-        
-        Args:
-            currency (str): 通貨コード（デフォルト: 'USD'）
-            rate_date (Optional[date]): 為替レート日付（デフォルト: 取引日）
-            
-        Returns:
-            Money: 変換後のMoneyオブジェクト
-        """
-        return Money(
+    @property
+    def is_buy(self) -> bool:
+        """買い取引かどうか"""
+        return self.transaction_type == TransactionType.BUY
+
+    @property
+    def is_sell(self) -> bool:
+        """売り取引かどうか"""
+        return self.transaction_type == TransactionType.SELL
+
+    @property
+    def is_dividend(self) -> bool:
+        """配当取引かどうか"""
+        return self.transaction_type == TransactionType.DIVIDEND
+
+    @property
+    def is_interest(self) -> bool:
+        """利子取引かどうか"""
+        return self.transaction_type == TransactionType.INTEREST
+
+    @property
+    def total_amount(self) -> Decimal:
+        """手数料を含む総額を計算"""
+        base = abs(self.amount)
+        if self.fees:
+            base += abs(self.fees)
+        return base
+
+    def create_money(self, currency: Currency = Currency.USD, rate_date: Optional[date] = None) -> Money:
+        """トランザクション金額をMoneyオブジェクトに変換"""
+        use_date = rate_date or self.transaction_date
+        return Money(amount=self.amount, currency=currency, rate_date=use_date)
+
+    def with_metadata(self, **kwargs) -> 'Transaction':
+        """メタデータを追加した新しいトランザクションを作成"""
+        new_metadata = dict(self.metadata)
+        new_metadata.update(kwargs)
+        return Transaction(
+            transaction_date=self.transaction_date,
+            account_id=self.account_id,
+            symbol=self.symbol,
+            description=self.description,
             amount=self.amount,
-            currency=Currency.from_str(currency),
-            rate_date=rate_date or self.transaction_date
+            action_type=self.action_type,
+            quantity=self.quantity,
+            price=self.price,
+            fees=self.fees,
+            metadata=new_metadata
         )
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Transaction):
-            return NotImplemented
-        return (
-            self.transaction_date == other.transaction_date and
-            self.account_id == other.account_id and
-            self.symbol == other.symbol and
-            self.amount == other.amount
-        )
-
-    def __lt__(self, other: object) -> bool:
-        if not isinstance(other, Transaction):
-            return NotImplemented
-        return (
-            self.transaction_date,
-            self.account_id,
-            self.symbol,
-            self.amount
-        ) < (
-            other.transaction_date,
-            other.account_id,
-            other.symbol,
-            other.amount
-        )
-
-    def __hash__(self) -> int:
-        return hash((
-            self.transaction_date,
-            self.account_id,
-            self.symbol,
-            self.amount,
-            self.action_type
-        ))
