@@ -1,10 +1,9 @@
 from decimal import Decimal
-from typing import Dict, List
+from typing import Dict
 from datetime import date
 from collections import defaultdict
 
 from ..base.tracker import BaseTransactionTracker
-from ...core.tx import Transaction
 
 class StockTransactionTracker(BaseTransactionTracker):
     """株式取引の状態を追跡するクラス"""

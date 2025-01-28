@@ -8,7 +8,6 @@ from ...core.tx import Transaction
 from ..base.processor import BaseProcessor
 from ...exchange.money import Money
 from ...exchange.currency import Currency
-from ...exchange.exchange import exchange
 
 from .record import OptionTradeRecord, OptionSummaryRecord
 from .position import OptionPosition, OptionContract

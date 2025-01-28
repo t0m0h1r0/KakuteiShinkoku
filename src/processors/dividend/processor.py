@@ -1,5 +1,4 @@
-from typing import List, Dict, Optional
-from decimal import Decimal
+from typing import List, Dict
 import logging
 
 from ...core.tx import Transaction

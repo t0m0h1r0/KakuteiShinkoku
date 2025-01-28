@@ -3,7 +3,7 @@
 from enum import Enum, unique
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional, ClassVar, Dict, Union, overload
+from typing import Optional, Dict, Union, overload
 
 @dataclass(frozen=True)
 class CurrencyInfo:

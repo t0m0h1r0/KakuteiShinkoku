@@ -1,9 +1,6 @@
 from typing import Dict, Any
-from decimal import Decimal
 
 from .base import BaseFormatter, BaseOutput
-from ..exchange.money import Money
-from ..exchange.currency import Currency
 
 class ConsoleFormatter(BaseFormatter[Dict[str, Any]]):
     """コンソール出力用フォーマッター"""

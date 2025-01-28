@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import List, Dict, Any
-from decimal import Decimal
 import csv
 import logging
 

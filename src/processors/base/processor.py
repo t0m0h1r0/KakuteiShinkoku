@@ -121,7 +121,7 @@ class BaseProcessor(ABC, Generic[T]):
                     self.logger.debug(f"税金レコード発見: {tax_record['amount']}")
                     return Decimal(tax_record['amount'])
 
-            self.logger.debug(f"対応する税金レコードなし")
+            self.logger.debug("対応する税金レコードなし")
             return Decimal('0')
             
         except Exception as e:

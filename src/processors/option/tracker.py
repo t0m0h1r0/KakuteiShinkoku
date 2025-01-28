@@ -1,6 +1,5 @@
 from decimal import Decimal
 from typing import Dict, List
-from datetime import date
 from collections import defaultdict
 
 from ..base.tracker import BaseTransactionTracker

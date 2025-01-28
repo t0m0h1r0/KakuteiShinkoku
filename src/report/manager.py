@@ -1,7 +1,6 @@
 from typing import Dict, Any
 import logging
 
-from .interfaces import BaseReportGenerator
 from .dividend import DividendReportGenerator
 from .interest import InterestReportGenerator
 from .stock import StockTradeReportGenerator

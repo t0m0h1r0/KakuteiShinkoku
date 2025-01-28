@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List, TypeVar, Generic, Union, Optional, Iterator
+from typing import Dict, List, TypeVar, Generic, Iterator
 from decimal import Decimal
 import logging
 

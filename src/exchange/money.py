@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import date
-from decimal import Decimal, DivisionByZero, InvalidOperation
+from decimal import Decimal, InvalidOperation
 from typing import Dict, Optional, Union, overload
 import logging
 

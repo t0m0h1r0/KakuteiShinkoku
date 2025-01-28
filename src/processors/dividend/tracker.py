@@ -1,10 +1,8 @@
 from decimal import Decimal
-from typing import Dict, List
-from datetime import date
+from typing import Dict
 from collections import defaultdict
 
 from ..base.tracker import BaseTransactionTracker
-from ...core.tx import Transaction
 
 class DividendTransactionTracker(BaseTransactionTracker):
     def __init__(self):

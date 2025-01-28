@@ -1,7 +1,6 @@
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
 from typing import Optional, Any, Dict, Type, TypeVar, List
-import re
 import logging
 from dataclasses import dataclass, field
 
@@ -268,7 +267,7 @@ class TransactionParser(BaseParser):
             raise
         except Exception as e:
             raise ParseError(
-                f"トランザクションのパースに失敗",
+                "トランザクションのパースに失敗",
                 str(data),
                 "transaction",
                 {'error': str(e)}

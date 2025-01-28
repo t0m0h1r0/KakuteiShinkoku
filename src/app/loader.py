@@ -1,9 +1,8 @@
 from pathlib import Path
-from typing import Dict, Optional, Union, Any
+from typing import Dict, Any
 import logging
 
 from ..outputs.csv import CSVOutput
-from ..exchange.currency import Currency
 
 class ComponentLoader:
     """
