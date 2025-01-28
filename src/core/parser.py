@@ -90,7 +90,7 @@ class BaseParser:
             return None
             
         try:
-            if target_type == bool:
+            if target_type is bool:
                 return bool(value)
             return target_type(value)
         except (ValueError, TypeError) as e:
