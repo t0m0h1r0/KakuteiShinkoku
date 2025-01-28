@@ -4,8 +4,10 @@ import logging
 
 from ...core.tx import Transaction
 
+
 class BaseTransactionTracker:
     """基本トランザクション追跡クラス"""
+
     def __init__(self):
         self._daily_transactions: Dict[str, Dict[date, List[Transaction]]] = {}
         self._transaction_tracking: Dict[str, Dict] = {}
@@ -14,14 +16,14 @@ class BaseTransactionTracker:
     def track_daily_transactions(self, transactions: List[Transaction]) -> None:
         """日次トランザクションを追跡"""
         for transaction in transactions:
-            symbol = transaction.symbol or 'GENERAL'
+            symbol = transaction.symbol or "GENERAL"
             if symbol not in self._daily_transactions:
                 self._daily_transactions[symbol] = {}
-            
+
             date = transaction.transaction_date
             if date not in self._daily_transactions[symbol]:
                 self._daily_transactions[symbol][date] = []
-            
+
             self._daily_transactions[symbol][date].append(transaction)
 
     def get_symbol_transactions(self, symbol: str) -> Dict[date, List[Transaction]]:

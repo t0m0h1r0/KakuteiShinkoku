@@ -12,6 +12,7 @@ from .position import StockLot, StockPosition
 from .tracker import StockTransactionTracker
 from .config import StockProcessingConfig
 
+
 class StockProcessor(BaseProcessor[StockTradeRecord]):
     def __init__(self):
         super().__init__()
@@ -21,10 +22,15 @@ class StockProcessor(BaseProcessor[StockTradeRecord]):
         self._matured_symbols: set = set()
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def _process_daily_transactions(self, symbol: str, transactions: List[Transaction]) -> None:
+    def _process_daily_transactions(
+        self, symbol: str, transactions: List[Transaction]
+    ) -> None:
         """日次トランザクションを処理"""
         # 満期済みシンボルのチェック
-        if any(self._transaction_tracker.is_matured(symbol, t.transaction_date) for t in transactions):
+        if any(
+            self._transaction_tracker.is_matured(symbol, t.transaction_date)
+            for t in transactions
+        ):
             if symbol not in self._matured_symbols:
                 self._handle_maturity(symbol)
             return
@@ -40,7 +46,9 @@ class StockProcessor(BaseProcessor[StockTradeRecord]):
             if not transaction.symbol:
                 return
 
-            if self._transaction_tracker.is_matured(transaction.symbol, transaction.transaction_date):
+            if self._transaction_tracker.is_matured(
+                transaction.symbol, transaction.transaction_date
+            ):
                 if transaction.symbol not in self._matured_symbols:
                     self._handle_maturity(transaction.symbol)
                 return
@@ -61,15 +69,19 @@ class StockProcessor(BaseProcessor[StockTradeRecord]):
             quantity = Decimal(str(transaction.quantity or 0))
             price = Decimal(str(transaction.price or 0))
             fees = Decimal(str(transaction.fees or 0))
-            
+
             realized_gain, avg_price, position = self._update_position(
                 symbol, action, quantity, price, fees
             )
-            
-            total_price = Money(price * quantity, Currency.USD, transaction.transaction_date)
-            realized_gain_money = Money(realized_gain, Currency.USD, transaction.transaction_date)
+
+            total_price = Money(
+                price * quantity, Currency.USD, transaction.transaction_date
+            )
+            realized_gain_money = Money(
+                realized_gain, Currency.USD, transaction.transaction_date
+            )
             fees_money = Money(fees, Currency.USD, transaction.transaction_date)
-            
+
             record = StockTradeRecord(
                 trade_date=transaction.transaction_date,
                 account_id=transaction.account_id,
@@ -80,17 +92,17 @@ class StockProcessor(BaseProcessor[StockTradeRecord]):
                 price=total_price,
                 realized_gain=realized_gain_money,
                 fees=fees_money,
-                exchange_rate=total_price.get_rate()
+                exchange_rate=total_price.get_rate(),
             )
-            
+
             self._trade_records.append(record)
             self._update_summary_record(record, position)
-            
+
             self._transaction_tracker.update_tracking(
                 symbol,
-                quantity if action == 'BUY' else -quantity,
+                quantity if action == "BUY" else -quantity,
                 price * quantity,
-                realized_gain
+                realized_gain,
             )
 
         except Exception as e:
@@ -105,29 +117,26 @@ class StockProcessor(BaseProcessor[StockTradeRecord]):
         self._trade_records = [r for r in self._trade_records if r.symbol != symbol]
 
     def _update_position(
-        self, 
-        symbol: str, 
-        action: str, 
-        quantity: Decimal, 
-        price: Decimal, 
-        fees: Decimal
+        self, symbol: str, action: str, quantity: Decimal, price: Decimal, fees: Decimal
     ) -> Tuple[Decimal, Decimal, StockPosition]:
         """ポジションの更新"""
         position = self._positions.get(symbol, StockPosition())
         self._positions[symbol] = position
-        
-        if action == 'BUY':
+
+        if action == "BUY":
             position.add_lot(StockLot(quantity, price, fees))
-            realized_gain = Decimal('0')
-        elif action == 'SELL':
+            realized_gain = Decimal("0")
+        elif action == "SELL":
             realized_gain = position.remove_shares(quantity, price, fees)
         else:
             raise ValueError(f"不正なアクション: {action}")
-        
+
         avg_price = position.average_price
         return realized_gain, avg_price, position
 
-    def _update_summary_record(self, record: StockTradeRecord, position: StockPosition) -> None:
+    def _update_summary_record(
+        self, record: StockTradeRecord, position: StockPosition
+    ) -> None:
         """サマリーレコードの更新"""
         summary = self._summary_records.get(record.symbol)
         if not summary:
@@ -136,19 +145,19 @@ class StockProcessor(BaseProcessor[StockTradeRecord]):
                 record.symbol,
                 record.description,
                 record.trade_date,
-                record.quantity
+                record.quantity,
             )
             self._summary_records[record.symbol] = summary
-        
+
         summary.total_realized_gain += record.realized_gain
         summary.total_fees += record.fees
         summary.remaining_quantity = position.total_quantity
-        
+
         if position.total_quantity == 0:
             summary.close_date = record.trade_date
 
-    @staticmethod        
-    def _is_stock_transaction(transaction: Transaction) -> bool: 
+    @staticmethod
+    def _is_stock_transaction(transaction: Transaction) -> bool:
         """株式取引の判定"""
         return transaction.action_type.upper() in StockProcessingConfig.STOCK_ACTIONS
 

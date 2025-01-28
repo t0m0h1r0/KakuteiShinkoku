@@ -5,18 +5,21 @@ from dataclasses import dataclass
 
 from ..exchange.money import Money
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 @dataclass
 class ColorScheme:
     """色スキーマのデータクラス定義"""
-    HEADER: str = '\033[95m'
-    BLUE: str = '\033[94m'
-    GREEN: str = '\033[92m'
-    WARNING: str = '\033[93m'
-    RED: str = '\033[91m'
-    END: str = '\033[0m'
-    BOLD: str = '\033[1m'
+
+    HEADER: str = "\033[95m"
+    BLUE: str = "\033[94m"
+    GREEN: str = "\033[92m"
+    WARNING: str = "\033[93m"
+    RED: str = "\033[91m"
+    END: str = "\033[0m"
+    BOLD: str = "\033[1m"
+
 
 class BaseFormatter(ABC, Generic[T]):
     """
@@ -49,10 +52,12 @@ class BaseFormatter(ABC, Generic[T]):
         """
         pass
 
-    def format_money(self, 
-                     value: Union[Money, Decimal], 
-                     currency: str = 'USD',
-                     use_color: bool = False) -> str:
+    def format_money(
+        self,
+        value: Union[Money, Decimal],
+        currency: str = "USD",
+        use_color: bool = False,
+    ) -> str:
         """
         金額をフォーマット
 
@@ -65,15 +70,15 @@ class BaseFormatter(ABC, Generic[T]):
             フォーマットされた金額文字列
         """
         if isinstance(value, Money):
-            amount = value.usd if currency == 'USD' else value.jpy
+            amount = value.usd if currency == "USD" else value.jpy
         else:
             amount = Decimal(str(value))
 
-        formatted = self._format_number(amount, currency == 'JPY')
-        
+        formatted = self._format_number(amount, currency == "JPY")
+
         if amount < 0 and use_color and self.use_color and self.color_scheme:
             return f"{self.color_scheme.RED}{formatted}{self.color_scheme.END}"
-        
+
         return formatted
 
     def _format_number(self, amount: Decimal, is_jpy: bool = False) -> str:
@@ -89,8 +94,8 @@ class BaseFormatter(ABC, Generic[T]):
         """
         if is_jpy:
             return f"¥{int(abs(amount)):,}"
-        
-        whole, decimal = f"{abs(amount):.2f}".split('.')
+
+        whole, decimal = f"{abs(amount):.2f}".split(".")
         return f"${int(whole):,}.{decimal}"
 
     def _color(self, text: str, color: str) -> str:
@@ -106,9 +111,10 @@ class BaseFormatter(ABC, Generic[T]):
         """
         if not self.use_color or not self.color_scheme:
             return text
-        
-        color_code = getattr(self.color_scheme, color.upper(), '')
+
+        color_code = getattr(self.color_scheme, color.upper(), "")
         return f"{color_code}{text}{self.color_scheme.END}" if color_code else text
+
 
 class BaseOutput(ABC, Generic[T]):
     """

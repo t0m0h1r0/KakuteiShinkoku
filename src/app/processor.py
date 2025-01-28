@@ -6,9 +6,10 @@ import traceback
 from ..core.tx import Transaction
 from .reporter import InvestmentReporter
 
+
 class InvestmentProcessor:
     """投資データ処理クラス"""
-    
+
     def __init__(self, context):
         self.context = context
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -32,7 +33,7 @@ class InvestmentProcessor:
         """トランザクションデータの処理"""
         try:
             sorted_transactions = sorted(transactions, key=lambda x: x.transaction_date)
-            
+
             processing_results = self._process_transactions(sorted_transactions)
             if not processing_results:
                 return False
@@ -47,15 +48,19 @@ class InvestmentProcessor:
     def _load_transactions(self, json_files: List[Path]) -> List[Transaction]:
         """トランザクションの読み込み"""
         all_transactions = []
-        
+
         for file in json_files:
             try:
                 self.logger.info(f"ファイル処理中: {file}")
                 transactions = self.context.transaction_loader.load(file)
                 all_transactions.extend(transactions)
-                self.logger.debug(f"{file}から{len(transactions)}件のトランザクションを読み込み")
+                self.logger.debug(
+                    f"{file}から{len(transactions)}件のトランザクションを読み込み"
+                )
             except Exception as e:
-                self.logger.error(f"ファイル{file}の処理エラー: {e}\n{traceback.format_exc()}")
+                self.logger.error(
+                    f"ファイル{file}の処理エラー: {e}\n{traceback.format_exc()}"
+                )
                 continue
 
         return all_transactions
@@ -69,19 +74,19 @@ class InvestmentProcessor:
             option_records = self.context.option_processor.process_all(transactions)
 
             total_records = (
-                len(dividend_records) +
-                len(interest_records) +
-                len(stock_records) +
-                len(option_records)
+                len(dividend_records)
+                + len(interest_records)
+                + len(stock_records)
+                + len(option_records)
             )
             self.logger.info(f"合計{total_records}件のレコードを処理")
 
             return {
-                'dividend_records': dividend_records,
-                'interest_records': interest_records,
-                'stock_records': stock_records,
-                'option_records': option_records,
-                'option_processor': self.context.option_processor
+                "dividend_records": dividend_records,
+                "interest_records": interest_records,
+                "stock_records": stock_records,
+                "option_records": option_records,
+                "option_processor": self.context.option_processor,
             }
 
         except Exception as e:
