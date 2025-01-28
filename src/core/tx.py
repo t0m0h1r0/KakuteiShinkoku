@@ -1,5 +1,3 @@
-# core/tx.py
-
 from dataclasses import dataclass, field
 from decimal import Decimal
 from datetime import date
@@ -9,54 +7,83 @@ from enum import Enum, auto
 from ..exchange.money import Money, Currency
 
 class TransactionType(Enum):
-    """取引種別を表す列挙型"""
-    BUY = auto()
-    SELL = auto()
-    DIVIDEND = auto()
-    INTEREST = auto()
-    TAX = auto()
-    FEE = auto()
-    JOURNAL = auto()
-    OTHER = auto()
+    """
+    取引種別を表す列挙型
+    
+    全ての取引タイプを定義し、文字列からの変換をサポートします。
+    """
+    BUY = auto()          # 買付
+    SELL = auto()         # 売却
+    DIVIDEND = auto()     # 配当
+    INTEREST = auto()     # 利子
+    TAX = auto()          # 税金
+    FEE = auto()          # 手数料
+    JOURNAL = auto()      # 振替
+    OTHER = auto()        # その他
 
     @classmethod
     def from_str(cls, action: str) -> 'TransactionType':
-        """文字列から取引種別を判定"""
+        """
+        文字列から取引種別を判定
+        
+        Args:
+            action: 判定する取引アクション文字列
+            
+        Returns:
+            対応するTransactionType
+        """
         action_upper = action.upper()
         
-        if 'BUY' in action_upper:
-            return cls.BUY
-        elif 'SELL' in action_upper:
-            return cls.SELL
-        elif 'DIVIDEND' in action_upper:
-            return cls.DIVIDEND
-        elif 'INTEREST' in action_upper:
-            return cls.INTEREST
-        elif 'TAX' in action_upper:
-            return cls.TAX
-        elif 'FEE' in action_upper or 'COMMISSION' in action_upper:
-            return cls.FEE
-        elif 'JOURNAL' in action_upper:
-            return cls.JOURNAL
+        # 取引種別の判定マッピング
+        type_mapping = {
+            'BUY': cls.BUY,
+            'SELL': cls.SELL,
+            'DIVIDEND': cls.DIVIDEND,
+            'INTEREST': cls.INTEREST,
+            'TAX': cls.TAX,
+            'FEE': cls.FEE,
+            'COMMISSION': cls.FEE,
+            'JOURNAL': cls.JOURNAL
+        }
+        
+        # 部分一致で判定
+        for key, value in type_mapping.items():
+            if key in action_upper:
+                return value
+                
         return cls.OTHER
 
 @dataclass(frozen=True)
 class Transaction:
-    """取引情報を表すイミュータブルなデータクラス"""
-    transaction_date: date
-    account_id: str
-    symbol: str
-    description: str
-    amount: Decimal
-    action_type: str
-    quantity: Optional[Decimal] = None
-    price: Optional[Decimal] = None
-    fees: Optional[Decimal] = None
+    """
+    取引情報を表すイミュータブルなデータクラス
+    
+    全ての取引に関する基本情報を保持し、計算や変換のメソッドを提供します。
+    frozenなデータクラスとして実装され、作成後の変更を防止します。
+    """
+    # 基本情報
+    transaction_date: date     # 取引日
+    account_id: str           # アカウントID
+    symbol: str               # 銘柄シンボル
+    description: str          # 取引説明
+    amount: Decimal          # 取引金額
+    action_type: str         # 取引アクション
+    
+    # オプション情報
+    quantity: Optional[Decimal] = None      # 数量
+    price: Optional[Decimal] = None         # 価格
+    fees: Optional[Decimal] = None          # 手数料
+    
+    # メタデータ
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """初期化後の処理"""
-        # frozenクラスでもmetadataは変更可能にする
+        """
+        初期化後の処理
+        
+        metadataは後から更新可能にするため、frozenクラスでも
+        変更可能な新しい辞書を割り当てます。
+        """
         object.__setattr__(self, 'metadata', dict(self.metadata))
 
     @property
@@ -86,21 +113,52 @@ class Transaction:
 
     @property
     def total_amount(self) -> Decimal:
-        """手数料を含む総額を計算"""
+        """
+        手数料を含む総額を計算
+        
+        Returns:
+            総額（手数料込み）
+        """
         base = abs(self.amount)
         if self.fees:
             base += abs(self.fees)
         return base
 
-    def create_money(self, currency: Currency = Currency.USD, rate_date: Optional[date] = None) -> Money:
-        """トランザクション金額をMoneyオブジェクトに変換"""
+    def create_money(
+        self, 
+        currency: Currency = Currency.USD,
+        rate_date: Optional[date] = None
+    ) -> Money:
+        """
+        トランザクション金額をMoneyオブジェクトに変換
+        
+        Args:
+            currency: 通貨（デフォルト: USD）
+            rate_date: レート参照日（デフォルト: 取引日）
+            
+        Returns:
+            作成されたMoneyオブジェクト
+        """
         use_date = rate_date or self.transaction_date
-        return Money(amount=self.amount, currency=currency, rate_date=use_date)
+        return Money(
+            amount=self.amount,
+            currency=currency,
+            rate_date=use_date
+        )
 
     def with_metadata(self, **kwargs) -> 'Transaction':
-        """メタデータを追加した新しいトランザクションを作成"""
+        """
+        メタデータを追加した新しいトランザクションを作成
+        
+        Args:
+            **kwargs: 追加するメタデータのキーワード引数
+            
+        Returns:
+            新しいTransactionインスタンス
+        """
         new_metadata = dict(self.metadata)
         new_metadata.update(kwargs)
+        
         return Transaction(
             transaction_date=self.transaction_date,
             account_id=self.account_id,
@@ -112,4 +170,20 @@ class Transaction:
             price=self.price,
             fees=self.fees,
             metadata=new_metadata
+        )
+
+    def __str__(self) -> str:
+        """文字列表現を返す"""
+        return (
+            f"Transaction({self.transaction_date}, {self.action_type}, "
+            f"{self.symbol}, {self.amount})"
+        )
+
+    def __repr__(self) -> str:
+        """開発者向けの詳細な文字列表現を返す"""
+        return (
+            f"Transaction(date={self.transaction_date}, "
+            f"action={self.action_type}, symbol={self.symbol}, "
+            f"amount={self.amount}, quantity={self.quantity}, "
+            f"price={self.price}, fees={self.fees})"
         )

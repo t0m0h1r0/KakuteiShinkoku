@@ -1,11 +1,9 @@
-# core/parser.py
-
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
-from typing import Optional, Any, Dict, Type, TypeVar
+from typing import Optional, Any, Dict, Type, TypeVar, List
 import re
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .error import ParseError
 from .tx import Transaction
@@ -14,28 +12,50 @@ T = TypeVar('T')
 
 @dataclass
 class ParserConfig:
-    """パーサーの設定"""
-    date_formats: list[str] = None
+    """パーサーの設定を管理するデータクラス"""
+    
+    # 日付フォーマットのリスト
+    date_formats: List[str] = field(default_factory=lambda: [
+        '%m/%d/%Y', '%Y-%m-%d', '%m/%d/%y', '%d/%m/%Y'
+    ])
+    
+    # 数値フォーマットの設定
     decimal_separator: str = '.'
     thousand_separator: str = ','
-    currency_symbols: list[str] = None
-
-    def __post_init__(self):
-        """デフォルト値の設定"""
-        if self.date_formats is None:
-            self.date_formats = ['%m/%d/%Y', '%Y-%m-%d', '%m/%d/%y', '%d/%m/%Y']
-        if self.currency_symbols is None:
-            self.currency_symbols = ['$', '¥', '€', '£']
+    
+    # 通貨記号のリスト
+    currency_symbols: List[str] = field(default_factory=lambda: [
+        '$', '¥', '€', '£'
+    ])
 
 class BaseParser:
-    """基本パーサークラス"""
+    """
+    基本パーサークラス
     
-    def __init__(self, config: Optional[ParserConfig] = None):
+    数値や日付などの基本的なパース機能を提供します。
+    サブクラスはこのクラスを継承して具体的なパース処理を実装します。
+    """
+    
+    def __init__(self, config: Optional[ParserConfig] = None) -> None:
+        """
+        パーサーを初期化
+        
+        Args:
+            config: パーサーの設定（オプション）
+        """
         self.config = config or ParserConfig()
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def _clean_numeric(self, value: str) -> str:
-        """数値文字列のクリーニング"""
+        """
+        数値文字列をクリーニング
+        
+        Args:
+            value: クリーニングする文字列
+            
+        Returns:
+            クリーニングされた文字列
+        """
         if not value:
             return '0'
         
@@ -47,8 +67,26 @@ class BaseParser:
         value = value.replace(self.config.thousand_separator, '')
         return value.strip()
 
-    def _parse_to_type(self, value: Any, target_type: Type[T], field_name: str) -> Optional[T]:
-        """指定された型へのパース"""
+    def _parse_to_type(
+        self, 
+        value: Any, 
+        target_type: Type[T], 
+        field_name: str
+    ) -> Optional[T]:
+        """
+        指定された型へ値をパース
+        
+        Args:
+            value: パースする値
+            target_type: 目標の型
+            field_name: フィールド名（エラーメッセージ用）
+            
+        Returns:
+            パースされた値、または None
+            
+        Raises:
+            ParseError: パース失敗時
+        """
         if value is None or value == '':
             return None
             
@@ -65,10 +103,26 @@ class BaseParser:
             )
 
 class TransactionParser(BaseParser):
-    """トランザクションパーサー"""
+    """
+    トランザクションパーサー
+    
+    トランザクションデータを解析し、Transactionオブジェクトを生成します。
+    日付、金額、数量などの各フィールドの適切なパースを担当します。
+    """
 
     def parse_date(self, date_str: str) -> date:
-        """日付文字列をパース"""
+        """
+        日付文字列をパース
+        
+        Args:
+            date_str: パースする日付文字列
+            
+        Returns:
+            パースされた日付オブジェクト
+            
+        Raises:
+            ParseError: パース失敗時
+        """
         if not date_str:
             raise ParseError("日付が空です", date_str, "date")
         
@@ -89,7 +143,18 @@ class TransactionParser(BaseParser):
         )
 
     def parse_amount(self, value: str) -> Decimal:
-        """金額文字列をDecimalに変換"""
+        """
+        金額文字列をDecimalに変換
+        
+        Args:
+            value: パースする金額文字列
+            
+        Returns:
+            パースされたDecimal
+            
+        Raises:
+            ParseError: パース失敗時
+        """
         try:
             cleaned = self._clean_numeric(value)
             return Decimal(cleaned) if cleaned else Decimal('0')
@@ -102,7 +167,15 @@ class TransactionParser(BaseParser):
             )
 
     def parse_quantity(self, value: str) -> Optional[Decimal]:
-        """数量のパース"""
+        """
+        数量をパース
+        
+        Args:
+            value: パースする数量文字列
+            
+        Returns:
+            パースされたDecimal、または None
+        """
         if not value:
             return None
             
@@ -118,7 +191,15 @@ class TransactionParser(BaseParser):
             )
 
     def parse_price(self, value: str) -> Optional[Decimal]:
-        """価格のパース"""
+        """
+        価格をパース
+        
+        Args:
+            value: パースする価格文字列
+            
+        Returns:
+            パースされたDecimal、または None
+        """
         if not value:
             return None
             
@@ -134,7 +215,15 @@ class TransactionParser(BaseParser):
             )
 
     def parse_fees(self, value: str) -> Optional[Decimal]:
-        """手数料のパース"""
+        """
+        手数料をパース
+        
+        Args:
+            value: パースする手数料文字列
+            
+        Returns:
+            パースされたDecimal、または None
+        """
         if not value:
             return None
             
@@ -150,7 +239,18 @@ class TransactionParser(BaseParser):
             )
 
     def parse_transaction(self, data: Dict[str, Any]) -> Transaction:
-        """トランザクションデータのパース"""
+        """
+        トランザクションデータをパース
+        
+        Args:
+            data: パースするトランザクションデータ
+            
+        Returns:
+            パースされたTransactionオブジェクト
+            
+        Raises:
+            ParseError: パース失敗時
+        """
         try:
             return Transaction(
                 transaction_date=self.parse_date(data.get('Date', '')),
@@ -164,7 +264,7 @@ class TransactionParser(BaseParser):
                 fees=self.parse_fees(data.get('Fees & Comm', '')),
                 metadata={'raw_data': data}
             )
-        except ParseError as e:
+        except ParseError:
             raise
         except Exception as e:
             raise ParseError(
