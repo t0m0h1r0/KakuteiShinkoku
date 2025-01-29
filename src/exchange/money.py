@@ -1,5 +1,3 @@
-# exchange/money.py
-
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -18,7 +16,12 @@ class CurrencyConversionError(Exception):
 
 @dataclass(frozen=True)
 class Money:
-    """通貨金額を管理する不変クラス"""
+    """
+    通貨金額を管理する不変クラス
+    
+    すべての金額関連の操作を一元管理し、安全な通貨計算を提供します。
+    frozenなデータクラスとして実装され、作成後の変更を防止します。
+    """
 
     _logger: logging.Logger = field(default_factory=lambda: logging.getLogger("Money"))
     currency: Currency = field(default=Currency.USD)
@@ -27,10 +30,10 @@ class Money:
 
     @overload
     def __init__(
-        self,
+        self, 
         amount: Union[Decimal, float, int],
         currency: Currency,
-        rate_date: Optional[date] = None,
+        rate_date: Optional[date] = None
     ):
         """標準的な初期化メソッド"""
         ...
@@ -42,7 +45,7 @@ class Money:
         currency: Currency,
         rate_date: Optional[date] = None,
         *,
-        _values: Dict[Currency, Decimal],
+        _values: Dict[Currency, Decimal]
     ):
         """内部的な値マップを使用した初期化"""
         ...
@@ -53,7 +56,7 @@ class Money:
         currency: Currency,
         rate_date: Optional[date] = None,
         *,
-        _values: Optional[Dict[Currency, Decimal]] = None,
+        _values: Optional[Dict[Currency, Decimal]] = None
     ):
         """
         Moneyインスタンスの初期化
@@ -84,9 +87,7 @@ class Money:
                     values[target_currency] = converted_amount
                 else:
                     try:
-                        rate = exchange.get_rate(
-                            currency, target_currency, self.rate_date
-                        )
+                        rate = exchange.get_rate(currency, target_currency, self.rate_date)
                         values[target_currency] = rate.convert(converted_amount)
                     except Exception as e:
                         self._logger.warning(

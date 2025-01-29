@@ -1,5 +1,3 @@
-# exchange/currency.py
-
 from enum import Enum, unique
 from dataclasses import dataclass
 from decimal import Decimal
@@ -8,8 +6,9 @@ from typing import Optional, Dict, Union, overload
 
 @dataclass(frozen=True)
 class CurrencyInfo:
-    """通貨の詳細情報を表すイミュータブルなデータクラス"""
-
+    """
+    通貨の詳細情報を表すイミュータブルなデータクラス
+    """
     code: str
     symbol: str
     decimals: int
@@ -19,8 +18,9 @@ class CurrencyInfo:
 
 @unique
 class Currency(Enum):
-    """通貨を表現する列挙型"""
-
+    """
+    通貨を表現する列挙型
+    """
     USD = CurrencyInfo("USD", "$", 2, "US Dollar", "United States")
     JPY = CurrencyInfo("JPY", "¥", 0, "Japanese Yen", "Japan")
     EUR = CurrencyInfo("EUR", "€", 2, "Euro", "European Union")
@@ -58,9 +58,7 @@ class Currency(Enum):
         """国名を取得"""
         return self._info.country
 
-    def format_amount(
-        self, amount: Union[Decimal, float, int], include_symbol: bool = True
-    ) -> str:
+    def format_amount(self, amount: Union[Decimal, float, int], include_symbol: bool = True) -> str:
         """
         金額を通貨形式でフォーマット
 
@@ -95,9 +93,7 @@ class Currency(Enum):
         ...
 
     @classmethod
-    def from_str(
-        cls, value: Optional[str], default: Optional["Currency"] = None
-    ) -> Optional["Currency"]:
+    def from_str(cls, value: Optional[str], default: Optional["Currency"] = None) -> Optional["Currency"]:
         """
         文字列から通貨を取得
 

@@ -1,5 +1,3 @@
-# main.py
-
 import sys
 import logging
 import logging.config

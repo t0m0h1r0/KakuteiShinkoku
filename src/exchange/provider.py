@@ -1,5 +1,3 @@
-# exchange/provider.py
-
 from pathlib import Path
 from datetime import datetime, date
 from decimal import Decimal
@@ -12,7 +10,9 @@ from .rate import Rate
 
 
 class RateSource:
-    """為替レートのソースを管理するクラス"""
+    """
+    為替レートのソースを管理するクラス
+    """
 
     def __init__(
         self,
@@ -75,7 +75,17 @@ class RateManager:
         self._sources[(source.base, source.target)] = source
 
     def get_rate(self, base: Currency, target: Currency, rate_date: date) -> Rate:
-        """指定された通貨と日付の為替レートを取得"""
+        """
+        指定された通貨と日付の為替レートを取得
+        
+        Args:
+            base: 基準通貨
+            target: 変換先通貨
+            rate_date: レート参照日
+            
+        Returns:
+            為替レート
+        """
         # 同一通貨の場合は1
         if base == target:
             return Rate(base, target, Decimal("1"), rate_date)
@@ -100,7 +110,16 @@ class RateManager:
         return self._create_default_rate(base, target, rate_date)
 
     def _find_rate_for_date(self, source: RateSource, rate_date: date) -> Rate:
-        """指定された日付に最も近いレートを取得"""
+        """
+        指定された日付に最も近いレートを取得
+        
+        Args:
+            source: レートソース
+            rate_date: レート参照日
+            
+        Returns:
+            為替レート
+        """
         matching_rates = [rate for rate in source.rates if rate.date <= rate_date]
 
         if matching_rates:
@@ -117,7 +136,17 @@ class RateManager:
     def _calculate_cross_rate(
         self, base: Currency, target: Currency, rate_date: date
     ) -> Optional[Rate]:
-        """USDを介したクロスレートを計算"""
+        """
+        USDを介したクロスレートを計算
+        
+        Args:
+            base: 基準通貨
+            target: 変換先通貨
+            rate_date: レート参照日
+            
+        Returns:
+            計算されたクロスレート、または None
+        """
         usd_base_source = self._sources.get((Currency.USD, base))
         usd_target_source = self._sources.get((Currency.USD, target))
 

@@ -16,7 +16,15 @@ class InvestmentProcessor:
         self.reporter = InvestmentReporter(self.context.writers)
 
     def process_files(self, json_files: List[Path]) -> bool:
-        """複数のJSONファイルを処理"""
+        """
+        複数のJSONファイルを処理
+
+        Args:
+            json_files: 処理対象のJSONファイルリスト
+
+        Returns:
+            処理成功の場合True
+        """
         try:
             transactions = self._load_transactions(json_files)
             if not transactions:
@@ -30,7 +38,15 @@ class InvestmentProcessor:
             return False
 
     def process_data(self, transactions: List[Transaction]) -> bool:
-        """トランザクションデータの処理"""
+        """
+        トランザクションデータの処理
+
+        Args:
+            transactions: 処理対象のトランザクションリスト
+
+        Returns:
+            処理成功の場合True
+        """
         try:
             sorted_transactions = sorted(transactions, key=lambda x: x.transaction_date)
 
@@ -46,7 +62,15 @@ class InvestmentProcessor:
             return False
 
     def _load_transactions(self, json_files: List[Path]) -> List[Transaction]:
-        """トランザクションの読み込み"""
+        """
+        トランザクションの読み込み
+
+        Args:
+            json_files: JSONファイルのリスト
+
+        Returns:
+            トランザクションのリスト
+        """
         all_transactions = []
 
         for file in json_files:
@@ -66,7 +90,15 @@ class InvestmentProcessor:
         return all_transactions
 
     def _process_transactions(self, transactions: List[Transaction]) -> Dict[str, Any]:
-        """各種トランザクションの処理"""
+        """
+        各種トランザクションの処理
+
+        Args:
+            transactions: 処理対象のトランザクションリスト
+
+        Returns:
+            処理結果の辞書
+        """
         try:
             dividend_records = self.context.dividend_processor.process_all(transactions)
             interest_records = self.context.interest_processor.process_all(transactions)

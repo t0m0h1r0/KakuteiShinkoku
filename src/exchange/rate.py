@@ -1,5 +1,3 @@
-# exchange/rate.py
-
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
@@ -9,7 +7,9 @@ from .currency import Currency
 
 @dataclass(frozen=True)
 class Rate:
-    """為替レートを表現するイミュータブルなクラス"""
+    """
+    為替レートを表現するイミュータブルなクラス
+    """
 
     base: Currency
     target: Currency
@@ -18,14 +18,18 @@ class Rate:
     source: str = "system"
 
     def __post_init__(self) -> None:
-        """パラメータの検証と変換"""
+        """
+        パラメータの検証と変換
+        """
         if not isinstance(self.value, Decimal):
             object.__setattr__(self, "value", Decimal(str(self.value)))
 
         self._validate_rate()
 
     def _validate_rate(self) -> None:
-        """レートの検証"""
+        """
+        レートの検証
+        """
         if self.base == self.target and self.value != Decimal("1"):
             raise ValueError("同一通貨間のレートは1でなければなりません")
 
@@ -33,7 +37,16 @@ class Rate:
             raise ValueError(f"為替レートは正の値である必要があります: {self.value}")
 
     def convert(self, amount: Decimal, round_decimals: Optional[int] = None) -> Decimal:
-        """金額を変換"""
+        """
+        金額を変換
+
+        Args:
+            amount: 変換する金額
+            round_decimals: 丸めの小数点位置（オプション）
+
+        Returns:
+            変換後の金額
+        """
         converted = amount * self.value
 
         if round_decimals is not None:
@@ -47,7 +60,12 @@ class Rate:
         return converted.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     def inverse(self) -> "Rate":
-        """逆レートを取得"""
+        """
+        逆レートを取得
+        
+        Returns:
+            逆方向の為替レート
+        """
         return Rate(
             base=self.target,
             target=self.base,
@@ -57,7 +75,15 @@ class Rate:
         )
 
     def with_date(self, new_date: date) -> "Rate":
-        """日付を変更した新しいレートを取得"""
+        """
+        日付を変更した新しいレートを取得
+        
+        Args:
+            new_date: 新しい日付
+
+        Returns:
+            新しい日付の為替レート
+        """
         return Rate(
             base=self.base,
             target=self.target,
@@ -67,7 +93,15 @@ class Rate:
         )
 
     def format(self, decimals: int = 4) -> str:
-        """レートのフォーマット"""
+        """
+        レートのフォーマット
+        
+        Args:
+            decimals: 小数点以下の桁数
+
+        Returns:
+            フォーマットされたレート文字列
+        """
         rate_str = f"{self.value:.{decimals}f}"
         return f"{self.base.code}/{self.target.code}: {rate_str}"
 
@@ -94,7 +128,18 @@ class Rate:
         return hash((self.base, self.target, self.value, self.rate_date))
 
     def __mul__(self, other: "Rate") -> "Rate":
-        """レートの乗算（クロスレート計算）"""
+        """
+        レートの乗算（クロスレート計算）
+        
+        Args:
+            other: 掛け合わせるレート
+
+        Returns:
+            計算された新しいレート
+
+        Raises:
+            ValueError: レートの連鎖が不正な場合
+        """
         if self.target != other.base:
             raise ValueError(
                 f"レートの連鎖が不正です: {self.target.code} != {other.base.code}"

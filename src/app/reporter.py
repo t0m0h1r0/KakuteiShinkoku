@@ -32,6 +32,15 @@ class InvestmentReporter:
         }
 
     def generate_reports(self, data: Dict[str, Any]) -> bool:
+        """
+        レポート一括生成
+        
+        Args:
+            data: レポート生成用データ
+            
+        Returns:
+            生成成功の場合True
+        """
         try:
             self._generate_detail_reports(data)
             self._output_console_summary(data)
@@ -41,6 +50,7 @@ class InvestmentReporter:
             return False
 
     def _generate_detail_reports(self, data: Dict[str, Any]):
+        """各種詳細レポートの生成"""
         for name, generator in self.generators.items():
             try:
                 generator.generate_and_write(data)
@@ -48,6 +58,7 @@ class InvestmentReporter:
                 self.logger.error(f"{name}レポート生成エラー: {e}")
 
     def _output_console_summary(self, data: Dict[str, Any]):
+        """コンソール用サマリーの出力"""
         income_summary = self._calculate_income_summary(data)
         trading_summary = self._calculate_trading_summary(data)
         total_summary = self._calculate_total_summary(income_summary, trading_summary)
@@ -61,12 +72,14 @@ class InvestmentReporter:
         self.writers["console"].output(summary)
 
     def _calculate_income_summary(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """収入サマリーの計算"""
         calculator = ReportCalculator()
         return calculator.calculate_income_summary(
             data.get("dividend_records", []), data.get("interest_records", [])
         )
 
     def _calculate_trading_summary(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """取引サマリーの計算"""
         calculator = ReportCalculator()
         stock_summary = calculator.calculate_stock_summary_details(
             data.get("stock_records", [])
@@ -87,6 +100,7 @@ class InvestmentReporter:
     def _calculate_total_summary(
         self, income_summary: Dict[str, Any], trading_summary: Dict[str, Any]
     ) -> Dict[str, Any]:
+        """総合サマリーの計算"""
         net_income = (
             income_summary["dividend_total"]
             + income_summary["interest_total"]

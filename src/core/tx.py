@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from decimal import Decimal
 from datetime import date
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, ClassVar
 from enum import Enum, auto
 
 from ..exchange.money import Money, Currency
@@ -10,18 +10,17 @@ from ..exchange.money import Money, Currency
 class TransactionType(Enum):
     """
     取引種別を表す列挙型
-
+    
     全ての取引タイプを定義し、文字列からの変換をサポートします。
     """
-
-    BUY = auto()  # 買付
-    SELL = auto()  # 売却
-    DIVIDEND = auto()  # 配当
-    INTEREST = auto()  # 利子
-    TAX = auto()  # 税金
-    FEE = auto()  # 手数料
-    JOURNAL = auto()  # 振替
-    OTHER = auto()  # その他
+    BUY = auto()          # 買付
+    SELL = auto()         # 売却
+    DIVIDEND = auto()     # 配当
+    INTEREST = auto()     # 利子
+    TAX = auto()         # 税金
+    FEE = auto()         # 手数料
+    JOURNAL = auto()      # 振替
+    OTHER = auto()        # その他
 
     @classmethod
     def from_str(cls, action: str) -> "TransactionType":
@@ -60,23 +59,25 @@ class TransactionType(Enum):
 class Transaction:
     """
     取引情報を表すイミュータブルなデータクラス
-
+    
     全ての取引に関する基本情報を保持し、計算や変換のメソッドを提供します。
     frozenなデータクラスとして実装され、作成後の変更を防止します。
     """
+    # クラス変数
+    ROUND_DIGITS: ClassVar[int] = 2
 
     # 基本情報
-    transaction_date: date  # 取引日
-    account_id: str  # アカウントID
-    symbol: str  # 銘柄シンボル
-    description: str  # 取引説明
-    amount: Decimal  # 取引金額
-    action_type: str  # 取引アクション
+    transaction_date: date
+    account_id: str
+    symbol: str
+    description: str
+    amount: Decimal
+    action_type: str
 
     # オプション情報
-    quantity: Optional[Decimal] = None  # 数量
-    price: Optional[Decimal] = None  # 価格
-    fees: Optional[Decimal] = None  # 手数料
+    quantity: Optional[Decimal] = None
+    price: Optional[Decimal] = None
+    fees: Optional[Decimal] = None
 
     # メタデータ
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -84,7 +85,7 @@ class Transaction:
     def __post_init__(self) -> None:
         """
         初期化後の処理
-
+        
         metadataは後から更新可能にするため、frozenクラスでも
         変更可能な新しい辞書を割り当てます。
         """
@@ -119,7 +120,7 @@ class Transaction:
     def total_amount(self) -> Decimal:
         """
         手数料を含む総額を計算
-
+        
         Returns:
             総額（手数料込み）
         """
@@ -128,16 +129,14 @@ class Transaction:
             base += abs(self.fees)
         return base
 
-    def create_money(
-        self, currency: Currency = Currency.USD, rate_date: Optional[date] = None
-    ) -> Money:
+    def create_money(self, currency: Currency = Currency.USD, rate_date: Optional[date] = None) -> Money:
         """
         トランザクション金額をMoneyオブジェクトに変換
-
+        
         Args:
             currency: 通貨（デフォルト: USD）
             rate_date: レート参照日（デフォルト: 取引日）
-
+            
         Returns:
             作成されたMoneyオブジェクト
         """
@@ -147,10 +146,10 @@ class Transaction:
     def with_metadata(self, **kwargs) -> "Transaction":
         """
         メタデータを追加した新しいトランザクションを作成
-
+        
         Args:
             **kwargs: 追加するメタデータのキーワード引数
-
+            
         Returns:
             新しいTransactionインスタンス
         """
@@ -172,10 +171,7 @@ class Transaction:
 
     def __str__(self) -> str:
         """文字列表現を返す"""
-        return (
-            f"Transaction({self.transaction_date}, {self.action_type}, "
-            f"{self.symbol}, {self.amount})"
-        )
+        return f"Transaction({self.transaction_date}, {self.action_type}, {self.symbol}, {self.amount})"
 
     def __repr__(self) -> str:
         """開発者向けの詳細な文字列表現を返す"""
