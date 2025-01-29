@@ -13,7 +13,7 @@ from .rate import Rate
 class ExchangeService:
     """
     為替変換サービス
-    
+
     為替レートの管理と変換を一元的に行います。
     シングルトンパターンで実装され、アプリケーション全体で
     一貫した為替レート管理を提供します。
@@ -33,13 +33,13 @@ class ExchangeService:
     ) -> Decimal:
         """
         通貨を変換
-        
+
         Args:
             amount: 変換する金額
             from_currency: 変換元通貨
             to_currency: 変換先通貨
             rate_date: レート参照日（オプション）
-            
+
         Returns:
             変換後の金額
         """
@@ -52,12 +52,12 @@ class ExchangeService:
     def get_rate(self, base: Currency, target: Currency, rate_date: date) -> Rate:
         """
         為替レートを取得
-        
+
         Args:
             base: 基準通貨
             target: 変換先通貨
             rate_date: レート参照日
-            
+
         Returns:
             対応する為替レート
         """
@@ -84,7 +84,7 @@ class ExchangeService:
     ):
         """
         レートソースを追加
-        
+
         Args:
             base: 基準通貨
             target: 変換先通貨
@@ -98,7 +98,7 @@ class ExchangeService:
     def _load_rates(self, base: Currency, target: Currency, file_path: Path) -> None:
         """
         CSVからレートを読み込み
-        
+
         Args:
             base: 基準通貨
             target: 変換先通貨

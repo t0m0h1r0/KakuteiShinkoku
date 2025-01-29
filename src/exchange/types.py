@@ -7,9 +7,10 @@ from decimal import Decimal
 class CurrencyProtocol(Protocol):
     """
     通貨に関するプロトコル
-    
+
     通貨の基本的な情報と振る舞いを定義します。
     """
+
     @property
     def code(self) -> str: ...
     @property
@@ -30,9 +31,10 @@ class CurrencyProtocol(Protocol):
 class RateProtocol(Protocol):
     """
     為替レートのプロトコル
-    
+
     レートの変換と操作に関する基本的な振る舞いを定義します。
     """
+
     base: CurrencyProtocol
     target: CurrencyProtocol
     value: Decimal
@@ -51,9 +53,10 @@ class RateProtocol(Protocol):
 class MoneyProtocol(Protocol):
     """
     金額のプロトコル
-    
+
     通貨金額の計算と変換に関する基本的な振る舞いを定義します。
     """
+
     currency: CurrencyProtocol
     rate_date: date
 

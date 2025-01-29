@@ -6,6 +6,8 @@ from .base import BaseOutput, BaseFormatter
 
 
 class FileFormatter(BaseFormatter):
+    """ファイル出力用フォーマッター"""
+
     def format(self, data: Any) -> str:
         if isinstance(data, list):
             return "\n".join(str(item) for item in data)
@@ -13,6 +15,8 @@ class FileFormatter(BaseFormatter):
 
 
 class FileOutput(BaseOutput):
+    """ファイル出力の基本クラス"""
+
     def __init__(
         self,
         output_path: Path,
@@ -21,6 +25,16 @@ class FileOutput(BaseOutput):
         mode: str = "w",
         line_prefix: str = "",
     ):
+        """
+        ファイル出力クラスを初期化
+
+        Args:
+            output_path: 出力先パス
+            formatter: カスタムフォーマッター（オプション）
+            encoding: ファイルエンコーディング
+            mode: ファイルオープンモード
+            line_prefix: 行プレフィックス
+        """
         formatter = formatter or FileFormatter()
         super().__init__(formatter)
         self.output_path = output_path
@@ -30,6 +44,12 @@ class FileOutput(BaseOutput):
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def output(self, data: Any) -> None:
+        """
+        データをファイルに出力
+
+        Args:
+            data: 出力するデータ
+        """
         try:
             self.output_path.parent.mkdir(parents=True, exist_ok=True)
             formatted_data = self._format_data(data)
@@ -47,22 +67,43 @@ class FileOutput(BaseOutput):
             raise
 
     def _add_line_prefix(self, text: str) -> str:
+        """
+        各行にプレフィックスを追加
+
+        Args:
+            text: 元のテキスト
+
+        Returns:
+            プレフィックスが追加されたテキスト
+        """
         return "\n".join(f"{self.line_prefix}{line}" for line in text.split("\n"))
 
 
 class AppendFileOutput(FileOutput):
+    """追記モードのファイル出力クラス"""
+
     def __init__(
         self,
         output_path: Path,
         formatter: Optional[BaseFormatter] = None,
         encoding: str = "utf-8",
     ):
+        """
+        追記モードのファイル出力を初期化
+
+        Args:
+            output_path: 出力先パス
+            formatter: カスタムフォーマッター（オプション）
+            encoding: ファイルエンコーディング
+        """
         super().__init__(
             output_path=output_path, formatter=formatter, encoding=encoding, mode="a"
         )
 
 
 class LogFileOutput(FileOutput):
+    """ログファイル出力クラス"""
+
     def __init__(
         self,
         output_path: Path,
@@ -70,6 +111,15 @@ class LogFileOutput(FileOutput):
         encoding: str = "utf-8",
         line_prefix: str = "[LOG] ",
     ):
+        """
+        ログファイル出力を初期化
+
+        Args:
+            output_path: 出力先パス
+            formatter: カスタムフォーマッター（オプション）
+            encoding: ファイルエンコーディング
+            line_prefix: ログのプレフィックス
+        """
         super().__init__(
             output_path=output_path,
             formatter=formatter,

@@ -77,12 +77,12 @@ class RateManager:
     def get_rate(self, base: Currency, target: Currency, rate_date: date) -> Rate:
         """
         指定された通貨と日付の為替レートを取得
-        
+
         Args:
             base: 基準通貨
             target: 変換先通貨
             rate_date: レート参照日
-            
+
         Returns:
             為替レート
         """
@@ -112,11 +112,11 @@ class RateManager:
     def _find_rate_for_date(self, source: RateSource, rate_date: date) -> Rate:
         """
         指定された日付に最も近いレートを取得
-        
+
         Args:
             source: レートソース
             rate_date: レート参照日
-            
+
         Returns:
             為替レート
         """
@@ -138,12 +138,12 @@ class RateManager:
     ) -> Optional[Rate]:
         """
         USDを介したクロスレートを計算
-        
+
         Args:
             base: 基準通貨
             target: 変換先通貨
             rate_date: レート参照日
-            
+
         Returns:
             計算されたクロスレート、または None
         """

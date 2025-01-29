@@ -14,10 +14,27 @@ class CSVFormatter(BaseFormatter[List[Dict[str, Any]]]):
         self.fieldnames = fieldnames
 
     def format(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """レコードのフォーマット"""
+        """
+        レコードのフォーマット
+
+        Args:
+            records: フォーマットするレコードリスト
+
+        Returns:
+            フォーマットされたレコードリスト
+        """
         return [self._format_record(record) for record in records]
 
     def _format_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        個別レコードのフォーマット
+
+        Args:
+            record: フォーマットするレコード
+
+        Returns:
+            フォーマットされたレコード
+        """
         formatted = {}
 
         for field in self.fieldnames:
@@ -47,6 +64,15 @@ class CSVOutput(BaseOutput[List[Dict[str, Any]]]):
         encoding: str = "utf-8",
         use_color: bool = False,
     ):
+        """
+        CSV出力を初期化
+
+        Args:
+            output_path: 出力先パス
+            fieldnames: CSV列名リスト
+            encoding: ファイルエンコーディング
+            use_color: カラー出力フラグ
+        """
         formatter = CSVFormatter(fieldnames, use_color)
         super().__init__(formatter)
         self.output_path = output_path
@@ -55,6 +81,12 @@ class CSVOutput(BaseOutput[List[Dict[str, Any]]]):
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def output(self, records: List[Dict[str, Any]]) -> None:
+        """
+        レコードをCSVファイルに出力
+
+        Args:
+            records: 出力するレコードリスト
+        """
         try:
             self.output_path.parent.mkdir(parents=True, exist_ok=True)
             formatted_records = self.format_data(records)

@@ -62,7 +62,7 @@ class Rate:
     def inverse(self) -> "Rate":
         """
         逆レートを取得
-        
+
         Returns:
             逆方向の為替レート
         """
@@ -77,7 +77,7 @@ class Rate:
     def with_date(self, new_date: date) -> "Rate":
         """
         日付を変更した新しいレートを取得
-        
+
         Args:
             new_date: 新しい日付
 
@@ -95,7 +95,7 @@ class Rate:
     def format(self, decimals: int = 4) -> str:
         """
         レートのフォーマット
-        
+
         Args:
             decimals: 小数点以下の桁数
 
@@ -130,7 +130,7 @@ class Rate:
     def __mul__(self, other: "Rate") -> "Rate":
         """
         レートの乗算（クロスレート計算）
-        
+
         Args:
             other: 掛け合わせるレート
 

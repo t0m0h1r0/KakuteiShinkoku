@@ -34,10 +34,10 @@ class InvestmentReporter:
     def generate_reports(self, data: Dict[str, Any]) -> bool:
         """
         レポート一括生成
-        
+
         Args:
             data: レポート生成用データ
-            
+
         Returns:
             生成成功の場合True
         """

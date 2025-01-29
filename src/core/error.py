@@ -42,7 +42,9 @@ class LoaderError(DataError):
     関するエラーを表現します。
     """
 
-    def __init__(self, message: str, source: str, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self, message: str, source: str, details: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         例外を初期化
 
@@ -63,7 +65,13 @@ class ParseError(DataError):
     表現します。
     """
 
-    def __init__(self, message: str, raw_value: str, target_type: str, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        raw_value: str,
+        target_type: str,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         例外を初期化
 
@@ -129,7 +137,9 @@ class PositionError(InvestmentError):
     表現します。
     """
 
-    def __init__(self, message: str, symbol: str, details: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self, message: str, symbol: str, details: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         例外を初期化
 
